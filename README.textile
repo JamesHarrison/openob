@@ -1,0 +1,34 @@
+h1. Welcome to OpenOB
+
+OpenOB is a set of programs, written primarily in Ruby, designed to provide a reliable, easily configured and flexible way of getting audio from A to B in realtime with as little delay as possible.
+
+OpenOB doesn't handle audio encoding or transport- this is done by ffmpeg and supporting cast.
+
+What it adds to these existing tools is reliability, end-to-end monitoring from anywhere via a simple web interface, easy configuration and set-and-forget operation. This makes it particularly suitable for Studio-Transmitter Links (STLs) and outside broadcast events where constant uninterrupted reliable audio is a priority.
+
+It is intended to allow professional broadcasters to avoid expensive 'codec' hardware, which is typically costed based on quality - you pay a premium for better quality. OpenOB gives you full choice of any ffmpeg-supported audio codecs, choice of any bitrate, and allows you to run all of this off commodity computer hardware at much much lower cost, lowering the bar to entry for broadcasters, allowing professional quality contribution links to be set up with nothing more than a laptop.
+
+h2. Development Status
+
+OpenOB is strictly in the speculative and experimental phase right now. If you use it for _anything_, you're insane. You have been warned.
+
+That said, feedback from early adopters is always welcomed with open ears.
+
+h2. Basic Terms and Assumptions
+
+You want to get audio from A to B. A will source audio from a sound card. B will play audio out on a sound card.
+
+A and B are both Linux machines, optionally with sound cards that provide balanced analogue I/O or AES digital I/O (AudioScience or RME Hammerfall etc- anything ALSA or JACK groks).
+
+A is called the contribution system, B is the endpoint system.
+
+You have limited to no control over the network between A and B; we assume limited bandwidth and potential packet loss (configurable to suit different known scenarios such as congested wifi versus an ADSL broadband connection versus a LAN). 
+
+B is network-accessible from the outside world (or at the least A) on a few ports. A is almost certainly unreachable from B.
+
+h2. Dependencies
+
+* Linux (Ubuntu Server/Desktop strongly recommended)
+* Ruby 1.9.2 or greater (1.8.7 should work but is untested) and Rubygems 1.8.3 or greater
+* A whole host of Ruby gems which are installed via Bundler
+* ffmpeg built with your favourite audio codecs (same build/versions on each end strongly recommended)
