@@ -1,3 +1,7 @@
+require 'open3'
+require 'openob/contribution/stream_generator'
+require 'openob/contribution/stream_generators/udp_mpegts_generator'
+require 'openob/contribution/webui'
 # OpenOB
 module OpenOB
   module Contribution
@@ -28,7 +32,3 @@ module OpenOB
     end
   end
 end
-require 'open3'
-require 'openob/contribution/stream_generator'
-require 'openob/contribution/stream_generators/udp_mpegts_generator'
-require 'openob/contribution/webui'
