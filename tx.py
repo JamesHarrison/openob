@@ -61,10 +61,14 @@ class RTPTransmitter():
     # Add the elements to the pipeline
     self.tx.add(self.source, audioconvert, audioresample, audiorate, self.payloader, rtpbin, self.udpsink_rtpout, self.udpsink_rtcpout, udpsrc_rtcpin, level)
     # Explicitly tell the audio conversion block we want stereo, forces JACK clients to grab two ports
-    caps = gst.Caps('audio/x-raw-float, channels=2')
-    audioconvert.get_pad('sink').set_caps(caps)
-    # Now we link them together, pad to pad
-    gst.element_link_many(self.source, audioconvert, audioresample, audiorate, level)
+    if static_conf['tx']['audio_connection'] == 'jack':
+      caps = gst.Caps('audio/x-raw-float, channels=2')
+      capsfilter =  gst.element_factory_make("capsfilter", "filter")
+      capsfilter.set_property("caps", caps)
+      self.tx.add(capsfilter)
+      gst.element_link_many(self.source, capsfilter, audioconvert, audioresample, audiorate, level)
+    else:
+      gst.element_link_many(self.source, audioconvert, audioresample, audiorate, level)
 
   
     self.tx.add(self.encoder)
