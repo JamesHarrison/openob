@@ -76,7 +76,10 @@ class RTPTransmitter():
     if message.type == gst.MESSAGE_ELEMENT:
       if message.structure.get_name() == 'level':
         # This is an audio level update
-        print "@ %s PEAK: %s DECAY: %s RMS: %s" % (message.structure['stream-time'],message.structure['peak'],message.structure['decay'],message.structure['rms'])
+        info_string = ("TX @ %s PEAK: %s DECAY: %s RMS: %s" % (message.structure['stream-time'],message.structure['peak'],message.structure['decay'],message.structure['rms']))
+        config.set("tx_info", info_string)
+        print info_string
+        print config.get("rx_info")
     return gst.BUS_PASS
 
 

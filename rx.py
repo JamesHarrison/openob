@@ -20,7 +20,7 @@ class RTPReceiver:
     # Configure ourselves from the TX keys
     caps = config.get((static_conf['caps_key']+static_conf['rx']['configuration_name']))
     base_port = int(config.get((static_conf['port_key']+static_conf['rx']['configuration_name'])))
-    buffer_size = config.get((static_conf['buffer_size_key']+static_conf['rx']['configuration_name']))
+    buffer_size = int(config.get((static_conf['buffer_size_key']+static_conf['rx']['configuration_name'])))
     depayloader_name = config.get((static_conf['depayloader_key']+static_conf['rx']['configuration_name']))
     decoder_name = config.get((static_conf['decoder_key']+static_conf['rx']['configuration_name']))
 
@@ -92,7 +92,10 @@ class RTPReceiver:
     if message.type == gst.MESSAGE_ELEMENT:
       if message.structure.get_name() == 'level':
         # This is an audio level update
-        print "@ %s PEAK: %s DECAY: %s RMS: %s" % (message.structure['stream-time'],message.structure['peak'],message.structure['decay'],message.structure['rms'])
+        info_string = ("RX @ %s PEAK: %s DECAY: %s RMS: %s" % (message.structure['stream-time'],message.structure['peak'],message.structure['decay'],message.structure['rms']))
+        config.set("rx_info", info_string)
+        print info_string
+        print config.get("tx_info")
     return gst.BUS_PASS
 
   def start(self):

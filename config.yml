@@ -7,7 +7,7 @@
 
 # The configuration host which will allow for exchange of configuration data from transmitter to receiver.
 # This host runs redis, and must be accessible to the sender and the receiver.
-configuration_host: "hometree.mmmetrics.co.uk"
+configuration_host: "192.168.0.53"
 tx:
   # This section is specific to TX mode
   # This key is added to all configuration keys to uniquely identify this link amongst many sharing a config server.
@@ -23,16 +23,25 @@ tx:
   # If in TX mode in ALSA mode, select the device to use.
   alsa_device: "hw:0"
 
-  # The bitrate for the codec in use. Does not affect 
+  # The bitrate for the codec in use. Does not affect rtpL16pay payloaded data.
+  # Suggested settings:
+  #   192000 - high quality CELT, suitable for LAN/fast WANs
+  #   128000 - high-medium quality CELT
+  #   96000  - medium-low quality CELT
+  #   64000  - lower quality CELT, suitable for mobile connections
+  #   32000  - lowest quality CELT, suitable for very poor connections
+  #   320000 - high quality MP3
+  #   192000 - medium quality MP3
+  #   128000 - low quality MP3
   bitrate: 192000
 
   # The base port used. This port and the two above it must be accessible on the RX node in the UDP protocol.
   base_port: 3000
 
-  # The size of the jitter buffer, in milliseconds. 
+  # The size of the jitter buffer, in milliseconds.
   # 25-50 milliseconds is reasonable on a fast reliable LAN, 150-250 milliseconds on slower links.
   # If delay is no issue, set this to a decent size to ensure reliable operation.
-  jitter_buffer_size: 150
+  jitter_buffer_size: 250
 
   # Payloader and encoder options can change the type of stream entirely; 
   #   by default, the CELT codec is used, a high-quality music and speech codec with low latency and no patent/license issues.
