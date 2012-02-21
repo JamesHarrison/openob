@@ -6,54 +6,64 @@
 #  and the GStreamer developers.
 
 import gobject
-gobject.threads_init()
 import pygst
 pygst.require("0.10")
 import gst
 import redis
-config = redis.Redis("REDIS_HOST")
-REMOTE_HOST="ENDPOINT_ADDRESS"
+import yaml
+
+gobject.threads_init()
+
+static_conf = yaml.load(open("config.yml", 'r'))
+config = redis.Redis(static_conf['configuration_host'])
+
 
 class RTPTransmitter():
   def __init__(self):
     self.tx = gst.Pipeline("tx")
     bus = self.tx.get_bus()
     # Audio pipeline elements
-    source = gst.element_factory_make("alsasrc")
-    source.set_property('device', 'hw:0,0')
+    if static_conf['tx']['audio_connection'] == 'alsa':
+      self.source = gst.element_factory_make('alsasrc')
+      self.source.set_property('device', static_conf['tx']['alsa_device'])
+    elif static_conf['tx']['audio_connection'] == 'jack':
+      source = gst.element_factory_make("jackaudiosrc")
+      source.set_property('connect', 'auto')
+    # Audio conversion/sample rate conversion/resampling magic to tie everything together.
     audioconvert = gst.element_factory_make("audioconvert")
     audioresample = gst.element_factory_make("audioresample")
-    audioresample.set_property('quality', 9)
+    audioresample.set_property('quality', 9) # SRC
     audiorate = gst.element_factory_make("audiorate")
-    encoder = gst.element_factory_make("celtenc","celt-encode")
-    #encoder.set_property('max-bitrate', 320000)
-    encoder.set_property('bitrate', 128000)
-    payloader = gst.element_factory_make("rtpceltpay","celt-payload")
+    self.encoder = gst.element_factory_make(static_conf['tx']['encoder']['tx'],"encoder")
+    # Set bitrate, but only for non-raw-audio types
+    if static_conf['tx']['payloader']['tx'] != 'rtpL16pay':
+      self.encoder.set_property('bitrate', static_conf['tx']['bitrate'])
+    self.payloader = gst.element_factory_make(static_conf['tx']['payloader']['tx'],"payloader")
     level = gst.element_factory_make("level")
     level.set_property('message', True)
     level.set_property('interval', 1000000000)
     # We'll send audio out on this
     self.udpsink_rtpout = gst.element_factory_make("udpsink", "udpsink0")
-    self.udpsink_rtpout.set_property('host', REMOTE_HOST)
-    self.udpsink_rtpout.set_property('port', 3000)
+    self.udpsink_rtpout.set_property('host', static_conf['tx']['receiver_address'])
+    self.udpsink_rtpout.set_property('port', int(static_conf['tx']['base_port']))
     # And send our control packets out on this
     self.udpsink_rtcpout = gst.element_factory_make("udpsink", "udpsink1")
-    self.udpsink_rtcpout.set_property('host', REMOTE_HOST)
-    self.udpsink_rtcpout.set_property('port', 3001)
+    self.udpsink_rtcpout.set_property('host', static_conf['tx']['receiver_address'])
+    self.udpsink_rtcpout.set_property('port', int(static_conf['tx']['base_port'])+1)
     # And the receiver will send us RTCP Sender Reports on this
     udpsrc_rtcpin = gst.element_factory_make("udpsrc", "udpsrc0")
-    udpsrc_rtcpin.set_property('port', 3002)
+    udpsrc_rtcpin.set_property('port', int(static_conf['tx']['base_port'])+2)
     # Our RTP manager
     rtpbin = gst.element_factory_make("gstrtpbin","gstrtpbin")
 
     # Add the elements to the pipeline
-    self.tx.add(source, audioconvert, audioresample, audiorate, encoder, payloader, rtpbin, self.udpsink_rtpout, self.udpsink_rtcpout, udpsrc_rtcpin, level)
+    self.tx.add(self.source, audioconvert, audioresample, audiorate, self.encoder, self.payloader, rtpbin, self.udpsink_rtpout, self.udpsink_rtcpout, udpsrc_rtcpin, level)
 
     # Now we link them together, pad to pad
-    gst.element_link_many(source, audioconvert, audioresample, audiorate, level, encoder, payloader)
+    gst.element_link_many(self.source, audioconvert, audioresample, audiorate, level, self.encoder, self.payloader)
 
     # Now the RTP pads
-    payloader.link_pads('src', rtpbin, 'send_rtp_sink_0')
+    self.payloader.link_pads('src', rtpbin, 'send_rtp_sink_0')
     rtpbin.link_pads('send_rtp_src_0', self.udpsink_rtpout, 'sink')
     rtpbin.link_pads('send_rtcp_src_0', self.udpsink_rtcpout, 'sink')
     udpsrc_rtcpin.link_pads('src', rtpbin, 'recv_rtcp_sink_0')
@@ -71,14 +81,20 @@ class RTPTransmitter():
 
 
   def start(self):
+    print "Writing initial shared configuration values"
+    config.set((static_conf['port_key']+static_conf['tx']['configuration_name']),str(static_conf['tx']['base_port']))
+    config.set((static_conf['buffer_size_key']+static_conf['tx']['configuration_name']),str(static_conf['tx']['jitter_buffer_size']))
+    config.set((static_conf['depayloader_key']+static_conf['tx']['configuration_name']),str(static_conf['tx']['payloader']['rx']))
+    config.set((static_conf['decoder_key']+static_conf['tx']['configuration_name']),str(static_conf['tx']['encoder']['rx']))
     print "Setting locked state for udpsink"
     print self.udpsink_rtcpout.set_locked_state(gst.STATE_PLAYING)
     print "Setting pipeline to PLAYING"
     print self.tx.set_state(gst.STATE_PLAYING)
     print "Waiting pipeline to settle"
     print self.tx.get_state()
-    print "Final caps written to redis"
-    config.set("caps",str(self.udpsink_rtpout.get_pad('sink').get_property('caps')))
+    print "Writing shared configuration for RX caps"
+    config.set((static_conf['caps_key']+static_conf['tx']['configuration_name']),str(self.udpsink_rtpout.get_pad('sink').get_property('caps')))
+    print "Done writing configuration, all good to go now!"
 
   def loop(self):
     gobject.MainLoop().run()

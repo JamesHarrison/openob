@@ -1,0 +1,72 @@
+
+# OpenOB Configuration
+
+# The configuration is split into two main sections - top-level global variables, and two chunks for TX/RX specific variables.
+#   OpenOB runs in either RX mode or TX mode. In either mode, configuration is shared - the receiver is configured by the transmitter on most variables.
+#   The variables specific to the RX mode are not overrideable by the TX side.
+
+# The configuration host which will allow for exchange of configuration data from transmitter to receiver.
+# This host runs redis, and must be accessible to the sender and the receiver.
+configuration_host: "hometree.mmmetrics.co.uk"
+tx:
+  # This section is specific to TX mode
+  # This key is added to all configuration keys to uniquely identify this link amongst many sharing a config server.
+  # Use no special characters or spaces, just A-Z, a-z, 0-9 and the - and _ characters.
+  configuration_name: "unnamed-link"
+  # The receiver host which we want to send audio to.
+  receiver_address: "192.168.0.56"
+  # The input configuration for this node in TX mode.
+  # One of JACK or ALSA. JACK will automatically connect to input ports, ALSA uses the device configured below.
+  # JACK must be started prior to starting the OpenOB TX script.
+  audio_connection: "alsa"
+
+  # If in TX mode in ALSA mode, select the device to use.
+  alsa_device: "hw:0"
+
+  # The bitrate for the codec in use. Does not affect 
+  bitrate: 192000
+
+  # The base port used. This port and the two above it must be accessible on the RX node in the UDP protocol.
+  base_port: 3000
+
+  # The size of the jitter buffer, in milliseconds. 
+  # 25-50 milliseconds is reasonable on a fast reliable LAN, 150-250 milliseconds on slower links.
+  # If delay is no issue, set this to a decent size to ensure reliable operation.
+  jitter_buffer_size: 150
+
+  # Payloader and encoder options can change the type of stream entirely; 
+  #   by default, the CELT codec is used, a high-quality music and speech codec with low latency and no patent/license issues.
+  # Where no encoder is desired (raw audio mode), the 'identity' encoder can be used - this acts as a pass-through.
+  # The TX and RX are both configured in this TX-level config option.
+  # Suggested settings:
+  #   CELT - rtpceltpay/rtpceltdepay, celtenc/celtdec
+  #   Raw audio - rtpL16pay/rtpL16depay, identity/identity
+  # The payloader and depayloader used in the stream.
+  payloader:
+    tx: "rtpceltpay"
+    rx: "rtpceltdepay"
+  # The encoder and decoder used in the stream.
+  encoder:
+    tx: "celtenc"
+    rx: "celtdec"
+rx:
+  # This section is specific to RX mode
+  # This key is added to all configuration keys to uniquely identify this link amongst many sharing a config server.
+  # Use no special characters or spaces, just A-Z, a-z, 0-9 and the - and _ characters.
+  configuration_name: "unnamed-link"
+  # The output configuration for this node in RX mode.
+  # One of JACK or ALSA.
+  audio_connection: "alsa"
+
+  # If in RX mode in ALSA mode, select the device to use.
+  alsa_device: "hw:0"
+
+
+# Keys used for OpenOB's shared configuration.
+# You should never need to change these.
+# They are prefixed to the configuration name.
+port_key: "openob:port:"
+caps_key: "openob:caps:"
+buffer_size_key: "openob:jitter_buffer_size:"
+depayloader_key: "openob:depayloader:"
+decoder_key: "openob:decoder:"

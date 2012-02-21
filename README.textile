@@ -4,6 +4,8 @@ OpenOB is a set of simple scripts that use the GStreamer framework to transport 
 
 It is intended to allow professional broadcasters to avoid expensive 'codec' hardware, which is typically costed based on quality - you pay a premium for better quality or lower latencies. OpenOB supports CELT, a high-quality efficient low-latency codec, and allows you to run all of this off commodity computer hardware at much much lower cost, lowering the bar to entry for broadcasters, allowing professional quality contribution links to be set up with nothing more than an entry-level computer at each end.
 
+The OpenOB project also provides various helper scripts for other scenarios, like compatibility with commercial sender hardware like Barix/Sonifex Instreamer/PS-SEND streamers.
+
 h2. Development Status
 
 OpenOB is strictly in the speculative and experimental phase right now. If you use it for _anything_, you're insane. You have been warned. It's a massive hack but has been used for a few gigs.
@@ -49,4 +51,5 @@ h2. Dependencies
 * Python
 * Python gstreamer bindings
 * Python redis bindings
+* Python gobject bindings
 * Redis server (on the receiver only)
