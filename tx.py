@@ -28,8 +28,8 @@ class RTPTransmitter():
       self.source = gst.element_factory_make('alsasrc')
       self.source.set_property('device', static_conf['tx']['alsa_device'])
     elif static_conf['tx']['audio_connection'] == 'jack':
-      source = gst.element_factory_make("jackaudiosrc")
-      source.set_property('connect', 'auto')
+      self.source = gst.element_factory_make("jackaudiosrc")
+      self.source.set_property('connect', 'auto')
     # Audio conversion/sample rate conversion/resampling magic to tie everything together.
     audioconvert = gst.element_factory_make("audioconvert")
     audioresample = gst.element_factory_make("audioresample")
