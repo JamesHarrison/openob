@@ -35,10 +35,10 @@ class RTPTransmitter():
     audioresample = gst.element_factory_make("audioresample")
     audioresample.set_property('quality', 9) # SRC
     audiorate = gst.element_factory_make("audiorate")
+
+
     self.encoder = gst.element_factory_make(static_conf['tx']['encoder']['tx'],"encoder")
-    # Set bitrate, but only for non-raw-audio types
-    if static_conf['tx']['payloader']['tx'] != 'rtpL16pay':
-      self.encoder.set_property('bitrate', static_conf['tx']['bitrate'])
+    self.encoder.set_property('bitrate', static_conf['tx']['bitrate'])
     self.payloader = gst.element_factory_make(static_conf['tx']['payloader']['tx'],"payloader")
     level = gst.element_factory_make("level")
     level.set_property('message', True)
@@ -58,11 +58,14 @@ class RTPTransmitter():
     rtpbin = gst.element_factory_make("gstrtpbin","gstrtpbin")
 
     # Add the elements to the pipeline
-    self.tx.add(self.source, audioconvert, audioresample, audiorate, self.encoder, self.payloader, rtpbin, self.udpsink_rtpout, self.udpsink_rtcpout, udpsrc_rtcpin, level)
+    self.tx.add(self.source, audioconvert, audioresample, audiorate, self.payloader, rtpbin, self.udpsink_rtpout, self.udpsink_rtcpout, udpsrc_rtcpin, level)
 
     # Now we link them together, pad to pad
-    gst.element_link_many(self.source, audioconvert, audioresample, audiorate, level, self.encoder, self.payloader)
+    gst.element_link_many(self.source, audioconvert, audioresample, audiorate, level)
 
+  
+    self.tx.add(self.encoder)
+    gst.element_link_many(level, self.encoder, self.payloader)
     # Now the RTP pads
     self.payloader.link_pads('src', rtpbin, 'send_rtp_sink_0')
     rtpbin.link_pads('send_rtp_src_0', self.udpsink_rtpout, 'sink')
@@ -85,6 +88,7 @@ class RTPTransmitter():
 
 
   def start(self):
+    print "OpenOB TX Mode Starting"
     print "Writing initial shared configuration values"
     config.set((static_conf['port_key']+static_conf['tx']['configuration_name']),str(static_conf['tx']['base_port']))
     config.set((static_conf['buffer_size_key']+static_conf['tx']['configuration_name']),str(static_conf['tx']['jitter_buffer_size']))

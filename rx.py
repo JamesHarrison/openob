@@ -100,6 +100,7 @@ class RTPReceiver:
     return gst.BUS_PASS
 
   def start(self):
+    print "OpenOB RX Mode Starting"
     self.rx.set_state(gst.STATE_PLAYING)
     #udpsink_rtcpout.set_locked_state(gst.STATE_PLAYING)
     print "Started..."

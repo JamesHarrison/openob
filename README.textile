@@ -4,11 +4,9 @@ OpenOB is a set of simple scripts that use the GStreamer framework to transport 
 
 It is intended to allow professional broadcasters to avoid expensive 'codec' hardware, which is typically costed based on quality - you pay a premium for better quality or lower latencies. OpenOB supports CELT, a high-quality efficient low-latency codec, and allows you to run all of this off commodity computer hardware at much much lower cost, lowering the bar to entry for broadcasters, allowing professional quality contribution links to be set up with nothing more than an entry-level computer at each end.
 
-The OpenOB project also provides various helper scripts for other scenarios, like compatibility with commercial sender hardware like Barix/Sonifex Instreamer/PS-SEND streamers.
-
 h2. Development Status
 
-OpenOB is strictly in the speculative and experimental phase right now. If you use it for _anything_, you're insane. You have been warned. It's a massive hack but has been used for a few gigs.
+OpenOB is strictly in the speculative and experimental phase right now. If you use it for _anything_, you're insane. You have been warned. It's a massive hack but has been used for a few gigs and is currently being used as a primary studio-transmitter link at a community radio station.
 
 That said, feedback from early adopters is always welcomed with open ears.
 
@@ -32,24 +30,28 @@ The underlying audio link uses the CELT codec to encode audio. This is a codec e
 
 The transport is the Real Time Protocol, using UDP datagrams to move audio around. OpenOB also supports RTCP and the RTCP Sender Report protocol, though only at the gstreamer level.
 
-Audio level monitoring is provided via simple printouts at each end for easy debugging. Network failures are recovered from automatically.
+Audio level monitoring is provided via simple printouts at each end for easy debugging. Network failures are recovered from automatically. Level monitoring of each end along with timestamps are provided bidirectionally for debugging and monitoring.
 
-Configuration is done on the transmitter, which sends the audio stream caps needed to decode the audio to the redis server. The receiver configures itself from the redis server upon an incoming connection. This allows for contributors to change their bandwidth or other link parameters without needing to reconfigure the receiver.
+Configuration is done on the transmitter, which sends the audio stream caps needed to decode the audio to the redis server along with port, jitter buffer size, and decoder/depayloader information required to operate. The receiver configures itself from the redis server upon an incoming connection. This allows for contributors to change their bandwidth or other link parameters without needing to reconfigure the receiver and with only a minimal break in transmission.
 
-Latency is by default configured limited on jitter buffer size with a 150ms buffer, which works well on congested switched networks with no QoS. 50ms and lower are possible on suitable hardware with a suitable connection.
+Latency is by default configured limited on jitter buffer size with a 250ms buffer, which works well on congested switched networks with no QoS. 50ms and lower are possible on suitable hardware with a suitable connection.
 
 h2. Usage/Installation
 
-Grab the scripts, put tx.py on the transmitter/contribution machine, rx.py on the receiver/endpoint, set up Redis on a host both can access (usually the receiver/endpoint) and adjust the hostnames and ports in the script to suit. You'll have to open your firewall up appropriately- at a minimum, one port for Redis, one port for RTP.
+Grab the scripts, put tx.py on the transmitter/contribution machine, rx.py on the receiver/endpoint, set up Redis on a host both can access (usually the receiver/endpoint). You'll have to open your firewall up appropriately- at a minimum, one port for Redis, three ports for RTP.
 
-Run the rx with python rx.py, run the tx with python tx.py.
+Copy config.yml.example to config.yml and configure it - at a minimum change configuration_host and receiver_address. Read through and understand what the options do, though.
+
+Run OpenOB in RX mode with `python rx.py` or in TX mode with `python tx.py`. Both modes can be run on a single machine simultaneously so long as ports and configuration names differ, allowing for bidirectional links, or relay links.
 
 h2. Dependencies
 
 * Linux (Ubuntu Server/Desktop tested)
-* gstreamer 0.10 plus plugins (alsa, celt and rtp pads required)
-* Python
+* gstreamer 0.10 plus plugins (alsa, celt and rtp bins required - install good, bad and ugly packages, plus any gstreamer-alsa packages for your distro)
+* Python 2.7 or lower (3.x not supported yet)
 * Python gstreamer bindings
 * Python redis bindings
 * Python gobject bindings
+* Python yaml bindings
+* JACK server (optionally, ALSA is fine though)
 * Redis server (on the receiver only)
