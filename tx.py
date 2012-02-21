@@ -30,6 +30,7 @@ class RTPTransmitter():
     elif static_conf['tx']['audio_connection'] == 'jack':
       self.source = gst.element_factory_make("jackaudiosrc")
       self.source.set_property('connect', 'auto')
+      self.source.set_property('name', "openob_"+static_conf['tx']['configuration_name'])
     # Audio conversion/sample rate conversion/resampling magic to tie everything together.
     audioconvert = gst.element_factory_make("audioconvert")
     audioresample = gst.element_factory_make("audioresample")
@@ -59,7 +60,9 @@ class RTPTransmitter():
 
     # Add the elements to the pipeline
     self.tx.add(self.source, audioconvert, audioresample, audiorate, self.payloader, rtpbin, self.udpsink_rtpout, self.udpsink_rtcpout, udpsrc_rtcpin, level)
-
+    # Explicitly tell the audio conversion block we want stereo, forces JACK clients to grab two ports
+    caps = gst.Caps('audio/x-raw-float, channels=2')
+    audioconvert.get_pad('sink').set_caps(caps)
     # Now we link them together, pad to pad
     gst.element_link_many(self.source, audioconvert, audioresample, audiorate, level)
 
