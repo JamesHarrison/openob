@@ -11,6 +11,7 @@ pygst.require("0.10")
 import gst
 import redis
 import yaml
+import datetime
 
 static_conf = yaml.load(open("config.yml", 'r'))
 config = redis.Redis(static_conf['configuration_host'])
@@ -92,7 +93,7 @@ class RTPReceiver:
     if message.type == gst.MESSAGE_ELEMENT:
       if message.structure.get_name() == 'level':
         # This is an audio level update
-        info_string = ("RX @ %s PEAK: %s DECAY: %s RMS: %s" % (message.structure['stream-time'],message.structure['peak'],message.structure['decay'],message.structure['rms']))
+        info_string = ("RX <= %s %s PEAK: %s DECAY: %s RMS: %s" % (datetime.datetime.now().strftime("%H:%M:%S"),message.structure['stream-time'],message.structure['peak'],message.structure['decay'],message.structure['rms']))
         config.set("rx_info", info_string)
         print info_string
         print config.get("tx_info")

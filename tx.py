@@ -11,6 +11,7 @@ pygst.require("0.10")
 import gst
 import redis
 import yaml
+import datetime
 
 gobject.threads_init()
 
@@ -76,7 +77,7 @@ class RTPTransmitter():
     if message.type == gst.MESSAGE_ELEMENT:
       if message.structure.get_name() == 'level':
         # This is an audio level update
-        info_string = ("TX @ %s PEAK: %s DECAY: %s RMS: %s" % (message.structure['stream-time'],message.structure['peak'],message.structure['decay'],message.structure['rms']))
+        info_string = ("TX => %s %s PEAK: %s DECAY: %s RMS: %s" % (datetime.datetime.now().strftime("%H:%M:%S"),message.structure['stream-time'],message.structure['peak'],message.structure['decay'],message.structure['rms']))
         config.set("tx_info", info_string)
         print info_string
         print config.get("rx_info")
