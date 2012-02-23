@@ -47,13 +47,13 @@ Grab the scripts, put tx.py on the transmitter/contribution machine, rx.py on th
 
 To install dependencies on an Ubuntu box you can run the following:
 
-  sudo apt-get install python-gst0.10 python-serial python-redis gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \
-    gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-alsa \
-    gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa python-yaml
+    sudo apt-get install python-gst0.10 python-serial python-redis gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \
+      gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-alsa \
+      gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa python-yaml
 
 You will also need to install Redis on one end:
  
-  sudo apt-get install redis-server
+    sudo apt-get install redis-server
 
 You then need to edit /etc/redis/redis.conf and instruct redis to bind to your external IP address or 0.0.0.0.
 
