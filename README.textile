@@ -38,7 +38,24 @@ Latency is by default configured limited on jitter buffer size with a 250ms buff
 
 h2. Usage/Installation
 
-Grab the scripts, put tx.py on the transmitter/contribution machine, rx.py on the receiver/endpoint, set up Redis on a host both can access (usually the receiver/endpoint). You'll have to open your firewall up appropriately- at a minimum, one port for Redis, three ports for RTP.
+Grab the scripts, put tx.py on the transmitter/contribution machine, rx.py on the receiver/endpoint, set up Redis on a host both can access (usually the receiver/endpoint). You'll have to open your firewall up appropriately- at a minimum, one port for Redis, three ports for RTP:
+
+* Redis - port 6379 TCP (only needed on the end hosting your configuration)
+* RTP - port 3000 UDP - the base port for communications, configurable (receiver)
+* RTCP - port 3001 UDP - base port plus one (receiver)
+* RTCP Sender Reports - port 3002 UDP - base port plus two (transmitter)
+
+To install dependencies on an Ubuntu box you can run the following:
+
+  sudo apt-get install python-gst0.10 python-serial python-redis gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \
+    gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-alsa \
+    gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa python-yaml
+
+You will also need to install Redis on one end:
+ 
+  sudo apt-get install redis-server
+
+You then need to edit /etc/redis/redis.conf and instruct redis to bind to your external IP address or 0.0.0.0.
 
 Copy config.yml.example to config.yml and configure it - at a minimum change configuration_host and receiver_address. Read through and understand what the options do, though.
 

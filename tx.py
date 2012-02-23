@@ -36,8 +36,6 @@ class RTPTransmitter():
     audioresample = gst.element_factory_make("audioresample")
     audioresample.set_property('quality', 9) # SRC
     audiorate = gst.element_factory_make("audiorate")
-
-
     self.encoder = gst.element_factory_make(static_conf['tx']['encoder']['tx'],"encoder")
     self.encoder.set_property('bitrate', static_conf['tx']['bitrate'])
     self.payloader = gst.element_factory_make(static_conf['tx']['payloader']['tx'],"payloader")
@@ -60,7 +58,7 @@ class RTPTransmitter():
 
     # Add the elements to the pipeline
     self.tx.add(self.source, audioconvert, audioresample, audiorate, self.payloader, rtpbin, self.udpsink_rtpout, self.udpsink_rtcpout, udpsrc_rtcpin, level)
-    # Explicitly tell the audio conversion block we want stereo, forces JACK clients to grab two ports
+    # Explicitly tell the jackaudiosrc we want stereo via a capsfilter, forces JACK client to grab two ports
     if static_conf['tx']['audio_connection'] == 'jack':
       caps = gst.Caps('audio/x-raw-float, channels=2')
       capsfilter =  gst.element_factory_make("capsfilter", "filter")
