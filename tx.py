@@ -56,7 +56,7 @@ class RTPTransmitter():
     # Our RTP manager
     rtpbin = gst.element_factory_make("gstrtpbin","gstrtpbin")
 
-    # Add the elements to the pipeline
+    # Add the elements to the pipeline and glue it all together neatly.
     self.tx.add(self.source, audioconvert, audioresample, audiorate, self.payloader, rtpbin, self.udpsink_rtpout, self.udpsink_rtcpout, udpsrc_rtcpin, level)
     # Explicitly tell the jackaudiosrc we want stereo via a capsfilter, forces JACK client to grab two ports
     if static_conf['tx']['audio_connection'] == 'jack':
@@ -64,19 +64,26 @@ class RTPTransmitter():
       capsfilter =  gst.element_factory_make("capsfilter", "filter")
       capsfilter.set_property("caps", caps)
       self.tx.add(capsfilter)
-      gst.element_link_many(self.source, capsfilter, audioconvert, audioresample, audiorate, level)
+      gst.element_link_many(self.source, capsfilter, audioresample, audiorate, audioconvert)
     else:
-      gst.element_link_many(self.source, audioconvert, audioresample, audiorate, level)
+      gst.element_link_many(self.source, audioresample, audiorate, audioconvert)
+    # If we're payloading raw audio, let's just deal with the payloader.
+    # We won't need an encoder.
+    if static_conf['tx']['payloader'] == 'rtpL16pay':
+      gst.element_link_many(audioconvert, self.payloader)
+    else:
+      # Add an encoder if we need one.
+      self.tx.add(self.encoder)
+      gst.element_link_many(audioconvert, self.encoder, self.payloader)
+    
+    gst.element_link_many(audioconvert, level)
 
-  
-    self.tx.add(self.encoder)
-    gst.element_link_many(level, self.encoder, self.payloader)
-    # Now the RTP pads
+    # Now the RTP pads, which are a little trickier.
     self.payloader.link_pads('src', rtpbin, 'send_rtp_sink_0')
     rtpbin.link_pads('send_rtp_src_0', self.udpsink_rtpout, 'sink')
     rtpbin.link_pads('send_rtcp_src_0', self.udpsink_rtcpout, 'sink')
     udpsrc_rtcpin.link_pads('src', rtpbin, 'recv_rtcp_sink_0')
-
+    # We need to have some stuff on busses to report level information
     bus.add_signal_watch()
     bus.enable_sync_message_emission()
     bus.connect('message', self.on_bus_message)
