@@ -69,7 +69,7 @@ class RTPTransmitter():
       gst.element_link_many(self.source, audioresample, audiorate, level, audioconvert)
     # If we're payloading raw audio, let's just deal with the payloader.
     # We won't need an encoder.
-    if static_conf['tx']['payloader'] == 'rtpL16pay':
+    if static_conf['tx']['payloader']['tx'] == 'rtpL16pay':
       gst.element_link_many(audioconvert, self.payloader)
     else:
       # Add an encoder if we need one.
