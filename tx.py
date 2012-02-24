@@ -64,9 +64,9 @@ class RTPTransmitter():
       capsfilter =  gst.element_factory_make("capsfilter", "filter")
       capsfilter.set_property("caps", caps)
       self.tx.add(capsfilter)
-      gst.element_link_many(self.source, capsfilter, audioresample, audiorate, audioconvert)
+      gst.element_link_many(self.source, capsfilter, audioresample, audiorate, level, audioconvert)
     else:
-      gst.element_link_many(self.source, audioresample, audiorate, audioconvert)
+      gst.element_link_many(self.source, audioresample, audiorate, level, audioconvert)
     # If we're payloading raw audio, let's just deal with the payloader.
     # We won't need an encoder.
     if static_conf['tx']['payloader'] == 'rtpL16pay':
@@ -76,7 +76,6 @@ class RTPTransmitter():
       self.tx.add(self.encoder)
       gst.element_link_many(audioconvert, self.encoder, self.payloader)
     
-    gst.element_link_many(audioconvert, level)
 
     # Now the RTP pads, which are a little trickier.
     self.payloader.link_pads('src', rtpbin, 'send_rtp_sink_0')
