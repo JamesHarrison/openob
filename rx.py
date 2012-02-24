@@ -67,10 +67,14 @@ class RTPReceiver:
     udpsink_rtcpout.set_property('port', base_port+2)
 
 
-    # Add the elements to the pipeline
-    self.rx.add(audiorate, audioresample, audioconvert, self.sink, self.decoder, self.depayloader, self.rtpbin, udpsrc_rtpin, udpsrc_rtcpin, udpsink_rtcpout, level)
-    # Link anything with static pads
-    gst.element_link_many(self.depayloader, self.decoder, audioconvert, level, audioresample, audiorate, self.sink)
+    # Add the elements to the pipeline and link 'em up
+    if depayloader_name == 'rtpL16depay':
+      self.rx.add(audiorate, audioresample, audioconvert, self.sink, self.depayloader, self.rtpbin, udpsrc_rtpin, udpsrc_rtcpin, udpsink_rtcpout, level)
+      gst.element_link_many(self.depayloader, audioconvert, level, audioresample, audiorate, self.sink)
+    else:
+      self.rx.add(audiorate, audioresample, audioconvert, self.sink, self.decoder, self.depayloader, self.rtpbin, udpsrc_rtpin, udpsrc_rtcpin, udpsink_rtcpout, level)
+      gst.element_link_many(self.depayloader, self.decoder, audioconvert, level, audioresample, audiorate, self.sink)
+    
     # Now the RTP pads
     udpsrc_rtpin.link_pads('src', self.rtpbin, 'recv_rtp_sink_0')
     udpsrc_rtcpin.link_pads('src', self.rtpbin, 'recv_rtcp_sink_0')
