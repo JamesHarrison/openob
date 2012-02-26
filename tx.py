@@ -12,6 +12,7 @@ import gst
 import redis
 import yaml
 import datetime
+import calendar
 
 gobject.threads_init()
 
@@ -90,13 +91,27 @@ class RTPTransmitter():
   def on_bus_message(self, bus, message):
     if message.type == gst.MESSAGE_ELEMENT:
       if message.structure.get_name() == 'level':
-        # This is an audio level update
-        info_string = ("TX => %s %s PEAK: %s DECAY: %s RMS: %s" % (datetime.datetime.now().strftime("%H:%M:%S"),message.structure['stream-time'],message.structure['peak'],message.structure['decay'],message.structure['rms']))
-        config.set("tx_info", info_string)
-        print info_string
-        print config.get("rx_info")
-    return gst.BUS_PASS
+        # This is an audio level update, which the 'level' element emits once a second.
+        
+        # We're storing lists here in redis to let us do historical graphing in the webUI.
 
+        # First, push a timestamp value
+        config.lpush((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":utc_timestamps"), calendar.timegm(datetime.utcnow()))
+
+        # Push the latest values to the Redis server
+        config.lpush((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":rms:left"), message.structure['rms'][0])
+        config.lpush((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":rms:right"), message.structure['rms'][1])
+        config.lpush((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":peak:left"), message.structure['peak'][0])
+        config.lpush((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":peak:right"), message.structure['peak'][1])
+        
+        # Trim the lists down to 3600 seconds (1 hour) of data to stop them getting too huge while remaining useful for level graphs
+        config.ltrim((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":utc_timestamps"), 0, 3600)
+        config.ltrim((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":rms:left"), 0, 3600)
+        config.ltrim((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":rms:right"), 0, 3600)
+        config.ltrim((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":peak:left"), 0, 3600)
+        config.ltrim((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":peak:right"), 0, 3600)
+        print message.structure['rms']
+    return gst.BUS_PASS
 
   def start(self):
     print "OpenOB TX Mode Starting"

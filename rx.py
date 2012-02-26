@@ -61,7 +61,7 @@ class RTPReceiver:
     udpsrc_rtcpin = gst.element_factory_make('udpsrc')
     udpsrc_rtcpin.set_property('port', base_port+1)
     udpsrc_rtcpin.set_property('timeout', 5000000)
-    # And where we'll send RTCP Sender Reports
+    # And where we'll get RTCP Sender Reports
     udpsink_rtcpout = gst.element_factory_make('udpsink')
     udpsink_rtcpout.set_property('host', "0.0.0.0")
     udpsink_rtcpout.set_property('port', base_port+2)
@@ -96,11 +96,26 @@ class RTPReceiver:
   def on_bus_message(self, bus, message):
     if message.type == gst.MESSAGE_ELEMENT:
       if message.structure.get_name() == 'level':
-        # This is an audio level update
-        info_string = ("RX <= %s %s PEAK: %s DECAY: %s RMS: %s" % (datetime.datetime.now().strftime("%H:%M:%S"),message.structure['stream-time'],message.structure['peak'],message.structure['decay'],message.structure['rms']))
-        config.set("rx_info", info_string)
-        print info_string
-        print config.get("tx_info")
+        # This is an audio level update, which the 'level' element emits once a second.
+        
+        # We're storing lists here in redis to let us do historical graphing in the webUI.
+
+        # First, push a timestamp value
+        config.lpush((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":utc_timestamps"), calendar.timegm(datetime.utcnow()))
+
+        # Push the latest values to the Redis server
+        config.lpush((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":rms:left"), message.structure['rms'][0])
+        config.lpush((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":rms:right"), message.structure['rms'][1])
+        config.lpush((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":peak:left"), message.structure['peak'][0])
+        config.lpush((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":peak:right"), message.structure['peak'][1])
+        
+        # Trim the lists down to 3600 seconds (1 hour) of data to stop them getting too huge while remaining useful for level graphs
+        config.ltrim((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":utc_timestamps"), 0, 3600)
+        config.ltrim((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":rms:left"), 0, 3600)
+        config.ltrim((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":rms:right"), 0, 3600)
+        config.ltrim((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":peak:left"), 0, 3600)
+        config.ltrim((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":peak:right"), 0, 3600)
+        
     return gst.BUS_PASS
 
   def start(self):
