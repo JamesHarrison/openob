@@ -96,7 +96,7 @@ class RTPTransmitter():
         # We're storing lists here in redis to let us do historical graphing in the webUI.
 
         # First, push a timestamp value
-        config.lpush((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":utc_timestamps"), calendar.timegm(datetime.utcnow()))
+        config.lpush((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":utc_timestamps"), calendar.timegm(datetime.datetime.utcnow().timetuple()))
 
         # Push the latest values to the Redis server
         config.lpush((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":rms:left"), message.structure['rms'][0])
@@ -110,7 +110,7 @@ class RTPTransmitter():
         config.ltrim((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":rms:right"), 0, 3600)
         config.ltrim((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":peak:left"), 0, 3600)
         config.ltrim((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":peak:right"), 0, 3600)
-        print message.structure['rms']
+        print message.structure['peak']
     return gst.BUS_PASS
 
   def start(self):

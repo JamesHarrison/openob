@@ -24,7 +24,6 @@ class RTPReceiver:
     buffer_size = int(config.get((static_conf['buffer_size_key']+static_conf['rx']['configuration_name'])))
     depayloader_name = config.get((static_conf['depayloader_key']+static_conf['rx']['configuration_name']))
     decoder_name = config.get((static_conf['decoder_key']+static_conf['rx']['configuration_name']))
-
     self.rx = gst.Pipeline("rx")
     bus = self.rx.get_bus()
     # Audio pipeline elements
@@ -74,7 +73,9 @@ class RTPReceiver:
     else:
       self.rx.add(audiorate, audioresample, audioconvert, self.sink, self.decoder, self.depayloader, self.rtpbin, udpsrc_rtpin, udpsrc_rtcpin, udpsink_rtcpout, level)
       gst.element_link_many(self.depayloader, self.decoder, audioconvert, level, audioresample, audiorate, self.sink)
-    
+    for p in udpsrc_rtpin.pads():
+      print p
+      print p.get_caps()
     # Now the RTP pads
     udpsrc_rtpin.link_pads('src', self.rtpbin, 'recv_rtp_sink_0')
     udpsrc_rtcpin.link_pads('src', self.rtpbin, 'recv_rtcp_sink_0')
@@ -101,7 +102,7 @@ class RTPReceiver:
         # We're storing lists here in redis to let us do historical graphing in the webUI.
 
         # First, push a timestamp value
-        config.lpush((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":utc_timestamps"), calendar.timegm(datetime.utcnow()))
+        config.lpush((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":utc_timestamps"), calendar.timegm(datetime.datetime.utcnow().timetuple()))
 
         # Push the latest values to the Redis server
         config.lpush((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":rms:left"), message.structure['rms'][0])

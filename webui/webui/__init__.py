@@ -6,5 +6,8 @@ def main(global_config, **settings):
     config = Configurator(settings=settings)
     config.add_static_view('static', 'static', cache_max_age=3600)
     config.add_route('home', '/')
+    config.add_route('save_tx', '/save_tx')
+    config.add_route('tx_levels', '/tx_levels.json')
+    config.add_route('rx_levels', '/rx_levels.json')
     config.scan()
     return config.make_wsgi_app()

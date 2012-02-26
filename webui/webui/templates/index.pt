@@ -3,6 +3,8 @@
   <head>
     <title>OpenOB WebUI</title>
     <link rel="stylesheet" href="${request.static_url('webui:static/global.css')}" type="text/css" media="screen" charset="utf-8" />
+    <script language="javascript" type="text/javascript" src="${request.static_url('webui:static/jquery-1.7.1.min.js')}"></script>
+    <script language="javascript" type="text/javascript" src="${request.static_url('webui:static/jquery.sparkline.min.js')}"></script>
   </head>
   <body>
     <div id="container">
@@ -13,17 +15,41 @@
         <div id="status">
           <h1>Link Status</h1>
           <h3>Transmitter</h3>
-          ${config.lrange((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":rms:left"),0,180)}
-          ${config.lrange((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":rms:right"),0,180)}
-          ${config.lrange((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":peak:left"),0,180)}
-          ${config.lrange((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":peak:right"),0,180)}
-          ${config.lrange((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":utc_timestamps"),0,180)}
+          <div id="tx_meters" class="meterbridge">
+            <div class="meter">
+              RMS L <div class="meter_value" id="tx_rms_left_meter"></div><span class="spark" id="tx_rms_left"></span>
+            </div>
+            <div class="meter">
+              RMS R <div class="meter_value" id="tx_rms_right_meter"></div><span class="spark" id="tx_rms_right"></span>
+            </div>
+            <div class="meter">
+              Peak L <div class="meter_value" id="tx_peak_left_meter"></div><span class="spark" id="tx_peak_left"></span>
+            </div>
+            <div class="meter">
+              Peak R <div class="meter_value" id="tx_peak_right_meter"></div><span class="spark" id="tx_peak_right"></span>
+            </div>
+          </div>
+          <div id="tx_not_running" class="meterhidden">
+            <p>Transmitter not active - run <code>python tx.py</code> to enable this node's transmitter</p>
+          </div>
           <h3>Receiver</h3>
-          ${config.lrange((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":rms:left"),0,180)}
-          ${config.lrange((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":rms:right"),0,180)}
-          ${config.lrange((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":peak:left"),0,180)}
-          ${config.lrange((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":peak:right"),0,180)}
-          ${config.lrange((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":utc_timestamps"),0,180)}
+          <div id="rx_meters" class="meterbridge">
+            <div class="meter">
+              RMS L <div class="meter_value" id="rx_rms_left_meter"></div><span class="spark" id="rx_rms_left"></span>
+            </div>
+            <div class="meter">
+              RMS R <div class="meter_value" id="rx_rms_right_meter"></div><span class="spark" id="rx_rms_right"></span>
+            </div>
+            <div class="meter">
+              Peak L <div class="meter_value" id="rx_peak_left_meter"></div><span class="spark" id="rx_peak_left"></span>
+            </div>
+            <div class="meter">
+              Peak R <div class="meter_value" id="rx_peak_right_meter"></div><span class="spark" id="rx_peak_right"></span>
+            </div>
+          </div>
+          <div id="rx_not_running" class="meterhidden">
+            <p>Receiver not active - run <code>python rx.py</code> to enable this node's receiver</p>
+          </div>
         </div>
         <div id="tx-params">
           <h1>Transmission Parameters</h1>
@@ -82,9 +108,56 @@
           </div>
         </div>
       </div>
-      <div id="footer">
-        <a href="https://github.com/JamesHarrison/openob">Open Outside Broadcast</a> - Web Interface - BETA
-      </div>
     </div>
+    <div id="footer">
+      <a href="https://github.com/JamesHarrison/openob">Open Outside Broadcast</a> - Web Interface - BETA
+    </div>
+    <script type="text/javascript">
+      $(function () {
+        function update() {
+          var now = (new Date().getTime() / 1000)-3;
+          $.get("/tx_levels.json",function(data){
+            if (now < data['timestamp']) {
+              $('#tx_meters').show();
+              $('#tx_not_running').hide();
+              var opts = {'type':'bar', 'barWidth':1, 'height':'90px', 'chartRangeMin':-40.0, 'chartRangeMax':0.0, 'negBarColor':'#6eaede'};
+              $('#tx_rms_left').sparkline(data['rms_left'],opts);
+              $('#tx_rms_right').sparkline(data['rms_right'],opts);
+              $('#tx_peak_left').sparkline(data['peak_left'],opts);
+              $('#tx_peak_right').sparkline(data['peak_right'],opts);
+              $('#tx_rms_left_meter').text(Math.round(data['rms_left'][0]*10)/10);
+              $('#tx_rms_right_meter').text(Math.round(data['rms_right'][0]*10)/10);
+              $('#tx_peak_left_meter').text(Math.round(data['peak_left'][0]*10)/10);
+              $('#tx_peak_right_meter').text(Math.round(data['peak_right'][0]*10)/10);
+            } else {
+              $('#tx_meters').hide();
+              $('#tx_not_running').show();
+            }
+          }, "json");
+          $.get("/rx_levels.json",function(data){
+            if (now < data['timestamp']) {
+              $('#rx_meters').show();
+              $('#rx_not_running').hide();
+              var opts = {'type':'bar', 'barWidth':1, 'height':'90px', 'chartRangeMin':-40.0, 'chartRangeMax':0.0, 'negBarColor':'#6eaede'};
+              $('#rx_rms_left').sparkline(data['rms_left'],opts);
+              $('#rx_rms_right').sparkline(data['rms_right'],opts);
+              $('#rx_peak_left').sparkline(data['peak_left'],opts);
+              $('#rx_peak_right').sparkline(data['peak_right'],opts);
+              $('#rx_rms_left_meter').text(Math.round(data['rms_left'][0]*10)/10);
+              $('#rx_rms_right_meter').text(Math.round(data['rms_right'][0]*10)/10);
+              $('#rx_peak_left_meter').text(Math.round(data['peak_left'][0]*10)/10);
+              $('#rx_peak_right_meter').text(Math.round(data['peak_right'][0]*10)/10);
+            } else {
+              $('#rx_meters').hide();
+              $('#rx_not_running').show();
+            }
+          }, "json");
+          
+          setTimeout(update, 1000);
+        }
+
+        update();
+      });
+    </script>
   </body>
 </html>

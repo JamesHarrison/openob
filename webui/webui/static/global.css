@@ -1,4 +1,4 @@
-body{background-color:#FFF;color:#333;font-family:verdana, arial, helvetica, sans-serif;font-size:13px;line-height:18px;}
+body{background-color:#000;color:#FFF;font-family:verdana, arial, helvetica, sans-serif;font-size:13px;line-height:18px;}
 h1,h2,h3,h4,h5,intro{font-weight:normal;text-rendering:optimizeLegibility;margin-bottom:0.618em;}
 h1{font-size:24px;}
 h2{font-size:22px;}
@@ -12,14 +12,14 @@ a:visited{color:#57a4db;}
 a:hover{color:#9273d0;}
 #container{width:800px;margin:auto;}
 #header{margin-top:15px;margin-left:15px;font-size:24px;margin-bottom:15px;clear:both;}
-#header a{color:#333;}
+#header a{color:#FFF;}
 #footer a{color:#777;}
 #footer {font-size:9px;text-align:center;}
 #content {
   margin:10px;
   padding:10px;
   border:1px solid #ccc;
-  width:800px;
+  color:#333;background-color:#FFF;
 }
 .parameter {
   padding:10px;
@@ -29,3 +29,21 @@ a:hover{color:#9273d0;}
 .parameter strong{}
 .parameter a{width:170px;display:block;float:left;font-weight:bold;}
 .help{font-style:italic;font-size:11px;}
+.meterbridge{
+  background:#333;
+  color:#FFF;
+  font-weight:bold;
+}
+.meterbridge canvas {
+  margin-left:10px;
+}
+.meter{
+  padding:10px;
+  margin:5px;
+}
+.meter_value{
+  display:block;
+  float:left;
+  font-size:18px;
+  width:65px;
+}
