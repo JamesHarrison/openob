@@ -53,6 +53,22 @@ Copy config.yml.example to config.yml and configure it - at a minimum change con
 
 Run OpenOB in RX mode with @python rx.py@ or in TX mode with @python tx.py@. Both modes can be run on a single machine simultaneously so long as ports and configuration names differ, allowing for bidirectional links, or relay links.
 
+h3. Web Interface
+
+OpenOB also has a (very early stage) web interface that at present allows you to view the configuration and to monitor levels and status of running links with pretty automatically updating graphs and meters.
+
+To install it (on Ubuntu):
+
+<pre>sudo apt-get install python-setuptools
+sudo easy_install pyramid</pre>
+
+And to run it:
+
+<pre>cd webui
+pserve development.ini</pre>
+
+This will be streamlined in future releases, with tighter integration, as the webUI becomes the main method for configuring and monitoring links.
+
 h2. Dependencies
 
 * Linux (Ubuntu Server/Desktop tested)
@@ -64,6 +80,11 @@ h2. Dependencies
 * Python yaml bindings
 * JACK server (optionally, ALSA is fine though)
 * Redis server (only needed on the configuration server, usually configured on the receiver)
+
+If you want the WebUI:
+
+* Python setuptools (easy_install)
+* Pyramid web framework (easy_install pyramid)
 
 h2. Licensing and Credits
 
