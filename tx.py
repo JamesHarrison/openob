@@ -23,6 +23,7 @@ config = redis.Redis(static_conf['configuration_host'])
 
 class RTPTransmitter():
   def __init__(self):
+    self.started = False
     self.tx = gst.Pipeline("tx")
     bus = self.tx.get_bus()
     # Audio pipeline elements
@@ -95,6 +96,7 @@ class RTPTransmitter():
   def on_bus_message(self, bus, message):
     if message.type == gst.MESSAGE_ELEMENT:
       if message.structure.get_name() == 'level':
+        self.started = True
         # This is an audio level update, which the 'level' element emits once a second.
         
         # We're storing lists here in redis to let us do historical graphing in the webUI.
@@ -123,7 +125,6 @@ class RTPTransmitter():
       print message
       print message.type
       print message.structure
-      print message.structure.get_name()
     return gst.BUS_PASS
 
   def start(self):

@@ -19,6 +19,7 @@ config = redis.Redis(static_conf['configuration_host'])
 
 class RTPReceiver:
   def __init__(self):
+    self.started = False
     # Configure ourselves from the TX keys
     caps = config.get((static_conf['caps_key']+static_conf['rx']['configuration_name']))
     base_port = int(config.get((static_conf['port_key']+static_conf['rx']['configuration_name'])))
@@ -99,6 +100,7 @@ class RTPReceiver:
   def on_bus_message(self, bus, message):
     if message.type == gst.MESSAGE_ELEMENT:
       if message.structure.get_name() == 'level':
+        self.started = True
         # This is an audio level update, which the 'level' element emits once a second.
         
         # We're storing lists here in redis to let us do historical graphing in the webUI.
@@ -122,7 +124,8 @@ class RTPReceiver:
       elif message.structure.get_name() == 'GstUDPSrcTimeout':
         # Only UDP source configured to emit timeouts is the audio input
         print "No data received in 5 seconds!"
-        sys.exit("No data in 5 seconds, quitting for link restart")
+        if self.started:
+          sys.exit("No data in 5 seconds, quitting for link restart")
       else:
         print message
         print message.type
@@ -132,7 +135,6 @@ class RTPReceiver:
       print message
       print message.type
       print message.structure
-      print message.structure.get_name()
     return gst.BUS_PASS
 
   def start(self):
