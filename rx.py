@@ -13,7 +13,7 @@ import redis
 import yaml
 import datetime
 import calendar
-
+import sys
 static_conf = yaml.load(open("config.yml", 'r'))
 config = redis.Redis(static_conf['configuration_host'])
 
@@ -122,6 +122,7 @@ class RTPReceiver:
       elif message.structure.get_name() == 'GstUDPSrcTimeout':
         # Only UDP source configured to emit timeouts is the audio input
         print "No data received in 5 seconds!"
+        sys.exit("No data in 5 seconds, quitting for link restart")
       else:
         print message
         print message.type

@@ -82,7 +82,7 @@
                 <option value="pulseaudio" tal:condition="python: static_conf['tx']['audio_connection'] == 'pulseaudio'" selected>PulseAudio</option>
                 <option value="pulseaudio" tal:condition="python: static_conf['tx']['audio_connection'] != 'pulseaudio'">PulseAudio</option>
               </select>
-              <p class="help">The audio source, either ALSA or JACK.</p>
+              <p class="help">The audio source. For JACK, the server must be started before the link is started. The link will connect to the first available source ports. PulseAudio is for development only, and is not recommended for production use</p>
             </div>
             <div class="parameter">
               <strong>ALSA Device</strong>
@@ -128,7 +128,7 @@
                 <option value="pulseaudio" tal:condition="python: static_conf['rx']['audio_connection'] == 'pulseaudio'" selected>PulseAudio</option>
                 <option value="pulseaudio" tal:condition="python: static_conf['rx']['audio_connection'] != 'pulseaudio'">PulseAudio</option>
               </select>
-              <p class="help">The audio output mode, either ALSA or JACK.</p>
+              <p class="help">The audio source. For JACK, the server must be started before the link is started. The link will connect to the first available source ports. PulseAudio is for development only, and is not recommended for production use</p>
             </div>
             <div class="parameter">
               <strong>ALSA Device</strong>
