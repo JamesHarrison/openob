@@ -23,12 +23,17 @@
             <div class="meter">
               RMS R <div class="meter_value" id="tx_rms_right_meter"></div><span class="spark" id="tx_rms_right"></span>
             </div>
+            <div class="progress realmeter progress-success"><div id="tx_rms_left_mbar" class="bar" style="width:0%;"></div></div>
+            <div class="progress realmeter progress-danger"><div id="tx_rms_right_mbar" class="bar" style="width:0%;"></div></div>
             <div class="meter">
               Peak L <div class="meter_value" id="tx_peak_left_meter"></div><span class="spark" id="tx_peak_left"></span>
             </div>
             <div class="meter">
               Peak R <div class="meter_value" id="tx_peak_right_meter"></div><span class="spark" id="tx_peak_right"></span>
             </div>
+            <div class="progress realmeter progress-success"><div id="tx_peak_left_mbar" class="bar" style="width:0%;"></div></div>
+            <div class="progress realmeter progress-danger"><div id="tx_peak_right_mbar" class="bar" style="width:0%;"></div></div>
+            <br/>
           </div>
           <div id="tx_not_running" class="meterhidden alert alert-info">
             <p>Transmitter not active - run <code>python tx.py</code> to start this node's transmitter</p>
@@ -41,6 +46,8 @@
             <div class="meter">
               RMS R <div class="meter_value" id="rx_rms_right_meter"></div><span class="spark" id="rx_rms_right"></span>
             </div>
+            <div class="progress realmeter progress-success"><div id="rx_rms_left_mbar" class="bar" style="width:0%;"></div></div>
+            <div class="progress realmeter progress-danger"><div id="rx_rms_right_mbar" class="bar" style="width:0%;"></div></div>
             <div class="meter">
               Peak L <div class="meter_value" id="rx_peak_left_meter"></div><span class="spark" id="rx_peak_left"></span>
             </div>
@@ -52,6 +59,9 @@
               Depayloading content with <span class="label" id="rx_depayloader_name"></span> and decoding with <span class="label" id="rx_decoder_name"></span>
               <div class="caps" id="rx_caps"></div>
             </div>
+            <div class="progress realmeter progress-success"><div id="rx_peak_left_mbar" class="bar" style="width:0%;"></div></div>
+            <div class="progress realmeter progress-danger"><div id="rx_peak_right_mbar" class="bar" style="width:0%;"></div></div>
+            <br/>
           </div>
           <div id="rx_not_running" class="meterhidden alert alert-info">
             <p>Receiver not active or matching transmitter not running - run <code>python rx.py</code> to start this node's receiver, <code>python tx.py</code> on the transmitter, and ensure that both configuration names are identical - this node is listening for <code>${static_conf['tx']['configuration_name']}</code>.</p>
@@ -152,17 +162,26 @@
     </div>
     <script type="text/javascript">
       $(function () {
+        $('#tx_meters').hide();
+        $('#rx_meters').hide();
+        $('#tx_not_running').show();
+        $('#rx_not_running').show();
         function update() {
           var now = (new Date().getTime() / 1000)-3;
           $.get("/tx_levels.json",function(data){
             if (now < data['timestamp']) {
               $('#tx_meters').show();
               $('#tx_not_running').hide();
-              var opts = {'type':'bar', 'barWidth':1, 'height':'90px', 'chartRangeMin':-40.0, 'chartRangeMax':0.0, 'barSpacing':0, 'negBarColor':'#6eaede'};
-              $('#tx_rms_left').sparkline(data['rms_left'],opts);
-              $('#tx_rms_right').sparkline(data['rms_right'],opts);
-              $('#tx_peak_left').sparkline(data['peak_left'],opts);
-              $('#tx_peak_right').sparkline(data['peak_right'],opts);
+              var lopts = {'type':'bar', 'barWidth':1, 'height':'90px', 'chartRangeMin':-40.0, 'chartRangeMax':0.0, 'barSpacing':0, 'negBarColor':'#5cb65e'};
+              var ropts = {'type':'bar', 'barWidth':1, 'height':'90px', 'chartRangeMin':-40.0, 'chartRangeMax':0.0, 'barSpacing':0, 'negBarColor':'#d34a44'};
+              $('#tx_rms_left').sparkline(data['rms_left'],lopts);
+              $('#tx_rms_left_mbar').css('width',(-2*data['rms_left'][0]+'%'));
+              $('#tx_rms_right_mbar').css('width',(-2*data['rms_right'][0]+'%'));
+              $('#tx_peak_left_mbar').css('width',(-2*data['peak_left'][0]+'%'));
+              $('#tx_peak_right_mbar').css('width',(-2*data['peak_right'][0]+'%'));
+              $('#tx_rms_right').sparkline(data['rms_right'],ropts);
+              $('#tx_peak_left').sparkline(data['peak_left'],lopts);
+              $('#tx_peak_right').sparkline(data['peak_right'],ropts);
               $('#tx_rms_left_meter').text(Math.round(data['rms_left'][0]*10)/10);
               $('#tx_rms_right_meter').text(Math.round(data['rms_right'][0]*10)/10);
               $('#tx_peak_left_meter').text(Math.round(data['peak_left'][0]*10)/10);
@@ -176,11 +195,16 @@
             if (now < data['timestamp']) {
               $('#rx_meters').show();
               $('#rx_not_running').hide();
-              var opts = {'type':'bar', 'barWidth':1, 'height':'90px', 'chartRangeMin':-40.0, 'chartRangeMax':0.0, 'barSpacing':0, 'negBarColor':'#6eaede'};
-              $('#rx_rms_left').sparkline(data['rms_left'],opts);
-              $('#rx_rms_right').sparkline(data['rms_right'],opts);
-              $('#rx_peak_left').sparkline(data['peak_left'],opts);
-              $('#rx_peak_right').sparkline(data['peak_right'],opts);
+              var lopts = {'type':'bar', 'barWidth':1, 'height':'90px', 'chartRangeMin':-40.0, 'chartRangeMax':0.0, 'barSpacing':0, 'negBarColor':'#5cb65e'};
+              var ropts = {'type':'bar', 'barWidth':1, 'height':'90px', 'chartRangeMin':-40.0, 'chartRangeMax':0.0, 'barSpacing':0, 'negBarColor':'#d34a44'};
+              $('#rx_rms_left_mbar').css('width',(-2*data['rms_left'][0]+'%'));
+              $('#rx_rms_right_mbar').css('width',(-2*data['rms_right'][0]+'%'));
+              $('#rx_peak_left_mbar').css('width',(-2*data['peak_left'][0]+'%'));
+              $('#rx_peak_right_mbar').css('width',(-2*data['peak_right'][0]+'%'));
+              $('#rx_rms_left').sparkline(data['rms_left'],lopts);
+              $('#rx_rms_right').sparkline(data['rms_right'],ropts);
+              $('#rx_peak_left').sparkline(data['peak_left'],lopts);
+              $('#rx_peak_right').sparkline(data['peak_right'],ropts);
               $('#rx_rms_left_meter').text(Math.round(data['rms_left'][0]*10)/10);
               $('#rx_rms_right_meter').text(Math.round(data['rms_right'][0]*10)/10);
               $('#rx_peak_left_meter').text(Math.round(data['peak_left'][0]*10)/10);

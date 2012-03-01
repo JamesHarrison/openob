@@ -35,6 +35,7 @@ a:hover{color:#9273d0;}
 }
 .meterbridge canvas {
   margin-left:10px;
+  padding-top:10px;
 }
 .meter{
   padding:5px;
@@ -51,4 +52,7 @@ a:hover{color:#9273d0;}
 }
 .caps {
   font-size:10px;
+}
+.realmeter {
+  margin:10px;
 }
