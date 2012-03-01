@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <title>OpenOB WebUI</title>
+    <link rel="stylesheet" href="${request.static_url('webui:static/bootstrap.min.css')}" type="text/css" media="screen" charset="utf-8" />
     <link rel="stylesheet" href="${request.static_url('webui:static/global.css')}" type="text/css" media="screen" charset="utf-8" />
     <script language="javascript" type="text/javascript" src="${request.static_url('webui:static/jquery-1.7.1.min.js')}"></script>
     <script language="javascript" type="text/javascript" src="${request.static_url('webui:static/jquery.sparkline.min.js')}"></script>
@@ -29,8 +30,8 @@
               Peak R <div class="meter_value" id="tx_peak_right_meter"></div><span class="spark" id="tx_peak_right"></span>
             </div>
           </div>
-          <div id="tx_not_running" class="meterhidden">
-            <p>Transmitter not active - run <code>python tx.py</code> to enable this node's transmitter</p>
+          <div id="tx_not_running" class="meterhidden alert alert-info">
+            <p>Transmitter not active - run <code>python tx.py</code> to start this node's transmitter</p>
           </div>
           <h3>Receiver</h3>
           <div id="rx_meters" class="meterbridge">
@@ -46,67 +47,104 @@
             <div class="meter">
               Peak R <div class="meter_value" id="rx_peak_right_meter"></div><span class="spark" id="rx_peak_right"></span>
             </div>
+            <div class="linkparams">
+              <h6>Incoming Stream Parameters</h6>
+              Depayloading content with <span class="label" id="rx_depayloader_name"></span> and decoding with <span class="label" id="rx_decoder_name"></span>
+              <div class="caps" id="rx_caps"></div>
+            </div>
           </div>
-          <div id="rx_not_running" class="meterhidden">
-            <p>Receiver not active - run <code>python rx.py</code> to enable this node's receiver</p>
+          <div id="rx_not_running" class="meterhidden alert alert-info">
+            <p>Receiver not active or matching transmitter not running - run <code>python rx.py</code> to start this node's receiver, <code>python tx.py</code> on the transmitter, and ensure that both configuration names are identical - this node is listening for <code>${static_conf['tx']['configuration_name']}</code>.</p>
+            <p>You may need to open incoming ports on this computer for the configuration. Check the base port on the transmitter to find out which ports.</p>
           </div>
+          <p>All meters scaled between 0 and -40dBFS as reported by TX/RX nodes.</p>
         </div>
-        <div id="tx-params">
-          <h1>Transmission Parameters</h1>
-          <div class="parameter">
-            <a href="/edit/tx/receiver_address">Receiver Address</a>
-            <strong>${static_conf['tx']['receiver_address']}</strong>
-            <p class="help">The address this system will be transmitting to, either an IP address or a hostname.</p>
+        <form action="/save" method="POST">
+          <div id="tx-params">
+            <h1>Transmission Parameters</h1>
+            <div class="parameter">
+              <strong>Receiver Address</strong>
+              <input type="text" name="tx_receiver_address" value="${static_conf['tx']['receiver_address']}" />
+              <p class="help">The address this system will be transmitting to, either an IP address or a hostname.</p>
+            </div>
+            <div class="parameter">
+              <strong>Link Name</strong>
+              <input type="text" name="tx_configuration_name" value="${static_conf['tx']['configuration_name']}" />
+              <p class="help">The name of the link configuration. Identifies this link configuration on the configuration server. Must be configured identially at each end of the link.</p>
+            </div>
+            <div class="parameter">
+              <strong>Audio Source</strong>
+              <select name="tx_audio_connection">
+                <option value="alsa" tal:condition="python: static_conf['tx']['audio_connection'] == 'alsa'" selected>ALSA</option>
+                <option value="alsa" tal:condition="python: static_conf['tx']['audio_connection'] != 'alsa'">ALSA</option>
+                <option value="jack" tal:condition="python: static_conf['tx']['audio_connection'] == 'jack'" selected>JACK</option>
+                <option value="jack" tal:condition="python: static_conf['tx']['audio_connection'] != 'jack'">JACK</option>
+                <option value="pulseaudio" tal:condition="python: static_conf['tx']['audio_connection'] == 'pulseaudio'" selected>PulseAudio</option>
+                <option value="pulseaudio" tal:condition="python: static_conf['tx']['audio_connection'] != 'pulseaudio'">PulseAudio</option>
+              </select>
+              <p class="help">The audio source, either ALSA or JACK.</p>
+            </div>
+            <div class="parameter">
+              <strong>ALSA Device</strong>
+              <input type="text" name="tx_alsa_device" value="${static_conf['tx']['alsa_device']}" />
+              <p class="help">If ALSA is used above, this is the sound card the ALSA client will be connected to.</p>
+            </div>
+            <div class="parameter">
+              <strong>Encoder Bitrate</strong>
+              <input type="text" name="tx_bitrate" value="${static_conf['tx']['bitrate']/1000}" /> kbit/s
+              <p class="help">The bitrate of the encoder used in the link, if one is used. Not used in Linear PCM mode.</p>
+            </div>
+            <div class="parameter">
+              <strong>Base Port</strong>
+              <input type="text" name="tx_base_port" value="${static_conf['tx']['base_port']}" />
+              <p class="help">The base port used in this link. With the current setting, ports ${static_conf['tx']['base_port']} (UDP) and ${int(static_conf['tx']['base_port'])+1} (UDP) must both be open on the receiver, and port ${int(static_conf['tx']['base_port'])+2} (UDP) should be open on the transmitter if possible.</p>
+            </div>
+            <div class="parameter">
+              <strong>Link Mode</strong>
+              <select name="tx_link_mode">
+                <option value="celt" tal:condition="python: static_conf['tx']['payloader']['tx'] == 'rtpceltpay'" selected>CELT</option>
+                <option value="pcm" tal:condition="python: static_conf['tx']['payloader']['tx'] == 'rtpL16pay'" selected>16-bit PCM (Little Endian)</option>
+                <option value="celt" tal:condition="python: static_conf['tx']['payloader']['tx'] != 'rtpceltpay'">CELT</option>
+                <option value="pcm" tal:condition="python: static_conf['tx']['payloader']['tx'] != 'rtpL16pay'">16-bit PCM (Little Endian)</option>
+              </select>
+              <p class="help">The link mode sets the encoder, payloader, depayloader and decoders used in the link.</p>
+            </div>
           </div>
-          <div class="parameter">
-            <a href="/edit/tx/configuration_name">Link Name</a>
-            <strong>${static_conf['tx']['configuration_name']}</strong>
-            <p class="help">The name of the link configuration. Identifies this link configuration on the configuration server. Must be configured identially at each end of the link.</p>
+          <div id="rx-params">
+            <h1>Receiver Parameters</h1>
+            <p>These settings configure how this node acts as a receiver. Link settings for any links directed to this node are specified by the transmitting node.</p>
+            <div class="parameter">
+              <strong>Configuration Name</strong>
+              <input type="text" name="rx_configuration_name" value="${static_conf['rx']['configuration_name']}" />
+              <p class="help">The name of the link configuration to receive. Must be set to the same value as the transmitter you want to receive, which must be configured to send to this system's IP address.</p>
+            </div>
+            <div class="parameter">
+              <strong>Audio Output Type</strong>
+              <select name="rx_audio_connection">
+                <option value="alsa" tal:condition="python: static_conf['rx']['audio_connection'] == 'alsa'" selected>ALSA</option>
+                <option value="alsa" tal:condition="python: static_conf['rx']['audio_connection'] != 'alsa'">ALSA</option>
+                <option value="jack" tal:condition="python: static_conf['rx']['audio_connection'] == 'jack'" selected>JACK</option>
+                <option value="jack" tal:condition="python: static_conf['rx']['audio_connection'] != 'jack'">JACK</option>
+                <option value="pulseaudio" tal:condition="python: static_conf['rx']['audio_connection'] == 'pulseaudio'" selected>PulseAudio</option>
+                <option value="pulseaudio" tal:condition="python: static_conf['rx']['audio_connection'] != 'pulseaudio'">PulseAudio</option>
+              </select>
+              <p class="help">The audio output mode, either ALSA or JACK.</p>
+            </div>
+            <div class="parameter">
+              <strong>ALSA Device</strong>
+              <input type="text" name="rx_alsa_device" value="${static_conf['rx']['alsa_device']}" />
+              <p class="help">If ALSA is used above, this is the sound card the ALSA client will be connected to.</p>
+            </div>
           </div>
-          <div class="parameter">
-            <a href="/edit/tx/audio_connection">Audio Source</a>
-            <strong>${static_conf['tx']['audio_connection']}</strong>
-            <p class="help">The audio source, either ALSA or JACK.</p>
+          <div style="padding:10px;">
+            <a id="save-button" href="#" onclick="$('#save-panel').show();$('#save-button').hide();return false;" class="btn-primary btn-large">Save Options</a>
+            <div id="save-panel" class="alert alert-error" style="display:none;">
+              <p><strong>Warning</strong> - saving parameters does not perform a link reload. You must restart each end of the link to apply changes.</p>
+              <p>You will disrupt audio by reloading the link. Saving changes will not disrupt audio but may affect automatic link recovery in the event of a crash. Reload your link immediately after saving to test your new parameters.</p>
+              <input type="submit" value="Confirm Save" class="btn-danger btn-large" />
+            </div>
           </div>
-          <div class="parameter">
-            <a href="/edit/tx/alsa_device">ALSA Device</a>
-            <strong>${static_conf['tx']['alsa_device']}</strong>
-            <p class="help">If ALSA is used above, this is the sound card the ALSA client will be connected to.</p>
-          </div>
-          <div class="parameter">
-            <a href="/edit/tx/bitrate">Encoder Bitrate</a>
-            <strong>${static_conf['tx']['bitrate']} bit/s</strong>
-            <p class="help">The bitrate of the encoder used in the link, if one is used. Not used in Linear PCM mode.</p>
-          </div>
-          <div class="parameter">
-            <a href="/edit/tx/base_port">Base Port</a>
-            <strong>${static_conf['tx']['base_port']}</strong>
-            <p class="help">The base port used in this link. With the current setting, ports ${static_conf['tx']['base_port']} (UDP) and ${int(static_conf['tx']['base_port'])+1} (UDP) must both be open on the receiver.</p>
-          </div>
-          <div class="parameter">
-            <a href="#">Link Mode</a>
-            <strong>${static_conf['tx']['encoder']['tx']} -> ${static_conf['tx']['payloader']['tx']} - > NETWORK - > ${static_conf['tx']['payloader']['rx']} -> ${static_conf['tx']['encoder']['rx']}</strong>
-            <p class="help">The link mode sets the encoder, payloader, depayloader and decoders used in the link.</p>
-          </div>
-        </div>
-        <div id="rx-params">
-          <h1>Receiver Parameters</h1>
-          <div class="parameter">
-            <a href="#">Link Name</a>
-            <strong>${static_conf['rx']['configuration_name']}</strong>
-            <p class="help">The name of the link configuration to receive. Must be set to the same value as the transmitter you want to receive, which must be configured to send to this system's IP address.</p>
-          </div>
-          <div class="parameter">
-            <a href="/edit/rx/audio_connection">Audio Output</a>
-            <strong>${static_conf['rx']['audio_connection']}</strong>
-            <p class="help">The audio output mode, either ALSA or JACK.</p>
-          </div>
-          <div class="parameter">
-            <a href="/edit/rx/alsa_device">ALSA Device</a>
-            <strong>${static_conf['rx']['alsa_device']}</strong>
-            <p class="help">If ALSA is used above, this is the sound card the ALSA client will be connected to.</p>
-          </div>
-        </div>
+        </form>
       </div>
     </div>
     <div id="footer">
@@ -120,7 +158,7 @@
             if (now < data['timestamp']) {
               $('#tx_meters').show();
               $('#tx_not_running').hide();
-              var opts = {'type':'bar', 'barWidth':1, 'height':'90px', 'chartRangeMin':-40.0, 'chartRangeMax':0.0, 'negBarColor':'#6eaede'};
+              var opts = {'type':'bar', 'barWidth':1, 'height':'90px', 'chartRangeMin':-40.0, 'chartRangeMax':0.0, 'barSpacing':0, 'negBarColor':'#6eaede'};
               $('#tx_rms_left').sparkline(data['rms_left'],opts);
               $('#tx_rms_right').sparkline(data['rms_right'],opts);
               $('#tx_peak_left').sparkline(data['peak_left'],opts);
@@ -138,7 +176,7 @@
             if (now < data['timestamp']) {
               $('#rx_meters').show();
               $('#rx_not_running').hide();
-              var opts = {'type':'bar', 'barWidth':1, 'height':'90px', 'chartRangeMin':-40.0, 'chartRangeMax':0.0, 'negBarColor':'#6eaede'};
+              var opts = {'type':'bar', 'barWidth':1, 'height':'90px', 'chartRangeMin':-40.0, 'chartRangeMax':0.0, 'barSpacing':0, 'negBarColor':'#6eaede'};
               $('#rx_rms_left').sparkline(data['rms_left'],opts);
               $('#rx_rms_right').sparkline(data['rms_right'],opts);
               $('#rx_peak_left').sparkline(data['peak_left'],opts);
@@ -147,6 +185,9 @@
               $('#rx_rms_right_meter').text(Math.round(data['rms_right'][0]*10)/10);
               $('#rx_peak_left_meter').text(Math.round(data['peak_left'][0]*10)/10);
               $('#rx_peak_right_meter').text(Math.round(data['peak_right'][0]*10)/10);
+              $('#rx_caps').text(data['caps']);
+              $('#rx_depayloader_name').text(data['depayloader_name']);
+              $('#rx_decoder_name').text(data['decoder_name']);
             } else {
               $('#rx_meters').hide();
               $('#rx_not_running').show();

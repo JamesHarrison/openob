@@ -12,6 +12,7 @@ import gst
 import redis
 import yaml
 import datetime
+import calendar
 
 static_conf = yaml.load(open("config.yml", 'r'))
 config = redis.Redis(static_conf['configuration_host'])
@@ -37,6 +38,8 @@ class RTPReceiver:
     elif static_conf['rx']['audio_connection'] == 'jack':
       self.sink = gst.element_factory_make("jackaudiosink")
       self.sink.set_property('connect', 'auto')
+    elif static_conf['rx']['audio_connection'] == 'pulseaudio':
+      self.source = gst.element_factory_make("pulsesink")
     self.decoder = gst.element_factory_make(decoder_name,"decoder")
     self.depayloader = gst.element_factory_make(depayloader_name,"depayloader")
     level = gst.element_factory_make("level")
@@ -59,7 +62,6 @@ class RTPReceiver:
     # Where our RTCP control messages come in
     udpsrc_rtcpin = gst.element_factory_make('udpsrc')
     udpsrc_rtcpin.set_property('port', base_port+1)
-    udpsrc_rtcpin.set_property('timeout', 5000000)
     # And where we'll get RTCP Sender Reports
     udpsink_rtcpout = gst.element_factory_make('udpsink')
     udpsink_rtcpout.set_property('host', "0.0.0.0")
@@ -116,7 +118,20 @@ class RTPReceiver:
         config.ltrim((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":rms:right"), 0, 3600)
         config.ltrim((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":peak:left"), 0, 3600)
         config.ltrim((static_conf['rx_level_info_key']+static_conf['rx']['configuration_name']+":peak:right"), 0, 3600)
-        
+        print message.structure['peak']
+      elif message.structure.get_name() == 'GstUDPSrcTimeout':
+        # Only UDP source configured to emit timeouts is the audio input
+        print "No data received in 5 seconds!"
+      else:
+        print message
+        print message.type
+        print message.structure
+        print message.structure.get_name()
+    else:
+      print message
+      print message.type
+      print message.structure
+      print message.structure.get_name()
     return gst.BUS_PASS
 
   def start(self):

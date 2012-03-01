@@ -26,8 +26,7 @@ a:hover{color:#9273d0;}
   background:#EFEFEF;
   margin:5px;
 }
-.parameter strong{}
-.parameter a{width:170px;display:block;float:left;font-weight:bold;}
+.parameter strong{width:170px;display:block;float:left;font-weight:bold;padding-top:5px;}
 .help{font-style:italic;font-size:11px;}
 .meterbridge{
   background:#333;
@@ -38,7 +37,7 @@ a:hover{color:#9273d0;}
   margin-left:10px;
 }
 .meter{
-  padding:10px;
+  padding:5px;
   margin:5px;
 }
 .meter_value{
@@ -46,4 +45,10 @@ a:hover{color:#9273d0;}
   float:left;
   font-size:18px;
   width:65px;
+}
+.linkparams {
+  padding:10px;
+}
+.caps {
+  font-size:10px;
 }

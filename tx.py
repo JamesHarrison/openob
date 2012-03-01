@@ -32,13 +32,16 @@ class RTPTransmitter():
       self.source = gst.element_factory_make("jackaudiosrc")
       self.source.set_property('connect', 'auto')
       self.source.set_property('name', "openob_"+static_conf['tx']['configuration_name'])
+    elif static_conf['tx']['audio_connection'] == 'pulseaudio':
+      self.source = gst.element_factory_make("pulsesrc")
     # Audio conversion/sample rate conversion/resampling magic to tie everything together.
     audioconvert = gst.element_factory_make("audioconvert")
     audioresample = gst.element_factory_make("audioresample")
     audioresample.set_property('quality', 9) # SRC
     audiorate = gst.element_factory_make("audiorate")
     self.encoder = gst.element_factory_make(static_conf['tx']['encoder']['tx'],"encoder")
-    self.encoder.set_property('bitrate', static_conf['tx']['bitrate'])
+    if static_conf['tx']['encoder']['tx'] != 'identity':
+      self.encoder.set_property('bitrate', static_conf['tx']['bitrate'])
     self.payloader = gst.element_factory_make(static_conf['tx']['payloader']['tx'],"payloader")
     level = gst.element_factory_make("level")
     level.set_property('message', True)
@@ -111,6 +114,15 @@ class RTPTransmitter():
         config.ltrim((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":peak:left"), 0, 3600)
         config.ltrim((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":peak:right"), 0, 3600)
         print message.structure['peak']
+      if message.structure.get_name() == 'udpsink':
+        print message
+        print message.type
+        print message.structure
+    else:
+      print message
+      print message.type
+      print message.structure
+      print message.structure.get_name()
     return gst.BUS_PASS
 
   def start(self):

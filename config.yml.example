@@ -7,7 +7,7 @@
 
 # The configuration host which will allow for exchange of configuration data from transmitter to receiver.
 # This host runs redis, and must be accessible to the sender and the receiver.
-configuration_host: "192.168.0.53"
+configuration_host: ""
 tx:
   # This section is specific to TX mode
   # This key is added to all configuration keys to uniquely identify this link amongst many sharing a config server.
@@ -16,7 +16,8 @@ tx:
   # The receiver host which we want to send audio to.
   receiver_address: "192.168.0.56"
   # The input configuration for this node in TX mode.
-  # One of JACK or ALSA. JACK will automatically connect to input ports, ALSA uses the device configured below.
+  # Must be one of: jack, alsa, pulseaudio
+  # PulseAudio is not recommended for production usage, but may be convenient for development.
   # JACK must be started prior to starting the OpenOB TX script.
   audio_connection: "alsa"
 
@@ -33,7 +34,7 @@ tx:
   #   320000 - high quality MP3
   #   192000 - medium quality MP3
   #   128000 - low quality MP3
-  bitrate: 192000
+  bitrate: 128000
 
   # The base port used. This port and the two above it must be accessible on the RX node in the UDP protocol.
   base_port: 3000
@@ -64,7 +65,8 @@ rx:
   # Use no special characters or spaces, just A-Z, a-z, 0-9 and the - and _ characters.
   configuration_name: "unnamed-link"
   # The output configuration for this node in RX mode.
-  # One of JACK or ALSA.
+  # Must be one of: jack, alsa, pulseaudio
+  # PulseAudio is not recommended for production usage, but may be convenient for development.
   audio_connection: "alsa"
 
   # If in RX mode in ALSA mode, select the device to use.
