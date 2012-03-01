@@ -65,6 +65,7 @@ sudo easy_install pyramid</pre>
 And to run it:
 
 <pre>cd webui
+python setup.py develop
 pserve development.ini</pre>
 
 This will be streamlined in future releases, with tighter integration, as the webUI becomes the main method for configuring and monitoring links.
