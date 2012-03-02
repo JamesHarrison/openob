@@ -196,8 +196,8 @@
               $('#tx_peak_left_meter').text(Math.round(data['peak_left'][0]*10)/10);
               $('#tx_peak_right_meter').text(Math.round(data['peak_right'][0]*10)/10);
               $('#tx_caps').text(data['caps']);
-              $('#tx_depayloader_name').text(data['payloader_name']);
-              $('#tx_decoder_name').text(data['encoder_name']);
+              $('#tx_payloader_name').text(data['payloader_name']);
+              $('#tx_encoder_name').text(data['encoder_name']);
             } else {
               $('#tx_meters').hide();
               $('#tx_not_running').show();
