@@ -23,6 +23,7 @@ def save(request):
     static_conf['tx']['alsa_device'] = request.params['tx_alsa_device']
     static_conf['tx']['bitrate'] = int(request.params['tx_bitrate'])*1000
     static_conf['tx']['base_port'] = request.params['tx_base_port']
+    static_conf['tx']['jitter_buffer_size'] = request.params['tx_jitter_buffer']
     if request.params['tx_link_mode'] == 'celt':
         static_conf['tx']['payloader']['tx'] = 'rtpceltpay'
         static_conf['tx']['payloader']['rx'] = 'rtpceltdepay'
@@ -49,12 +50,16 @@ def save_confighost(request):
 def tx_levels(request):
     static_conf = yaml.load(open("../config.yml", 'r'))
     config = redis.Redis(static_conf['configuration_host'])
+    caps = config.get((static_conf['caps_key']+static_conf['tx']['configuration_name']))
     return {
       'rms_left':config.lrange((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":rms:left"),0,600),
       'rms_right':config.lrange((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":rms:right"),0,600),
       'peak_left':config.lrange((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":peak:left"),0,600),
       'peak_right':config.lrange((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":peak:right"),0,600),
-      'timestamp':config.lindex((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":utc_timestamps"),0)
+      'timestamp':config.lindex((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":utc_timestamps"),0),
+      'payloader_name': static_conf['tx']['payloader']['tx'],
+      'encoder_name': static_conf['tx']['encoder']['tx'],
+      'caps', caps
       }
 @view_config(route_name='rx_levels',renderer='json')
 def rx_levels(request):

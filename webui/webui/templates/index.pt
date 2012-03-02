@@ -33,7 +33,11 @@
             </div>
             <div class="progress realmeter progress-success"><div id="tx_peak_left_mbar" class="bar" style="width:0%;"></div></div>
             <div class="progress realmeter progress-danger"><div id="tx_peak_right_mbar" class="bar" style="width:0%;"></div></div>
-            <br/>
+            <div class="linkparams">
+              <h6>Outgoing Stream Parameters</h6>
+              Payloading content with <span class="label" id="tx_payloader_name"></span> and encoding with <span class="label" id="tx_encoder_name"></span>
+              <div class="caps" id="tx_caps"></div>
+            </div>
           </div>
           <div id="tx_not_running" class="meterhidden alert alert-info">
             <p>Transmitter not active - run <code>python tx.py</code> to start this node's transmitter</p>
@@ -108,6 +112,11 @@
               <strong>Base Port</strong>
               <input type="text" name="tx_base_port" value="${static_conf['tx']['base_port']}" />
               <p class="help">The base port used in this link. With the current setting, ports ${static_conf['tx']['base_port']} (UDP) and ${int(static_conf['tx']['base_port'])+1} (UDP) must both be open on the receiver, and port ${int(static_conf['tx']['base_port'])+2} (UDP) should be open on the transmitter if possible.</p>
+            </div>
+            <div class="parameter">
+              <strong>Jitter Buffer</strong>
+              <input type="text" name="tx_jitter_buffer" value="${static_conf['tx']['jitter_buffer']}" /> milliseconds
+              <p class="help">Jitter buffer size in milliseconds, used to help smooth out network delays in transmissions. Reasonable values for low-latency operation are 50-100 milliseconds. This can be as low as 5-15 milliseconds for high-quality switched networks, and should be set appropriately higher on unreliable networks.</p>
             </div>
             <div class="parameter">
               <strong>Link Mode</strong>
@@ -186,6 +195,9 @@
               $('#tx_rms_right_meter').text(Math.round(data['rms_right'][0]*10)/10);
               $('#tx_peak_left_meter').text(Math.round(data['peak_left'][0]*10)/10);
               $('#tx_peak_right_meter').text(Math.round(data['peak_right'][0]*10)/10);
+              $('#tx_caps').text(data['caps']);
+              $('#tx_depayloader_name').text(data['payloader_name']);
+              $('#tx_decoder_name').text(data['encoder_name']);
             } else {
               $('#tx_meters').hide();
               $('#tx_not_running').show();
