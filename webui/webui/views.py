@@ -59,7 +59,7 @@ def tx_levels(request):
       'timestamp':config.lindex((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":utc_timestamps"),0),
       'payloader_name': static_conf['tx']['payloader']['tx'],
       'encoder_name': static_conf['tx']['encoder']['tx'],
-      'caps', caps
+      'caps': caps
       }
 @view_config(route_name='rx_levels',renderer='json')
 def rx_levels(request):
