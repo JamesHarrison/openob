@@ -115,7 +115,7 @@
             </div>
             <div class="parameter">
               <strong>Jitter Buffer</strong>
-              <input type="text" name="tx_jitter_buffer" value="${static_conf['tx']['jitter_buffer']}" /> milliseconds
+              <input type="text" name="tx_jitter_buffer" value="${static_conf['tx']['jitter_buffer_size']}" /> ms
               <p class="help">Jitter buffer size in milliseconds, used to help smooth out network delays in transmissions. Reasonable values for low-latency operation are 50-100 milliseconds. This can be as low as 5-15 milliseconds for high-quality switched networks, and should be set appropriately higher on unreliable networks.</p>
             </div>
             <div class="parameter">
