@@ -117,6 +117,12 @@ class RTPTransmitter():
         config.ltrim((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":peak:left"), 0, 3600)
         config.ltrim((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":peak:right"), 0, 3600)
         print message.structure['peak']
+        
+        # If the rx_level_info_key+configname+utc_timestamp last value from the receiver is more than 3 seconds behind us, then chances are the receiver's died a death. Kill ourself to restart.
+        now_timestamp = calendar.timegm(datetime.datetime.utcnow().timetuple())
+        rx_now_timestamp = config.lindex((static_conf['tx_level_info_key']+static_conf['tx']['configuration_name']+":utc_timestamps"),0)
+        if now_timestamp < (rx_now_timestamp - 3) or now_timestamp > (rx_now_timestamp + 3):
+          sys.exit("Receiver appears to have crashed or isn't running - start before starting the transmitter!")
       if message.structure.get_name() == 'udpsink':
         print message
         print message.type
