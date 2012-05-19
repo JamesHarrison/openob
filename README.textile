@@ -14,61 +14,85 @@ If you intend to put it into production, test thoroughly before doing so.
 
 h2. Technical Information
 
-OpenOB consists of an rx (receiver) script and a tx (transmitter) script. The rx script runs on a computer at your studio (for OBs) or transmitter site (STLs). The tx (transmission) script runs on a computer at the event (OBs) or your studio (STLs).
+OpenOB is a single program which can be run as a transmitter or receiver. It is configured by command-line options.
 
-Configuration is done via a simple YAML configuration file. The receiver is configured with the name of the link to receive and the sound card information. The transmitter handles all configuration related to the link, and communicates this information to the receiver via a Redis server (usually run on the receiver). This permits reconfiguration of a link remotely.
-
-By default the CELT codec is used for audio transport. This is a codec equally suited to music as it is to speech, and which is very bandwidth efficient, allowing good quality links at as low as 32kbps with very high quality links at 96kbps and above. It's also patent-free and unencumbered.
+By default the CELT codec is used for audio transport. This is a codec equally suited to music as it is to speech, and which is very bandwidth efficient, allowing good quality links at as low as 16 or 32kbps with very high quality links at 96kbps and above. It's also patent-free and unencumbered.
 
 Additionally, OpenOB can move raw little-endian PCM 16-bit audio around, allowing for entirely transparent lossless audio links for studio-transmitter links or OBs where a high quality link is available.
 
-The actual network protocol used to move audio is the Real Time Protocol. OpenOB also supports RTCP and the RTCP Sender Report protocol, though only at the gstreamer level - nothing currently makes use of RTCP SRs within the programs.
+The actual network protocol used to move audio is the Real Time Protocol. OpenOB also supports RTCP and the RTCP Sender Report protocol, though only at the gstreamer level - nothing currently makes use of RTCP SRs within OpenOB itself.
 
 Audio level monitoring is provided via simple printouts at each end for easy debugging. Network failures are recovered from automatically. Level monitoring of each end along with timestamps are provided bidirectionally for debugging and monitoring, so you can easily see what's going on at each end.
 
-Latency is by default configured limited on jitter buffer size with a 250ms buffer, which works well on congested switched networks with no QoS. 50ms and lower are possible on suitable hardware with a suitable connection.
+Latency is by default configured limited on jitter buffer size with a 150ms buffer, which works well on congested switched networks with no QoS. 10ms and lower are possible on suitable hardware with a suitable connection.
 
 h2. Usage/Installation
 
-Grab the scripts, put tx.py on the transmitter/contribution machine, rx.py on the receiver/endpoint, set up Redis on a host both can access (usually the receiver/endpoint). You'll have to open your firewall up appropriately- at a minimum, one port for Redis, three ports for RTP:
+Install OpenOB from git or a tarball/zip download. You will need to configure your firewall appropriately on the receiving host:
 
 * Redis - port 6379 TCP (only needed on the end hosting your configuration)
 * RTP - port 3000 UDP - the base port for communications, configurable (receiver)
 * RTCP - port 3001 UDP - base port plus one (receiver)
 * RTCP Sender Reports - port 3002 UDP - base port plus two (transmitter)
 
+The base port can be changed with the -p flag.
+
 To install dependencies on an Ubuntu box you can run the following:
 
-<pre>sudo apt-get install python-gst0.10 python-serial python-redis python-yaml gstreamer0.10-plugins-base  \
-gstreamer0.10-plugins-bad gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly \
+<pre>sudo apt-get install python-gst0.10 python-redis gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
+  gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly \
 gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa </pre>
 
-You will also need to install Redis on one end:
+You will also need to install Redis on a machine - it does not need to be on the receiver or transmitter, but the receiver machine is probably where you want to put it.
  
 <pre>sudo apt-get install redis-server</pre>
 
-You then need to edit /etc/redis/redis.conf and instruct redis to bind to your external IP address or 0.0.0.0.
+You then need to edit /etc/redis/redis.conf and instruct redis to bind to your external IP address or 0.0.0.0, then restart redis.
 
-Copy config.yml.example to config.yml and configure it - at a minimum change configuration_host and receiver_address. Read through and understand what the options do, though.
+You can now run OpenOB. @python openob-manager -h@ will list help; @python openob-manager dummyhost someconfig rx -h@ will give help for the receiver mode, for instance.
 
-Run OpenOB in RX mode with @python rx.py@ or in TX mode with @python tx.py@. Both modes can be run on a single machine simultaneously so long as ports and configuration names differ, allowing for bidirectional links, or relay links.
+<pre>usage: openob-manager config_host link_name tx [-h]
+                                               [-a {alsa,jack,pulseaudio}]
+                                               [-d DEVICE] [-e {pcm,celt}]
+                                               [-b {16,24,32,48,64,96,128}]
+                                               [-p PORT] [-j JITTER_BUFFER]
+                                               receiver_host
 
-h3. Web Interface
+positional arguments:
+  receiver_host         The receiver for this transmitter. The machine at this
+                        address must be running an rx-mode Manager for this
+                        link name
 
-OpenOB also has a (very early stage) web interface that at present allows you to view the configuration and to monitor levels and status of running links with pretty automatically updating graphs and meters.
+optional arguments:
+  -h, --help            show this help message and exit
+  -a {alsa,jack,pulseaudio}, --audio_input {alsa,jack,pulseaudio}
+                        The audio source type for this end of the link
+  -d DEVICE, --device DEVICE
+                        The ALSA audio device when in ALSA audio input mode
+  -e {pcm,celt}, --encoding {pcm,celt}
+                        The audio encoding type for this link; PCM for linear
+                        audio (16-bit), CELT for encoded audio
+  -b {16,24,32,48,64,96,128}, --bitrate {16,24,32,48,64,96,128}
+                        Bitrate if using CELT (in kbit/s)
+  -p PORT, --port PORT  The base port to use for audio transport. This port
+                        must be accessible on the receiving host
+  -j JITTER_BUFFER, --jitter_buffer JITTER_BUFFER
+                        The size of the jitter buffer in milliseconds. Affects
+                        latency; may be reduced to 5-10ms on fast reliable
+                        networks, or increased for poor networks like 3G
+</pre>
 
-To install it (on Ubuntu):
+<pre>usage: openob-manager config_host link_name rx [-h]
+                                               [-a {alsa,jack,pulseaudio}]
+                                               [-d DEVICE]
 
-<pre>sudo apt-get install python-setuptools
-sudo easy_install pyramid</pre>
-
-And to run it:
-
-<pre>cd webui
-python setup.py develop
-pserve development.ini</pre>
-
-This will be streamlined in future releases, with tighter integration, as the webUI becomes the main method for configuring and monitoring links.
+optional arguments:
+  -h, --help            show this help message and exit
+  -a {alsa,jack,pulseaudio}, --audio_output {alsa,jack,pulseaudio}
+                        The audio output type for this end of the link
+  -d DEVICE, --device DEVICE
+                        The ALSA audio device when in ALSA audio output mode
+</pre>
 
 h2. Dependencies
 
@@ -78,14 +102,8 @@ h2. Dependencies
 * Python gstreamer bindings
 * Python redis bindings
 * Python gobject bindings
-* Python yaml bindings
 * JACK server (optionally, ALSA is fine though)
 * Redis server (only needed on the configuration server, usually configured on the receiver)
-
-If you want the WebUI:
-
-* Python setuptools (easy_install)
-* Pyramid web framework (easy_install pyramid)
 
 h2. Licensing and Credits
 
