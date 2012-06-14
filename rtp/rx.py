@@ -6,6 +6,7 @@ import gst
 class RTPReceiver:
   def __init__(self, caps='', audio_output='alsa', audio_device='hw:0', base_port=3000, encoding='celt', bitrate=96, jitter_buffer=150, jack_name='openob_rx'):
     """Sets up a new RTP receiver"""
+    self.started = False
     self.pipeline = gst.Pipeline("rx")
     self.bus = self.pipeline.get_bus()
     self.bus.connect("message", self.on_message)
@@ -52,14 +53,19 @@ class RTPReceiver:
     self.udpsink_rtcpout.set_property('host', "0.0.0.0")
     self.udpsink_rtcpout.set_property('port', base_port+2)
 
+    # Our level monitor, also used for continuous audio
+    self.level = gst.element_factory_make("level")
+    self.level.set_property('message', True)
+    self.level.set_property('interval', 1000000000)
+
     # And now we've got it all set up we need to add the elements
-    self.pipeline.add(self.audiorate, self.audioresample, self.audioconvert, self.sink, self.depayloader, self.rtpbin, self.udpsrc_rtpin, self.udpsrc_rtcpin, self.udpsink_rtcpout)
+    self.pipeline.add(self.audiorate, self.audioresample, self.audioconvert, self.sink, self.level, self.depayloader, self.rtpbin, self.udpsrc_rtpin, self.udpsrc_rtcpin, self.udpsink_rtcpout)
     if encoding != 'pcm':
       self.pipeline.add(self.decoder)
       gst.element_link_many(self.depayloader, self.decoder, self.audioconvert)
     else:
       gst.element_link_many(self.depayloader, self.audioconvert)
-    gst.element_link_many(self.audioconvert, self.audioresample, self.audiorate, self.sink)
+    gst.element_link_many(self.audioconvert, self.audioresample, self.audiorate, self.level, self.sink)
     for p in self.udpsrc_rtpin.pads():
       print p
       print p.get_caps()
@@ -80,10 +86,22 @@ class RTPReceiver:
     # Relink
     self.rtpbin.link(self.depayloader)
   def on_message (self, bus, message):
-    if message.structure:
-      print("MSG " + bus.get_name() + ": " + message.structure.to_string())
+    if message.type == gst.MESSAGE_ELEMENT:
+      if message.structure.get_name() == 'level':
+        self.started = True
+        print(" -- Receiving: L %3.2f R %3.2f (Peak L %3.2f R %3.2f)" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1]))
+      if message.structure.get_name() == 'GstUDPSrcTimeout':
+        # Only UDP source configured to emit timeouts is the audio input
+        print " -- No data for 5 seconds!"
+        if self.started:
+          print " -- Shutting down receiver for restart of link"
+          self.pipeline.set_state(gst.STATE_NULL)
+          self.loop.quit()
+    #if message.structure:
+    #  print("MSG " + bus.get_name() + ": " + message.structure.to_string())
     return True
   def run(self):
     self.pipeline.set_state(gst.STATE_PLAYING)
   def loop(self):
-    gobject.MainLoop().run()
+    self.loop = gobject.MainLoop()
+    self.loop.run()

@@ -7,6 +7,7 @@ import time
 class RTPTransmitter:
   def __init__(self, audio_input='alsa', audio_device='hw:0', base_port=3000, encoding='celt', bitrate=96, jack_name='openob_tx', receiver_address='localhost'):
     """Sets up a new RTP transmitter"""
+    self.started = False
     self.pipeline = gst.Pipeline("tx")
     self.bus = self.pipeline.get_bus()
     self.bus.connect("message", self.on_message)
@@ -52,8 +53,13 @@ class RTPTransmitter:
     # Our RTP manager
     self.rtpbin = gst.element_factory_make("gstrtpbin","gstrtpbin")
 
+    # Our level monitor, also used for continuous audio
+    self.level = gst.element_factory_make("level")
+    self.level.set_property('message', True)
+    self.level.set_property('interval', 1000000000)
+
     # Add to the pipeline
-    self.pipeline.add(self.source, self.audioconvert, self.audioresample, self.audiorate, self.payloader, self.udpsink_rtpout, self.udpsink_rtcpout, self.udpsrc_rtcpin, self.rtpbin)
+    self.pipeline.add(self.source, self.audioconvert, self.audioresample, self.audiorate, self.payloader, self.udpsink_rtpout, self.udpsink_rtcpout, self.udpsrc_rtcpin, self.rtpbin, self.level)
     if encoding != 'pcm':
       # Only add an encoder if we're not in PCM mode
       self.pipeline.add(self.encoder)
@@ -65,9 +71,9 @@ class RTPTransmitter:
       self.capsfilter =  gst.element_factory_make("capsfilter", "filter")
       self.capsfilter.set_property("caps", caps)
       self.pipeline.add(self.capsfilter)
-      gst.element_link_many(self.source, self.capsfilter, self.audioresample, self.audiorate, self.audioconvert)
+      gst.element_link_many(self.source, self.capsfilter, self.level, self.audioresample, self.audiorate, self.audioconvert)
     else:
-      gst.element_link_many(self.source, self.audioresample, self.audiorate, self.audioconvert)
+      gst.element_link_many(self.source, self.level, self.audioresample, self.audiorate, self.audioconvert)
     # Now we get to link this up to our encoder/payloader
 
     if encoding != 'pcm':
@@ -81,6 +87,10 @@ class RTPTransmitter:
     self.rtpbin.link_pads('send_rtcp_src_0', self.udpsink_rtcpout, 'sink')
     self.udpsrc_rtcpin.link_pads('src', self.rtpbin, 'recv_rtcp_sink_0')
 
+    # Connect our bus up
+    self.bus.add_signal_watch()
+    self.bus.connect('message', self.on_message)
+
   def run(self):
     self.udpsink_rtcpout.set_locked_state(gst.STATE_PLAYING)
     self.pipeline.set_state(gst.STATE_PLAYING)
@@ -92,13 +102,16 @@ class RTPTransmitter:
       time.sleep(0.1)
   def loop(self):
     try:
-      gobject.MainLoop().run()
+      self.loop = gobject.MainLoop()
+      self.loop.run()
     except Exception, e:
       print("Exception encountered in transmitter - %s" % e)
       self.pipeline.set_state(gst.STATE_NULL)
   def on_message (self, bus, message):
-    if message.structure:
-      print("MSG " + bus.get_name() + ": " + message.structure.to_string())
+    if message.type == gst.MESSAGE_ELEMENT:
+      if message.structure.get_name() == 'level':
+        self.started = True
+        print(" -- Transmitting: L %3.2f R %3.2f (Peak L %3.2f R %3.2f)" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1]))
     return True
   def get_caps(self):
     return self.caps
