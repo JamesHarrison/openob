@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # OpenOB Link Manager
 # One of these runs at each end and negotiates everything (RX pushes config info to TX), reconnects when links fail, and so on.
 import sys

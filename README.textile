@@ -39,9 +39,13 @@ The base port can be changed with the -p flag.
 
 To install dependencies on an Ubuntu box you can run the following:
 
-<pre>sudo apt-get install python-gst0.10 python-redis gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
+<pre>sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
   gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly \
 gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa </pre>
+
+You'll need two Python libraries; on 12.04 these can be fetched as packages but prior versions need the latest versions, so use easy_install (installed with python-setuptools above):
+
+<pre>sudo easy_install redis;sudo easy_install argparse</pre>
 
 You will also need to install Redis on a machine - it does not need to be on the receiver or transmitter, but the receiver machine is probably where you want to put it.
  
@@ -104,6 +108,12 @@ h2. Dependencies
 * Python gobject bindings
 * JACK server (optionally, ALSA is fine though)
 * Redis server (only needed on the configuration server, usually configured on the receiver)
+
+h2. Real-World Users
+
+This list is new; if you're using OpenOB in the real world (or testing/developing with it/evaluating it), let me know so you can be added to the list (or just add yourself in a fork and throw in a pull request).
+
+* "Insanity Radio 103.2FM":http://insanityradio.com/ - Studio-Transmitter Link for FM, outside broadcasts from events
 
 h2. Licensing and Credits
 
