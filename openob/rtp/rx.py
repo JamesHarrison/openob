@@ -50,13 +50,13 @@ class RTPReceiver:
     udpsrc_caps = gst.caps_from_string(caps)
     self.udpsrc_rtpin.set_property('caps', udpsrc_caps)
     self.udpsrc_rtpin.set_property('timeout', 5000000)
-    # # Where our RTCP control messages come in
-    # self.udpsrc_rtcpin = gst.element_factory_make('udpsrc')
-    # self.udpsrc_rtcpin.set_property('port', base_port+1)
-    # # And where we'll send RTCP Sender Reports (a black hole - we assume we can't contact the sender, and this is optional)
-    # self.udpsink_rtcpout = gst.element_factory_make('udpsink')
-    # self.udpsink_rtcpout.set_property('host', "0.0.0.0")
-    # self.udpsink_rtcpout.set_property('port', base_port+2)
+    # Where our RTCP control messages come in
+    self.udpsrc_rtcpin = gst.element_factory_make('udpsrc')
+    self.udpsrc_rtcpin.set_property('port', base_port+1)
+    # And where we'll send RTCP Sender Reports (a black hole - we assume we can't contact the sender, and this is optional)
+    self.udpsink_rtcpout = gst.element_factory_make('udpsink')
+    self.udpsink_rtcpout.set_property('host', "0.0.0.0")
+    self.udpsink_rtcpout.set_property('port', base_port+2)
 
     # Our level monitor, also used for continuous audio
     self.level = gst.element_factory_make("level")
@@ -64,7 +64,7 @@ class RTPReceiver:
     self.level.set_property('interval', 1000000000)
 
     # And now we've got it all set up we need to add the elements
-    self.pipeline.add(self.audiorate, self.audioresample, self.audioconvert, self.sink, self.level, self.depayloader, self.rtpbin, self.udpsrc_rtpin)
+    self.pipeline.add(self.audiorate, self.audioresample, self.audioconvert, self.sink, self.level, self.depayloader, self.rtpbin, self.udpsrc_rtpin, self.udpsrc_rtcpin, self.udpsink_rtcpout)
     if encoding != 'pcm':
       self.pipeline.add(self.decoder)
       gst.element_link_many(self.depayloader, self.decoder, self.audioconvert)
@@ -76,9 +76,9 @@ class RTPReceiver:
       print p.get_caps()
     # Now the RTP pads
     self.udpsrc_rtpin.link_pads('src', self.rtpbin, 'recv_rtp_sink_0')
-    # self.udpsrc_rtcpin.link_pads('src', self.rtpbin, 'recv_rtcp_sink_0')
-    # # RTCP SRs
-    # self.rtpbin.link_pads('send_rtcp_src_0', self.udpsink_rtcpout, 'sink')
+    self.udpsrc_rtcpin.link_pads('src', self.rtpbin, 'recv_rtcp_sink_0')
+    # RTCP SRs
+    self.rtpbin.link_pads('send_rtcp_src_0', self.udpsink_rtcpout, 'sink')
 
     # Attach callbacks for dynamic pads (RTP output) and busses
     self.rtpbin.connect('pad-added', self.rtpbin_pad_added)
