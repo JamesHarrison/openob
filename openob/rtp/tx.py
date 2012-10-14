@@ -5,7 +5,7 @@ import gst
 import time
 
 class RTPTransmitter:
-  def __init__(self, audio_input='alsa', audio_device='hw:0', base_port=3000, encoding='celt', bitrate=96, jack_name='openob_tx', receiver_address='localhost'):
+  def __init__(self, audio_input='alsa', audio_device='hw:0', base_port=3000, encoding='opus', bitrate=96, jack_name='openob_tx', receiver_address='localhost', opus_options={'audio': True, 'bandwidth': -1000, 'frame-size': 5, 'complexity': 8, 'constrained-vbr': True, 'inband-fec': True, 'packet-loss-percentage': 2}):
     """Sets up a new RTP transmitter"""
     self.started = False
     self.pipeline = gst.Pipeline("tx")
@@ -33,6 +33,11 @@ class RTPTransmitter:
     if encoding == 'celt':
       self.encoder = gst.element_factory_make("celtenc", "encoder")
       self.payloader = gst.element_factory_make("rtpceltpay", "payloader")
+    elif encoding == 'opus':
+      self.encoder = gst.element_factory_make("opusenc", "encoder")
+      for key, value in opus_options.iteritems():
+        self.encoder.set_property(key, value)
+      self.payloader = gst.element_factory_make("rtpopuspay", "payloader")
     elif encoding == 'pcm':
       # we have no encoder for PCM operation
       self.payloader = gst.element_factory_make("rtpL16pay", "payloader")
@@ -42,13 +47,13 @@ class RTPTransmitter:
     self.udpsink_rtpout = gst.element_factory_make("udpsink", "udpsink_rtp")
     self.udpsink_rtpout.set_property('host', receiver_address)
     self.udpsink_rtpout.set_property('port', base_port)
-    # And send our control packets out on this
-    self.udpsink_rtcpout = gst.element_factory_make("udpsink", "udpsink_rtcp")
-    self.udpsink_rtcpout.set_property('host', receiver_address)
-    self.udpsink_rtcpout.set_property('port', base_port+1)
-    # And the receiver will send us RTCP Sender Reports on this
-    self.udpsrc_rtcpin = gst.element_factory_make("udpsrc", "udpsrc_rtcp")
-    self.udpsrc_rtcpin.set_property('port', base_port+2)
+    # # And send our control packets out on this
+    # self.udpsink_rtcpout = gst.element_factory_make("udpsink", "udpsink_rtcp")
+    # self.udpsink_rtcpout.set_property('host', receiver_address)
+    # self.udpsink_rtcpout.set_property('port', base_port+1)
+    # # And the receiver will send us RTCP Sender Reports on this
+    # self.udpsrc_rtcpin = gst.element_factory_make("udpsrc", "udpsrc_rtcp")
+    # self.udpsrc_rtcpin.set_property('port', base_port+2)
     # (but we'll ignore them/operate fine without them because we assume we're stuck behind a firewall)
     # Our RTP manager
     self.rtpbin = gst.element_factory_make("gstrtpbin","gstrtpbin")
@@ -59,7 +64,7 @@ class RTPTransmitter:
     self.level.set_property('interval', 1000000000)
 
     # Add to the pipeline
-    self.pipeline.add(self.source, self.audioconvert, self.audioresample, self.audiorate, self.payloader, self.udpsink_rtpout, self.udpsink_rtcpout, self.udpsrc_rtcpin, self.rtpbin, self.level)
+    self.pipeline.add(self.source, self.audioconvert, self.audioresample, self.audiorate, self.payloader, self.udpsink_rtpout, self.rtpbin, self.level)
     if encoding != 'pcm':
       # Only add an encoder if we're not in PCM mode
       self.pipeline.add(self.encoder)
@@ -84,7 +89,6 @@ class RTPTransmitter:
     # And now the RTP bits
     self.payloader.link_pads('src', self.rtpbin, 'send_rtp_sink_0')
     self.rtpbin.link_pads('send_rtp_src_0', self.udpsink_rtpout, 'sink')
-    self.rtpbin.link_pads('send_rtcp_src_0', self.udpsink_rtcpout, 'sink')
     self.udpsrc_rtcpin.link_pads('src', self.rtpbin, 'recv_rtcp_sink_0')
 
     # Connect our bus up
@@ -92,7 +96,7 @@ class RTPTransmitter:
     self.bus.connect('message', self.on_message)
 
   def run(self):
-    self.udpsink_rtcpout.set_locked_state(gst.STATE_PLAYING)
+    #self.udpsink_rtcpout.set_locked_state(gst.STATE_PLAYING)
     self.pipeline.set_state(gst.STATE_PLAYING)
     print self.pipeline.get_state()
     while self.caps == 'None':

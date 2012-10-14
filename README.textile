@@ -2,21 +2,21 @@ h1. OpenOB
 
 OpenOB (Open Outside Broadcast) is a simple Python/GStreamer based application which implements a highly configurable RTP-based audio link system.
 
-It is intended to allow professional broadcasters to avoid expensive 'codec' hardware, which is typically costed based on quality - you pay a premium for better quality or lower latencies. OpenOB supports CELT, a high-quality efficient low-latency codec, and allows you to run all of this off commodity computer hardware at much much lower cost, lowering the bar to entry for broadcasters, allowing professional quality contribution links to be set up with nothing more than an entry-level computer at each end.
+It is intended to allow professional broadcasters to avoid expensive 'codec' hardware, which is typically costed based on quality - you pay a premium for better quality or lower latencies. OpenOB supports Opus, a high-quality efficient low-latency codec, and allows you to run all of this off commodity computer hardware at much much lower cost, lowering the bar to entry for broadcasters, allowing professional quality contribution links to be set up with nothing more than an entry-level computer at each end.
 
 While outside broadcast contribution links are the primary use-case, the system is also usable for other tasks requiring a high-reliability audio link, such as studio-studio links and studio-transmitter links.
 
 h2. Development Status
 
-OpenOB is in active use at at least one community radio station and should be reliable for most use cases, but it has not been tested particularly thoroughly.
+OpenOB is stable and suitable for production usage.
 
-If you intend to put it into production, test thoroughly before doing so.
+If you intend to put it into production, test thoroughly before doing so, as with any other system you might deploy.
 
 h2. Technical Information
 
 OpenOB is a single program which can be run as a transmitter or receiver. It is configured by command-line options.
 
-By default the CELT codec is used for audio transport. This is a codec equally suited to music as it is to speech, and which is very bandwidth efficient, allowing good quality links at as low as 16 or 32kbps with very high quality links at 96kbps and above. It's also patent-free and unencumbered.
+By default the Opus codec is used for audio transport. This is a codec equally suited to music as it is to speech, and which is very bandwidth efficient, allowing good quality links at as low as 16 or 32kbps with very high quality links at 96kbps and above. It's also patent-free and unencumbered. Opus' predecessor, CELT, is also available for legacy systems.
 
 Additionally, OpenOB can move raw little-endian PCM 16-bit audio around, allowing for entirely transparent lossless audio links for studio-transmitter links or OBs where a high quality link is available.
 
@@ -32,8 +32,6 @@ Install OpenOB from git or a tarball/zip download. You will need to configure yo
 
 * Redis - port 6379 TCP (only needed on the end hosting your configuration)
 * RTP - port 3000 UDP - the base port for communications, configurable (receiver)
-* RTCP - port 3001 UDP - base port plus one (receiver)
-* RTCP Sender Reports - port 3002 UDP - base port plus two (transmitter)
 
 The base port can be changed with the -p flag.
 
@@ -46,6 +44,13 @@ gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstream
 You'll need two Python libraries; on 12.04 these can be fetched as packages but prior versions need the latest versions, so use easy_install (installed with python-setuptools above):
 
 <pre>sudo easy_install redis;sudo easy_install argparse</pre>
+
+On Debian Wheezy and later you should be able to just run the following:
+
+<pre>sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
+  gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-ffmpeg gstreamer0.10-tools \
+python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse </pre>
+
 
 You will also need to install Redis on a machine - it does not need to be on the receiver or transmitter, but the receiver machine is probably where you want to put it.
  
@@ -73,11 +78,11 @@ optional arguments:
                         The audio source type for this end of the link
   -d DEVICE, --device DEVICE
                         The ALSA audio device when in ALSA audio input mode
-  -e {pcm,celt}, --encoding {pcm,celt}
+  -e {pcm,celt,opus}, --encoding {pcm,celt,opus}
                         The audio encoding type for this link; PCM for linear
-                        audio (16-bit), CELT for encoded audio
+                        audio (16-bit), CELT or Opus (default) for encoded audio
   -b {16,24,32,48,64,96,128}, --bitrate {16,24,32,48,64,96,128}
-                        Bitrate if using CELT (in kbit/s)
+                        Bitrate if using CELT/Opus (in kbit/s)
   -p PORT, --port PORT  The base port to use for audio transport. This port
                         must be accessible on the receiving host
   -j JITTER_BUFFER, --jitter_buffer JITTER_BUFFER
@@ -108,6 +113,15 @@ h2. Dependencies
 * Python gobject bindings
 * JACK server (optionally, ALSA is fine though)
 * Redis server (only needed on the configuration server, usually configured on the receiver)
+
+h2. Troubleshooting
+
+h3. Redis Unreachable
+
+<pre> -- Unable to configure myself from the configuration host; has the transmitter been started yet? (Error 111 connecting some-address:6379. Connection refused.)</pre>
+
+This tends to mean your RX can't talk to Redis. Check you've edited /etc/redis/redis.conf to either comment out the bind 127.0.0.1 default or set bind to your public IP, then restart Redis. You may also have a firewall issue - ensure TCP port 6379 is open.
+
 
 h2. Real-World Users
 

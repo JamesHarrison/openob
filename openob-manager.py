@@ -8,8 +8,8 @@ import redis
 # Thanks gst for messing with argv
 argv = sys.argv
 sys.argv = []
-from rtp.tx import RTPTransmitter
-from rtp.rx import RTPReceiver
+from openob.rtp.tx import RTPTransmitter
+from openob.rtp.rx import RTPReceiver
 sys.argv = argv
 
 class Manager:
@@ -63,10 +63,14 @@ class Manager:
           port = 3000
           caps = ''
           jitter_buffer = 150
-          encoding = 'celt'
+          encoding = 'opus'
           bitrate = '96'
           while True:
             try:
+              if config.get(link_key+"port") == None:
+                print(" -- Unable to configure myself from the configuration host; has the transmitter been started yet, and have you got the same link name on each end?")
+                print("    Waiting half a second and attempting to reconfigure myself.")
+                time.sleep(0.5)
               port = int(config.get(link_key+"port"))
               caps = config.get(link_key+"caps")
               jitter_buffer = int(config.get(link_key+"jitter_buffer"))
@@ -106,8 +110,8 @@ if __name__ == '__main__':
   parser_tx.add_argument('receiver_host', type=str, help="The receiver for this transmitter. The machine at this address must be running an rx-mode Manager for this link name")
   parser_tx.add_argument('-a', '--audio_input', type=str, choices=['alsa', 'jack', 'pulseaudio'], default='alsa', help="The audio source type for this end of the link")
   parser_tx.add_argument('-d', '--device', type=str, default='hw:0', help="The ALSA audio device when in ALSA audio input mode")
-  parser_tx.add_argument('-e', '--encoding', type=str, choices=['pcm','celt'], default='celt', help="The audio encoding type for this link; PCM for linear audio (16-bit), CELT for encoded audio")
-  parser_tx.add_argument('-b', '--bitrate', type=int, default=96, help="Bitrate if using CELT (in kbit/s)", choices=[16,24,32,48,64,96,128])
+  parser_tx.add_argument('-e', '--encoding', type=str, choices=['pcm','celt','opus'], default='opus', help="The audio encoding type for this link; PCM for linear audio (16-bit), CELT or Opus (default) for encoded audio")
+  parser_tx.add_argument('-b', '--bitrate', type=int, default=96, help="Bitrate if using CELT/Opus (in kbit/s)", choices=[16,24,32,48,64,96,128])
   parser_tx.add_argument('-p', '--port', type=int, default=3000, help="The base port to use for audio transport. This port must be accessible on the receiving host")
   parser_tx.add_argument('-j', '--jitter_buffer', type=int, default=150, help="The size of the jitter buffer in milliseconds. Affects latency; may be reduced to 5-10ms on fast reliable networks, or increased for poor networks like 3G")
   parser_tx.set_defaults(mode='tx')
@@ -116,6 +120,5 @@ if __name__ == '__main__':
   parser_rx.add_argument('-d', '--device', type=str, default='hw:0', help="The ALSA audio device when in ALSA audio output mode")
   parser_rx.set_defaults(mode='rx')
   opts = parser.parse_args()
-  print opts
   manager = Manager()
   manager.run(opts)
