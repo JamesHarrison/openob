@@ -1,46 +1,44 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
+    <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>OpenOB by JamesHarrison</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
 
-    <link rel="stylesheet" href="stylesheets/styles.css">
-    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
-    <script src="javascripts/scale.fix.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
+
+    <title>OpenOB by JamesHarrison</title>
   </head>
+
   <body>
-    <div class="wrapper">
-      <header>
-        <h1 class="header">OpenOB</h1>
-        <p class="header">The Open Outside Broadcast project for low-latency high-reliability broadcast audio</p>
+    <header>
+      <div class="inner">
+        <h1>OpenOB</h1>
+        <h2>The Open Outside Broadcast project for low-latency high-reliability broadcast audio</h2>
+        <a href="https://github.com/JamesHarrison/openob" class="button"><small>View project on</small>GitHub</a>
+      </div>
+    </header>
 
-        <ul>
-          <li class="download"><a class="buttons" href="https://github.com/JamesHarrison/openob/zipball/master">Download ZIP</a></li>
-          <li class="download"><a class="buttons" href="https://github.com/JamesHarrison/openob/tarball/master">Download TAR</a></li>
-          <li><a class="buttons github" href="https://github.com/JamesHarrison/openob">View On GitHub</a></li>
-        </ul>
-
-        <p class="header">This project is maintained by <a class="header name" href="https://github.com/JamesHarrison">JamesHarrison</a></p>
-
-
-      </header>
-      <section>
-        <h2>Welcome to OpenOB</h2>
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <h2>Welcome to OpenOB</h2>
 
 <p>The OpenOB project is a fast and simple way to get audio from A to B at high quality with excellent reliability and low latency. It is designed for broadcast use, such as for links from outside broadcast units to contribution units in the studio, or for getting audio from your studio to an FM, AM or DAB transmission site. </p>
 
-<p>It aims to provide a feature-equivalent system comparable to commercial IP codecs.</p>
+<p>It aims to provide a feature-equivalent system comparable to commercial IP codecs, with equivalent or better quality than available commercial units.</p>
 
 <h2>Getting Started</h2>
 
 <p>Setting up an audio link is really simple. On an Ubuntu box (running, say, Ubuntu Studio 12.04), the following commands will get you up and running.</p>
 
-<pre><code># install dependencies (for Ubuntu)
+<pre><code># install dependencies (for Ubuntu, omit gstreamer0.10-plugins-bad-multiverse on Debian/Raspbian): 
 sudo apt-get install git python-gst0.10 python-redis \
   gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \
   gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good \
@@ -77,9 +75,9 @@ optional arguments:
                         The audio source type for this end of the link
   -d DEVICE, --device DEVICE
                         The ALSA audio device when in ALSA audio input mode
-  -e {pcm,celt}, --encoding {pcm,celt}
+  -e {pcm,celt,opus}, --encoding {pcm,celt,opus}
                         The audio encoding type for this link; PCM for linear
-                        audio (16-bit), CELT for encoded audio
+                        audio (16-bit), CELT/Opus (default) for encoded audio
   -b {16,24,32,48,64,96,128}, --bitrate {16,24,32,48,64,96,128}
                         Bitrate if using CELT (in kbit/s)
   -p PORT, --port PORT  The base port to use for audio transport. This port
@@ -106,8 +104,8 @@ optional arguments:
 
 <p>As a minimal configuration you should be able to run the following (assuming you can access your sound cards via ALSA; typically this entails membership of the 'audio' group):</p>
 
-<pre><code># On the transmitter
-python openob-manager.py confighost test-link tx b-hostname
+<pre><code># On the transmitter (append -e celt or -e pcm for machines without Opus)
+python openob-manager.py confighost test-link tx b-hostname -e celt
 # On the receiver
 python openob-manager.py confighost test-link rx
 </code></pre>
@@ -116,35 +114,38 @@ python openob-manager.py confighost test-link rx
 
 <h2>What can it do?</h2>
 
-<p>OpenOB can be used for speech or music content with CELT or PCM modes (PCM is effectively completely transparent, and suitable for feeding processors and encoders). You can run bidirectional links with a single install, and with multiple installs, you can run multiple transmission or receiver links on the same computer (using multiple sound cards or the JACK audio server), letting you use a single machine for contribution links from multiple sources. You can run links over mobile phone connections using CELT at low bitrates and a decent jitter buffer with acceptable quality for on-air usage, even for music content.</p>
+<p>OpenOB can be used for speech or music content with Opus, CELT or PCM modes (PCM is effectively completely transparent, and suitable for feeding processors and encoders). You can run bidirectional links with a single install, and with multiple installs, you can run multiple transmission or receiver links on the same computer (using multiple sound cards or the JACK audio server), letting you use a single machine for contribution links from multiple sources. You can run links over mobile phone connections using Opus or CELT at low bitrates and a decent jitter buffer with acceptable quality for on-air usage, even for music content. Opus features <em>forward error correction</em> and <em>packet loss concealment</em> making it particularly powerful for mobile links.</p>
 
 <h3>What can't it do?</h3>
 
 <p>Make you a nice mug of tea at 4AM after a late night at the studio repairing things. Sorry. This feature is slated for a future release.</p>
 
+<p>Automatic bandwidth flexing and discontinuous transmission modes for Opus are planned, along with a graphical user interface and better management of links.</p>
+
 <h2>State of the Project</h2>
 
-<p>The project is ongoing - proper end to end link management which includes automatic recovery of faults and monitoring of the links is the main thing missing from the project, but work is ongoing on making this happen.</p>
+<p>The project is being actively developed but is considered stable for production usage.</p>
 
 <p>The project is in active use; it's used at <a href="http://insanityradio.com/">Insanity Radio 103.2 FM</a> for a studio-transmitter link, and for outside broadcast contribution links. It is reliable and works well when managed carefully, but isn't quite yet idiot-proof.</p>
 
-<p>It is being developed further by me (James Harrison) in my spare time; financial contributions to the project would be appreciated.</p>
+<p>It is being developed further by me (James Harrison) in my spare time.</p>
 
 <h3>Technical Notes</h3>
 
-<p>The project uses the Real Time Protocol combined with either the CELT low-latency audio codec or straightforward PCM 16-bit packetizing. In the CELT mode, latency is as low as 5-10 milliseconds. In PCM mode, the link is as low-latency as your sound cards. This assumes a perfect network - a jitter buffer is usually required, of 5-10 milliseconds on most complex networks.</p>
+<p>The project uses the Real Time Protocol combined with either the Opus or CELT low-latency audio codec or straightforward PCM 16-bit packetizing. In the Opus or CELT modes, latency is as low as 10 milliseconds. In PCM mode, the link is as low-latency as your sound cards. This assumes a perfect network - a jitter buffer is usually required, of 5-10 milliseconds on most complex networks.</p>
 
 <p>The core of the project uses the GStreamer framework for handling audio; Python is used for controlling GStreamer pipelines and monitoring things, along with the web interface.</p>
 
 <h3>Gotchas</h3>
 
-<p>Versions of GStreamer and codecs can vary significantly between OS versions; for fewer headaches, install the same operating system on both ends. Ubuntu Studio 12.04 is my current distro of choice for this sort of work, as it allows unimpeded access to the sound card via ALSA without modifications, and JACK also works out of the box.</p>
+<p>Versions of GStreamer and codecs can vary significantly between OS versions; for fewer headaches, install the same operating system on both ends and same versions of packages. This should not be an issue now Opus is standardized but CELT can still vary.</p>
 
 <h2>The To-Do List</h2>
 
 <ul>
 <li>Package up as a Python package so installation can be reduced to <code>easy_install openob</code>
 </li>
+<li>Package as a Debian package</li>
 <li>Write some tests to verify behaviour of links</li>
 <li>Improve support of multiple sound cards/JACK client management</li>
 <li>Measure end to end latency with a decent sound card (prerequisite: someone buys me two decent sound cards and lends me an audio analyser)</li>
@@ -158,12 +159,25 @@ python openob-manager.py confighost test-link rx
 </ul><h2>Credits</h2>
 
 <p>OpenOB was developed by James Harrison for Insanity Radio. I couldn't have figured out a lot of stuff about how to get GStreamer and Python talking without some sample code from Alexandre Bourget. And of course, the GStreamer guys rock for managing to develop such an amazing toolkit for us developers.</p>
-      </section>
-      <footer>
-        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
-      </footer>
+        </section>
+
+        <aside id="sidebar">
+          <a href="https://github.com/JamesHarrison/openob/zipball/master" class="button">
+            <small>Download</small>
+            .zip file
+          </a>
+          <a href="https://github.com/JamesHarrison/openob/tarball/master" class="button">
+            <small>Download</small>
+            .tar.gz file
+          </a>
+
+          <p class="repo-owner"><a href="https://github.com/JamesHarrison/openob"></a> is maintained by <a href="https://github.com/JamesHarrison">JamesHarrison</a>.</p>
+
+          <p>This page was generated by <a href="pages.github.com">GitHub Pages</a> using the Architect theme by <a href="http://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
     </div>
-    <!--[if !IE]><script>fixScale(document);</script><!--<![endif]-->
-		
+
+  
   </body>
 </html>
