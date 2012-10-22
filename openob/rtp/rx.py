@@ -47,6 +47,8 @@ class RTPReceiver:
     self.udpsrc_rtpin = gst.element_factory_make('udpsrc')
     self.udpsrc_rtpin.set_property('port', base_port)
     caps = caps.replace('\\', '')
+    if encoding == 'opus':
+      caps = re.sub(r'(caps=.+ )', '', caps)
     udpsrc_caps = gst.caps_from_string(caps)
     self.udpsrc_rtpin.set_property('caps', udpsrc_caps)
     self.udpsrc_rtpin.set_property('timeout', 5000000)
