@@ -71,7 +71,7 @@ You then need to edit /etc/redis/redis.conf and instruct redis to bind to your e
 
 That's it!
 
-You can now run OpenOB. @openob -h@ will list help; @openob dummyhost someconfig rx -h@ will give help for the receiver mode, for instance.
+You can now run OpenOB. `openob -h` will list help; `openob dummyhost someconfig rx -h` will give help for the receiver mode, for instance.
 
 ### Example Usage
 
