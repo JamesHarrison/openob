@@ -3,14 +3,14 @@
 from distutils.core import setup
 
 setup(name='OpenOB',
-      version='2.0',
+      version='2.2',
       description='Broadcast audio over IP codec built with PyGST',
       author='James Harrison',
       author_email='james@talkunafraid.co.uk',
       url='http://jamesharrison.github.com/openob',
-      scripts=['openob-manager.py'],
+      scripts=['bin/openob'],
       packages=['openob','openob.rtp'],
-      requires=['pygst'],
+      requires=['pygst','colorama', 'redis'],
       classifiers=["Programming Language :: Python",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 2",

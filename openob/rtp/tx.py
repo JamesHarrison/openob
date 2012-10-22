@@ -3,7 +3,8 @@ import pygst
 pygst.require("0.10")
 import gst
 import time
-
+import re
+from colorama import Fore, Back, Style
 class RTPTransmitter:
   def __init__(self, audio_input='alsa', audio_device='hw:0', base_port=3000, encoding='opus', bitrate=96, jack_name='openob_tx', receiver_address='localhost', opus_options={'audio': True, 'bandwidth': -1000, 'frame-size': 20, 'complexity': 5, 'constrained-vbr': True, 'inband-fec': True, 'packet-loss-percentage': 1}):
     """Sets up a new RTP transmitter"""
@@ -12,6 +13,7 @@ class RTPTransmitter:
     self.bus = self.pipeline.get_bus()
     self.bus.connect("message", self.on_message)
     self.caps = 'None'
+    self.encoding = encoding
     # Audio input
     if audio_input == 'alsa':
       self.source = gst.element_factory_make('alsasrc')
@@ -26,7 +28,7 @@ class RTPTransmitter:
     # Audio conversion and resampling
     self.audioconvert = gst.element_factory_make("audioconvert")
     self.audioresample = gst.element_factory_make("audioresample")
-    self.audioresample.set_property('quality', 7) # SRC
+    self.audioresample.set_property('quality', 9) # SRC
     self.audiorate = gst.element_factory_make("audiorate")
 
     # Encoding and payloading
@@ -106,6 +108,9 @@ class RTPTransmitter:
       self.pipeline.get_state()
       print(" -- Waiting for caps - if you get this a lot, you probably can't access the requested audio device.")
       self.caps = str(self.udpsink_rtpout.get_pad('sink').get_property('caps'))
+      # Fix for gstreamer bug in rtpopuspay fixed in GST-plugins-bad 50140388d2b62d32dd9d0c071e3051ebc5b4083b, bug 686547
+      if self.encoding == 'opus':
+        self.caps = re.sub(r'(caps=.+ )', '', self.caps)
       time.sleep(0.1)
   def loop(self):
     try:
@@ -118,7 +123,12 @@ class RTPTransmitter:
     if message.type == gst.MESSAGE_ELEMENT:
       if message.structure.get_name() == 'level':
         self.started = True
-        print(" -- Transmitting: L %3.2f R %3.2f (Peak L %3.2f R %3.2f)" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1]))
+        if int(message.structure['peak'][0]) > -1 or int(message.structure['peak'][1]) > -1:
+          print(Fore.BLACK + Back.RED + (" -- Transmitting: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) !!! CLIP  !!!" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
+        elif int(message.structure['peak'][0]) > -5 or int(message.structure['peak'][1]) > -5:
+          print(Fore.BLACK + Back.YELLOW + (" -- Transmitting: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) !!! LEVEL !!!" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
+        else:
+          print((" -- Transmitting: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) (Level OK)" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])))
     return True
   def get_caps(self):
     return self.caps

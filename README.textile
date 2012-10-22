@@ -28,12 +28,7 @@ Latency is by default configured limited on jitter buffer size with a 150ms buff
 
 h2. Usage/Installation
 
-Install OpenOB from git or a tarball/zip download. You will need to configure your firewall appropriately on the receiving host:
-
-* Redis - port 6379 TCP (only needed on the end hosting your configuration)
-* RTP - port 3000 UDP - the base port for communications, configurable (receiver)
-
-The base port can be changed with the -p flag.
+h3. Non-Python Dependencies
 
 To install dependencies on an Ubuntu box you can run the following:
 
@@ -49,8 +44,7 @@ On Debian Wheezy and later you should be able to just run the following:
 
 <pre>sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
   gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-ffmpeg gstreamer0.10-tools \
-python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse </pre>
-
+python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse</pre>
 
 You will also need to install Redis on a machine - it does not need to be on the receiver or transmitter, but the receiver machine is probably where you want to put it.
  
@@ -58,56 +52,19 @@ You will also need to install Redis on a machine - it does not need to be on the
 
 You then need to edit /etc/redis/redis.conf and instruct redis to bind to your external IP address or 0.0.0.0, then restart redis.
 
-You can now run OpenOB. @python openob-manager -h@ will list help; @python openob-manager dummyhost someconfig rx -h@ will give help for the receiver mode, for instance.
+h3. Installing
 
-<pre>usage: openob-manager config_host link_name tx [-h]
-                                               [-a {alsa,jack,pulseaudio}]
-                                               [-d DEVICE] [-e {pcm,celt,opus}]
-                                               [-b {16,24,32,48,64,96,128,192,256,384}]
-                                               [-p PORT] [-j JITTER_BUFFER]
-                                               receiver_host
+<pre>sudo easy_install OpenOB</pre>
 
-positional arguments:
-  receiver_host         The receiver for this transmitter. The machine at this
-                        address must be running an rx-mode Manager for this
-                        link name
+That's it!
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -a {alsa,jack,pulseaudio}, --audio_input {alsa,jack,pulseaudio}
-                        The audio source type for this end of the link
-  -d DEVICE, --device DEVICE
-                        The ALSA audio device when in ALSA audio input mode
-  -e {pcm,celt,opus}, --encoding {pcm,celt,opus}
-                        The audio encoding type for this link; PCM for linear
-                        audio (16-bit), CELT or Opus (default) for encoded audio
-  -b {16,24,32,48,64,96,128,192,256,384}, --bitrate {16,24,32,48,64,96,128,192,256,384}
-                        Bitrate if using CELT/Opus (in kbit/s)
-  -p PORT, --port PORT  The base port to use for audio transport. This port
-                        must be accessible on the receiving host
-  -j JITTER_BUFFER, --jitter_buffer JITTER_BUFFER
-                        The size of the jitter buffer in milliseconds. Affects
-                        latency; may be reduced to 5-10ms on fast reliable
-                        networks, or increased for poor networks like 3G
-</pre>
-
-<pre>usage: openob-manager config_host link_name rx [-h]
-                                               [-a {alsa,jack,pulseaudio}]
-                                               [-d DEVICE]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -a {alsa,jack,pulseaudio}, --audio_output {alsa,jack,pulseaudio}
-                        The audio output type for this end of the link
-  -d DEVICE, --device DEVICE
-                        The ALSA audio device when in ALSA audio output mode
-</pre>
+You can now run OpenOB. @openob -h@ will list help; @openob dummyhost someconfig rx -h@ will give help for the receiver mode, for instance.
 
 h2. Dependencies
 
 * Linux (Ubuntu Server/Desktop tested)
-* gstreamer 0.10, plus plugins (alsasrc/jackaudiosrc, celtenc and rtpceltpay/rtpL16pay bins required - install good, bad and ugly packages, plus any gstreamer-alsa packages for your distro)
-* Python 2.7 or lower (3.x not supported yet)
+* gstreamer 0.10, plus plugins (alsasrc/jackaudiosrc, opusenc and rtpopuspay/rtpL16pay bins required - install good, bad and ugly packages, plus any gstreamer-alsa packages for your distro)
+* Python 2.7 or lower (3.x tentatively supported)
 * Python gstreamer bindings
 * Python redis bindings
 * Python gobject bindings
@@ -122,6 +79,9 @@ h3. Redis Unreachable
 
 This tends to mean your RX can't talk to Redis. Check you've edited /etc/redis/redis.conf to either comment out the bind 127.0.0.1 default or set bind to your public IP, then restart Redis. You may also have a firewall issue - ensure TCP port 6379 is open.
 
+h3. Silence/-700 level
+
+Check your sound card with alsaconfig, and ensure you're passing the right device (arecord -l to get a list) to OpenOB.
 
 h2. Real-World Users
 

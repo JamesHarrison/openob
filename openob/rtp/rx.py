@@ -3,7 +3,7 @@ import pygst
 pygst.require("0.10")
 import gst
 import re
-
+from colorama import Fore, Back, Style
 class RTPReceiver:
   def __init__(self, caps='', audio_output='alsa', audio_device='hw:0', base_port=3000, encoding='celt', bitrate=96, jitter_buffer=150, jack_name='openob_rx'):
     """Sets up a new RTP receiver"""
@@ -48,6 +48,7 @@ class RTPReceiver:
     self.udpsrc_rtpin = gst.element_factory_make('udpsrc')
     self.udpsrc_rtpin.set_property('port', base_port)
     caps = caps.replace('\\', '')
+    # Fix for gstreamer bug in rtpopuspay fixed in GST-plugins-bad 50140388d2b62d32dd9d0c071e3051ebc5b4083b, bug 686547
     if encoding == 'opus':
       caps = re.sub(r'(caps=.+ )', '', caps)
     udpsrc_caps = gst.caps_from_string(caps)
@@ -97,7 +98,12 @@ class RTPReceiver:
     if message.type == gst.MESSAGE_ELEMENT:
       if message.structure.get_name() == 'level':
         self.started = True
-        print(" -- Receiving: L %3.2f R %3.2f (Peak L %3.2f R %3.2f)" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1]))
+        if int(message.structure['peak'][0]) > -1 or int(message.structure['peak'][1]) > -1:
+          print(Fore.BLACK + Back.RED + (" -- Transmitting: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) !!! CLIP  !!!" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
+        elif int(message.structure['peak'][0]) > -5 or int(message.structure['peak'][1]) > -5:
+          print(Fore.BLACK + Back.YELLOW + (" -- Transmitting: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) !!! LEVEL !!!" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
+        else:
+          print((" -- Transmitting: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) (Level OK)" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])))
       if message.structure.get_name() == 'GstUDPSrcTimeout':
         # Only UDP source configured to emit timeouts is the audio input
         print " -- No data for 5 seconds!"
