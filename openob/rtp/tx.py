@@ -5,7 +5,7 @@ import gst
 import time
 
 class RTPTransmitter:
-  def __init__(self, audio_input='alsa', audio_device='hw:0', base_port=3000, encoding='opus', bitrate=96, jack_name='openob_tx', receiver_address='localhost', opus_options={'audio': True, 'bandwidth': -1000, 'frame-size': 5, 'complexity': 8, 'constrained-vbr': True, 'inband-fec': True, 'packet-loss-percentage': 2}):
+  def __init__(self, audio_input='alsa', audio_device='hw:0', base_port=3000, encoding='opus', bitrate=96, jack_name='openob_tx', receiver_address='localhost', opus_options={'audio': True, 'bandwidth': -1000, 'frame-size': 20, 'complexity': 5, 'constrained-vbr': True, 'inband-fec': True, 'packet-loss-percentage': 1}):
     """Sets up a new RTP transmitter"""
     self.started = False
     self.pipeline = gst.Pipeline("tx")
@@ -26,15 +26,17 @@ class RTPTransmitter:
     # Audio conversion and resampling
     self.audioconvert = gst.element_factory_make("audioconvert")
     self.audioresample = gst.element_factory_make("audioresample")
-    self.audioresample.set_property('quality', 9) # SRC
+    self.audioresample.set_property('quality', 7) # SRC
     self.audiorate = gst.element_factory_make("audiorate")
 
     # Encoding and payloading
     if encoding == 'celt':
       self.encoder = gst.element_factory_make("celtenc", "encoder")
+      self.encoder.set_property('bitrate', bitrate*1000)
       self.payloader = gst.element_factory_make("rtpceltpay", "payloader")
     elif encoding == 'opus':
       self.encoder = gst.element_factory_make("opusenc", "encoder")
+      self.encoder.set_property('bitrate', bitrate*1000)
       for key, value in opus_options.iteritems():
         self.encoder.set_property(key, value)
       self.payloader = gst.element_factory_make("rtpopuspay", "payloader")

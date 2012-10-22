@@ -62,8 +62,8 @@ You can now run OpenOB. @python openob-manager -h@ will list help; @python openo
 
 <pre>usage: openob-manager config_host link_name tx [-h]
                                                [-a {alsa,jack,pulseaudio}]
-                                               [-d DEVICE] [-e {pcm,celt}]
-                                               [-b {16,24,32,48,64,96,128}]
+                                               [-d DEVICE] [-e {pcm,celt,opus}]
+                                               [-b {16,24,32,48,64,96,128,192,256,384}]
                                                [-p PORT] [-j JITTER_BUFFER]
                                                receiver_host
 
@@ -81,7 +81,7 @@ optional arguments:
   -e {pcm,celt,opus}, --encoding {pcm,celt,opus}
                         The audio encoding type for this link; PCM for linear
                         audio (16-bit), CELT or Opus (default) for encoded audio
-  -b {16,24,32,48,64,96,128}, --bitrate {16,24,32,48,64,96,128}
+  -b {16,24,32,48,64,96,128,192,256,384}, --bitrate {16,24,32,48,64,96,128,192,256,384}
                         Bitrate if using CELT/Opus (in kbit/s)
   -p PORT, --port PORT  The base port to use for audio transport. This port
                         must be accessible on the receiving host
