@@ -3,3 +3,6 @@ build/*
 config.yml
 *.pyc
 *.deb
+MANIFEST
+dist/*
+dist

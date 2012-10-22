@@ -1,4 +1,4 @@
-h1. OpenOB
+# OpenOB
 
 OpenOB (Open Outside Broadcast) is a simple Python/GStreamer based application which implements a highly configurable RTP-based audio link system.
 
@@ -6,7 +6,7 @@ It is intended to allow professional broadcasters to avoid expensive 'codec' har
 
 While outside broadcast contribution links are the primary use-case, the system is also usable for other tasks requiring a high-reliability audio link, such as studio-studio links and studio-transmitter links.
 
-h2. Features
+## Features
 
 * IETF standard Opus codec - variable bandwidth and bitrate, 16-384kbps, superior to practically everything
 * Linear PCM mode for transparent audio transit over 1600kbps capable connections (LANs, fast wifi)
@@ -19,13 +19,13 @@ h2. Features
 
 OpenOB is 100% open source, lightweight, and runs on a Raspberry Pi or similar mini-SBCs - with it you can build a broadcast quality STL or OB rig for under £200, bringing IP STLs and OBs to student and community radio who could previously not afford £3500 an end links. It can run over wired or wireless networks as well as 3G cellular data networks.
 
-h2. Development Status
+## Development Status
 
 OpenOB is stable and suitable for production usage.
 
 If you intend to put it into production, test thoroughly before doing so, as with any other system you might deploy.
 
-h2. Technical Information
+## Technical Information
 
 OpenOB is a single program which can be run as a transmitter or receiver. It is configured by command-line options.
 
@@ -39,41 +39,56 @@ Audio level monitoring is provided via simple printouts at each end for easy deb
 
 Latency is by default configured limited on jitter buffer size with a 150ms buffer, which works well on congested switched networks with no QoS. 10ms and lower are possible on suitable hardware with a suitable connection.
 
-h2. Usage/Installation
+## Usage/Installation
 
-h3. Non-Python Dependencies
+### Non-Python Dependencies
 
 To install dependencies on an Ubuntu box you can run the following:
 
-<pre>sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
-  gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly \
-gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa </pre>
+    sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
+    gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly \
+    gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa
 
 You'll need two Python libraries; on 12.04 these can be fetched as packages but prior versions need the latest versions, so use easy_install (installed with python-setuptools above):
 
-<pre>sudo easy_install redis;sudo easy_install argparse</pre>
+    sudo easy_install redis;sudo easy_install argparse
 
 On Debian Wheezy and later you should be able to just run the following:
 
-<pre>sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
-  gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-ffmpeg gstreamer0.10-tools \
-python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse</pre>
+    sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
+    gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-ffmpeg gstreamer0.10-tools \
+    python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse
 
 You will also need to install Redis on a machine - it does not need to be on the receiver or transmitter, but the receiver machine is probably where you want to put it.
  
-<pre>sudo apt-get install redis-server</pre>
+    sudo apt-get install redis-server
 
 You then need to edit /etc/redis/redis.conf and instruct redis to bind to your external IP address or 0.0.0.0, then restart redis.
 
-h3. Installing
+### Installing
 
-<pre>sudo easy_install OpenOB</pre>
+    sudo easy_install OpenOB
 
 That's it!
 
 You can now run OpenOB. @openob -h@ will list help; @openob dummyhost someconfig rx -h@ will give help for the receiver mode, for instance.
 
-h2. Dependencies
+### Example Usage
+
+Basic usage in all cases is this - you need a receiver and a transmitter, the receiver runs like this:
+
+    openob rx.example.org test-link rx
+
+The transmitter like this:
+
+    openob rx.example.org test-link tx rx.example.org
+
+This assumes rx.example.org is both your receiving host and your Redis server. 
+
+This will default to 96kbps Opus encoded audio from ALSA. You can vary the bitrate with the `-b` flag, eg `-b 192` for high quality or `-b 16` to see how speech works at low bitrates.
+
+
+## Dependencies
 
 * Linux (Ubuntu Server/Desktop tested)
 * gstreamer 0.10, plus plugins (alsasrc/jackaudiosrc, opusenc and rtpopuspay/rtpL16pay bins required - install good, bad and ugly packages, plus any gstreamer-alsa packages for your distro)
@@ -84,26 +99,53 @@ h2. Dependencies
 * JACK server (optionally, ALSA is fine though)
 * Redis server (only needed on the configuration server, usually configured on the receiver)
 
-h2. Troubleshooting
+## Troubleshooting
 
-h3. Redis Unreachable
+### Audio levels
 
-<pre> -- Unable to configure myself from the configuration host; has the transmitter been started yet? (Error 111 connecting some-address:6379. Connection refused.)</pre>
+OpenOB tries to be really obvious and provides extreme visual feedback in the terminal for users. The level readout will be suffixed with !!! LEVELS !!! if the input is close to clipping, and it will be suffixed with !!! CLIP !!! if it's very very close. These appear in orange or red backgrounds.
+
+Normal communication shows up in green to indicate how well everything is going.
+
+### Intermittent glitching
+
+Check the CPU available on each machine - OpenOB should be using under 70% and nothing else should be getting in the way.
+
+If the CPU is not an issue, adjust the jitter buffer to give yourself more resistance against network disruption.
+
+### Redis Unreachable
+
+    -- Unable to configure myself from the configuration host; has the transmitter been started yet? (Error 111 connecting some-address:6379. Connection refused.)
 
 This tends to mean your RX can't talk to Redis. Check you've edited /etc/redis/redis.conf to either comment out the bind 127.0.0.1 default or set bind to your public IP, then restart Redis. You may also have a firewall issue - ensure TCP port 6379 is open.
 
-h3. Silence/-700 level
+### Silence/-700 level
 
 Check your sound card with alsaconfig, and ensure you're passing the right device (arecord -l to get a list) to OpenOB.
 
+## Hardware Requirements
 
-h2. Real-World Users
+### Recommended
+
+* Intel Atom 1.6GHz or better
+* 512MB or more system memory
+* External sound card with external power
+
+### Minimum tested
+
+* Broadcom ARM1176JZF-S 700 MHz (Raspberry Pi SOC CPU)
+* 256MB of RAM
+* Bus-powered USB sound card
+
+The Raspberry Pi Single-Board Computer is an active development target for OpenOB and is entirely supported without modifications to hardware or software.
+
+## Real-World Users
 
 This list is new; if you're using OpenOB in the real world (or testing/developing with it/evaluating it), let me know so you can be added to the list (or just add yourself in a fork and throw in a pull request).
 
 * "Insanity Radio 103.2FM":http://insanityradio.com/ - Studio-Transmitter Link for FM, outside broadcasts from events
 
-h2. Licensing and Credits
+## Licensing and Credits
 
 OpenOB was developed by James Harrison, with chunks of example code used from Alexandre Bourget and various other GStreamer documentation sites such as the PyGST manual.
 
