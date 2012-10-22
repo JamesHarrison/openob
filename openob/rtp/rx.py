@@ -2,6 +2,7 @@ import gobject
 import pygst
 pygst.require("0.10")
 import gst
+import re
 
 class RTPReceiver:
   def __init__(self, caps='', audio_output='alsa', audio_device='hw:0', base_port=3000, encoding='celt', bitrate=96, jitter_buffer=150, jack_name='openob_rx'):
