@@ -6,6 +6,19 @@ It is intended to allow professional broadcasters to avoid expensive 'codec' har
 
 While outside broadcast contribution links are the primary use-case, the system is also usable for other tasks requiring a high-reliability audio link, such as studio-studio links and studio-transmitter links.
 
+h2. Features
+
+* IETF standard Opus codec - variable bandwidth and bitrate, 16-384kbps, superior to practically everything
+* Linear PCM mode for transparent audio transit over 1600kbps capable connections (LANs, fast wifi)
+* Trivial configuration and setup via command line
+* Transmitter-configured receivers for standalone receiver operation and control
+* Low latency performance (under 5ms PCM, under 50ms Opus) with variable jitter buffer
+* Automatic link recovery
+* Simple command-line interface for operators, color coded level feedback
+
+
+OpenOB is 100% open source, lightweight, and runs on a Raspberry Pi or similar mini-SBCs - with it you can build a broadcast quality STL or OB rig for under £200, bringing IP STLs and OBs to student and community radio who could previously not afford £3500 an end links. It can run over wired or wireless networks as well as 3G cellular data networks.
+
 h2. Development Status
 
 OpenOB is stable and suitable for production usage.
@@ -20,7 +33,7 @@ By default the Opus codec is used for audio transport. This is a codec equally s
 
 Additionally, OpenOB can move raw little-endian PCM 16-bit audio around, allowing for entirely transparent lossless audio links for studio-transmitter links or OBs where a high quality link is available.
 
-The actual network protocol used to move audio is the Real Time Protocol. OpenOB also supports RTCP and the RTCP Sender Report protocol, though only at the gstreamer level - nothing currently makes use of RTCP SRs within OpenOB itself.
+The actual network protocol used to move audio is the Real Time Protocol.
 
 Audio level monitoring is provided via simple printouts at each end for easy debugging. Network failures are recovered from automatically. Level monitoring of each end along with timestamps are provided bidirectionally for debugging and monitoring, so you can easily see what's going on at each end.
 
@@ -82,6 +95,7 @@ This tends to mean your RX can't talk to Redis. Check you've edited /etc/redis/r
 h3. Silence/-700 level
 
 Check your sound card with alsaconfig, and ensure you're passing the right device (arecord -l to get a list) to OpenOB.
+
 
 h2. Real-World Users
 

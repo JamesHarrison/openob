@@ -128,7 +128,7 @@ class RTPTransmitter:
         elif int(message.structure['peak'][0]) > -5 or int(message.structure['peak'][1]) > -5:
           print(Fore.BLACK + Back.YELLOW + (" -- Transmitting: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) !!! LEVEL !!!" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
         else:
-          print((" -- Transmitting: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) (Level OK)" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])))
+          print(Fore.BLACK + Back.GREEN + (" -- Transmitting: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) (Level OK)" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
     return True
   def get_caps(self):
     return self.caps
