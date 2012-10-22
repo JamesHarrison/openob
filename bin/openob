@@ -1,8 +1,6 @@
 #!/usr/bin/python
 import sys
-import time
 import argparse
-import redis
 # Thanks gst for messing with argv
 argv = sys.argv
 sys.argv = []
