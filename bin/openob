@@ -4,12 +4,10 @@ import argparse
 # Thanks gst for messing with argv
 argv = sys.argv
 sys.argv = []
-from openob.rtp.tx import RTPTransmitter
-from openob.rtp.rx import RTPReceiver
 from openob.manager import Manager
 sys.argv = argv
 
-parser = argparse.ArgumentParser(prog='openob-manager',version='openob-manager 0.9')
+parser = argparse.ArgumentParser(prog='openob',version='openob 2.3')
 parser.add_argument('config_host', type=str, help="The configuration server for this OpenOB Manager")
 parser.add_argument('link_name', type=str, help="The link name this OpenOB Manager is operating on; must be the same on both Managers")
 subparsers = parser.add_subparsers(help="The link mode to operate in on this end")
