@@ -1,183 +1,215 @@
 <!DOCTYPE html>
 <html>
+
   <head>
-    <meta charset='utf-8'>
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="OpenOB : The Open Outside Broadcast project for low-latency high-reliability broadcast audio" />
 
-    <!--[if lt IE 9]>
-    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
-    <title>OpenOB by JamesHarrison</title>
+    <title>OpenOB</title>
   </head>
 
   <body>
-    <header>
-      <div class="inner">
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/JamesHarrison/openob">View on GitHub</a>
+
+          <h1 id="project_title">OpenOB</h1>
+          <h2 id="project_tagline">The Open Outside Broadcast project for low-latency high-reliability broadcast audio</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/JamesHarrison/openob/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/JamesHarrison/openob/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
         <h1>OpenOB</h1>
-        <h2>The Open Outside Broadcast project for low-latency high-reliability broadcast audio</h2>
-        <a href="https://github.com/JamesHarrison/openob" class="button"><small>View project on</small>GitHub</a>
-      </div>
-    </header>
 
-    <div id="content-wrapper">
-      <div class="inner clearfix">
-        <section id="main-content">
-          <h2>Welcome to OpenOB</h2>
+<p>OpenOB (Open Outside Broadcast) is a simple Python/GStreamer based application which implements a highly configurable RTP-based audio link system.</p>
 
-<p>The OpenOB project is a fast and simple way to get audio from A to B at high quality with excellent reliability and low latency. It is designed for broadcast use, such as for links from outside broadcast units to contribution units in the studio, or for getting audio from your studio to an FM, AM or DAB transmission site. </p>
+<p>It is intended to allow professional broadcasters to avoid expensive 'codec' hardware, which is typically costed based on quality - you pay a premium for better quality or lower latencies. OpenOB supports Opus, a high-quality efficient low-latency codec, and allows you to run all of this off commodity computer hardware at much much lower cost, lowering the bar to entry for broadcasters, allowing professional quality contribution links to be set up with nothing more than an entry-level computer at each end.</p>
 
-<p>It aims to provide a feature-equivalent system comparable to commercial IP codecs, with equivalent or better quality than available commercial units.</p>
+<p>While outside broadcast contribution links are the primary use-case, the system is also usable for other tasks requiring a high-reliability audio link, such as studio-studio links and studio-transmitter links.</p>
 
-<h2>Getting Started</h2>
-
-<p>Setting up an audio link is really simple. On an Ubuntu box (running, say, Ubuntu Studio 12.04), the following commands will get you up and running.</p>
-
-<pre><code># install dependencies (for Ubuntu, omit gstreamer0.10-plugins-bad-multiverse on Debian/Raspbian): 
-sudo apt-get install git python-gst0.10 python-redis \
-  gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \
-  gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good \
-  gstreamer0.10-plugins-ugly gstreamer0.10-tools \
-  python-gobject python-gobject-2 gstreamer0.10-alsa 
-# only required on one end, typically the receiving system
-sudo apt-get install redis-server
-# now grab openob
-git clone git://github.com/JamesHarrison/openob.git
-cd openob
-</code></pre>
-
-<p>Configuration of links is done on the command line, to ease integration with monitoring systems like god or monit and quick reconfiguration.</p>
-
-<p>There are two subcommands, rx and tx for receiver and transmitter respectively, each with their own options. </p>
-
-<pre><code># For transmitter help
-python openob-manager.py localhost name tx -h
-usage: openob-manager config_host link_name tx [-h]
-                                               [-a {alsa,jack,pulseaudio}]
-                                               [-d DEVICE] [-e {pcm,celt}]
-                                               [-b {16,24,32,48,64,96,128}]
-                                               [-p PORT] [-j JITTER_BUFFER]
-                                               receiver_host
-
-positional arguments:
-  receiver_host         The receiver for this transmitter. The machine at this
-                        address must be running an rx-mode Manager for this
-                        link name
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -a {alsa,jack,pulseaudio}, --audio_input {alsa,jack,pulseaudio}
-                        The audio source type for this end of the link
-  -d DEVICE, --device DEVICE
-                        The ALSA audio device when in ALSA audio input mode
-  -e {pcm,celt,opus}, --encoding {pcm,celt,opus}
-                        The audio encoding type for this link; PCM for linear
-                        audio (16-bit), CELT/Opus (default) for encoded audio
-  -b {16,24,32,48,64,96,128}, --bitrate {16,24,32,48,64,96,128}
-                        Bitrate if using CELT (in kbit/s)
-  -p PORT, --port PORT  The base port to use for audio transport. This port
-                        must be accessible on the receiving host
-  -j JITTER_BUFFER, --jitter_buffer JITTER_BUFFER
-                        The size of the jitter buffer in milliseconds. Affects
-                        latency; may be reduced to 5-10ms on fast reliable
-                        networks, or increased for poor networks like 3G
-
-# For receiver help
-python openob-manager.py localhost name rx -h
-usage: openob-manager config_host link_name rx [-h]
-                                               [-a {alsa,jack,pulseaudio}]
-                                               [-d DEVICE]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -a {alsa,jack,pulseaudio}, --audio_output {alsa,jack,pulseaudio}
-                        The audio output type for this end of the link
-  -d DEVICE, --device DEVICE
-                        The ALSA audio device when in ALSA audio output mode
-
-</code></pre>
-
-<p>As a minimal configuration you should be able to run the following (assuming you can access your sound cards via ALSA; typically this entails membership of the 'audio' group):</p>
-
-<pre><code># On the transmitter (append -e celt or -e pcm for machines without Opus)
-python openob-manager.py confighost test-link tx b-hostname -e celt
-# On the receiver
-python openob-manager.py confighost test-link rx
-</code></pre>
-
-<p>And you should have audio going from A to B! The links will try and keep themselves alive at all costs, and will report any issues to stdout/stderr. If the above doesn't work make sure your firewall is configured properly.</p>
-
-<h2>What can it do?</h2>
-
-<p>OpenOB can be used for speech or music content with Opus, CELT or PCM modes (PCM is effectively completely transparent, and suitable for feeding processors and encoders). You can run bidirectional links with a single install, and with multiple installs, you can run multiple transmission or receiver links on the same computer (using multiple sound cards or the JACK audio server), letting you use a single machine for contribution links from multiple sources. You can run links over mobile phone connections using Opus or CELT at low bitrates and a decent jitter buffer with acceptable quality for on-air usage, even for music content. Opus features <em>forward error correction</em> and <em>packet loss concealment</em> making it particularly powerful for mobile links.</p>
-
-<h3>What can't it do?</h3>
-
-<p>Make you a nice mug of tea at 4AM after a late night at the studio repairing things. Sorry. This feature is slated for a future release.</p>
-
-<p>Automatic bandwidth flexing and discontinuous transmission modes for Opus are planned, along with a graphical user interface and better management of links.</p>
-
-<h2>State of the Project</h2>
-
-<p>The project is being actively developed but is considered stable for production usage.</p>
-
-<p>The project is in active use; it's used at <a href="http://insanityradio.com/">Insanity Radio 103.2 FM</a> for a studio-transmitter link, and for outside broadcast contribution links. It is reliable and works well when managed carefully, but isn't quite yet idiot-proof.</p>
-
-<p>It is being developed further by me (James Harrison) in my spare time.</p>
-
-<h3>Technical Notes</h3>
-
-<p>The project uses the Real Time Protocol combined with either the Opus or CELT low-latency audio codec or straightforward PCM 16-bit packetizing. In the Opus or CELT modes, latency is as low as 10 milliseconds. In PCM mode, the link is as low-latency as your sound cards. This assumes a perfect network - a jitter buffer is usually required, of 5-10 milliseconds on most complex networks.</p>
-
-<p>The core of the project uses the GStreamer framework for handling audio; Python is used for controlling GStreamer pipelines and monitoring things, along with the web interface.</p>
-
-<h3>Gotchas</h3>
-
-<p>Versions of GStreamer and codecs can vary significantly between OS versions; for fewer headaches, install the same operating system on both ends and same versions of packages. This should not be an issue now Opus is standardized but CELT can still vary.</p>
-
-<h2>The To-Do List</h2>
+<h2>Features</h2>
 
 <ul>
-<li>Package up as a Python package so installation can be reduced to <code>easy_install openob</code>
-</li>
-<li>Package as a Debian package</li>
-<li>Write some tests to verify behaviour of links</li>
-<li>Improve support of multiple sound cards/JACK client management</li>
-<li>Measure end to end latency with a decent sound card (prerequisite: someone buys me two decent sound cards and lends me an audio analyser)</li>
-</ul><h2>Real-World Users</h2>
+<li>IETF standard Opus codec - variable bandwidth and bitrate, 16-384kbps, superior to practically everything</li>
+<li>Linear PCM mode for transparent audio transit over 1600kbps capable connections (LANs, fast wifi)</li>
+<li>Trivial configuration and setup via command line</li>
+<li>Transmitter-configured receivers for standalone receiver operation and control</li>
+<li>Low latency performance (under 5ms PCM, under 50ms Opus) with variable jitter buffer</li>
+<li>Automatic link recovery</li>
+<li>Simple command-line interface for operators, color coded level feedback</li>
+</ul><p>OpenOB is 100% open source, lightweight, and runs on a Raspberry Pi or similar mini-SBCs - with it you can build a broadcast quality STL or OB rig for under £200, bringing IP STLs and OBs to student and community radio who could previously not afford £3500 an end links. It can run over wired or wireless networks as well as 3G cellular data networks.</p>
+
+<h2>Development Status</h2>
+
+<p>OpenOB is stable and suitable for production usage.</p>
+
+<p>If you intend to put it into production, test thoroughly before doing so, as with any other system you might deploy.</p>
+
+<h2>Technical Information</h2>
+
+<p>OpenOB is a single program which can be run as a transmitter or receiver. It is configured by command-line options.</p>
+
+<p>By default the Opus codec is used for audio transport. This is a codec equally suited to music as it is to speech, and which is very bandwidth efficient, allowing good quality links at as low as 16 or 32kbps with very high quality links at 96kbps and above. It's also patent-free and unencumbered. Opus' predecessor, CELT, is also available for legacy systems.</p>
+
+<p>Additionally, OpenOB can move raw little-endian PCM 16-bit audio around, allowing for entirely transparent lossless audio links for studio-transmitter links or OBs where a high quality link is available.</p>
+
+<p>The actual network protocol used to move audio is the Real Time Protocol.</p>
+
+<p>Audio level monitoring is provided via simple printouts at each end for easy debugging. Network failures are recovered from automatically. Level monitoring of each end along with timestamps are provided bidirectionally for debugging and monitoring, so you can easily see what's going on at each end.</p>
+
+<p>Latency is by default configured limited on jitter buffer size with a 150ms buffer, which works well on congested switched networks with no QoS. 10ms and lower are possible on suitable hardware with a suitable connection.</p>
+
+<h2>Usage/Installation</h2>
+
+<h3>Non-Python Dependencies</h3>
+
+<p>To install dependencies on an Ubuntu box you can run the following:</p>
+
+<pre><code>sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
+gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly \
+gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa
+</code></pre>
+
+<p>You'll need two Python libraries; on 12.04 these can be fetched as packages but prior versions need the latest versions, so use easy_install (installed with python-setuptools above):</p>
+
+<pre><code>sudo easy_install redis;sudo easy_install argparse
+</code></pre>
+
+<p>On Debian Wheezy and later you should be able to just run the following:</p>
+
+<pre><code>sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
+gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-ffmpeg gstreamer0.10-tools \
+python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse
+</code></pre>
+
+<p>You will also need to install Redis on a machine - it does not need to be on the receiver or transmitter, but the receiver machine is probably where you want to put it.</p>
+
+<pre><code>sudo apt-get install redis-server
+</code></pre>
+
+<p>You then need to edit /etc/redis/redis.conf and instruct redis to bind to your external IP address or 0.0.0.0, then restart redis.</p>
+
+<h3>Installing</h3>
+
+<pre><code>sudo easy_install OpenOB
+</code></pre>
+
+<p>That's it!</p>
+
+<p>You can now run OpenOB. <code>openob -h</code> will list help; <code>openob dummyhost someconfig rx -h</code> will give help for the receiver mode, for instance.</p>
+
+<h3>Example Usage</h3>
+
+<p>Basic usage in all cases is this - you need a receiver and a transmitter, the receiver runs like this:</p>
+
+<pre><code>openob rx.example.org test-link rx
+</code></pre>
+
+<p>The transmitter like this:</p>
+
+<pre><code>openob rx.example.org test-link tx rx.example.org
+</code></pre>
+
+<p>This assumes rx.example.org is both your receiving host and your Redis server. </p>
+
+<p>This will default to 96kbps Opus encoded audio from ALSA. You can vary the bitrate with the <code>-b</code> flag, eg <code>-b 192</code> for high quality or <code>-b 16</code> to see how speech works at low bitrates.</p>
+
+<h2>Dependencies</h2>
+
+<ul>
+<li>Linux (Ubuntu Server/Desktop tested)</li>
+<li>gstreamer 0.10, plus plugins (alsasrc/jackaudiosrc, opusenc and rtpopuspay/rtpL16pay bins required - install good, bad and ugly packages, plus any gstreamer-alsa packages for your distro)</li>
+<li>Python 2.7 or lower (3.x tentatively supported)</li>
+<li>Python gstreamer bindings</li>
+<li>Python redis bindings</li>
+<li>Python gobject bindings</li>
+<li>JACK server (optionally, ALSA is fine though)</li>
+<li>Redis server (only needed on the configuration server, usually configured on the receiver)</li>
+</ul><h2>Troubleshooting</h2>
+
+<h3>Audio levels</h3>
+
+<p>OpenOB tries to be really obvious and provides extreme visual feedback in the terminal for users. The level readout will be suffixed with !!! LEVELS !!! if the input is close to clipping, and it will be suffixed with !!! CLIP !!! if it's very very close. These appear in orange or red backgrounds.</p>
+
+<p>Normal communication shows up in green to indicate how well everything is going.</p>
+
+<h3>Intermittent glitching</h3>
+
+<p>Check the CPU available on each machine - OpenOB should be using under 70% and nothing else should be getting in the way.</p>
+
+<p>If the CPU is not an issue, adjust the jitter buffer to give yourself more resistance against network disruption.</p>
+
+<h3>Redis Unreachable</h3>
+
+<pre><code>-- Unable to configure myself from the configuration host; has the transmitter been started yet? (Error 111 connecting some-address:6379. Connection refused.)
+</code></pre>
+
+<p>This tends to mean your RX can't talk to Redis. Check you've edited /etc/redis/redis.conf to either comment out the bind 127.0.0.1 default or set bind to your public IP, then restart Redis. You may also have a firewall issue - ensure TCP port 6379 is open.</p>
+
+<h3>Silence/-700 level</h3>
+
+<p>Check your sound card with alsaconfig, and ensure you're passing the right device (arecord -l to get a list) to OpenOB.</p>
+
+<h2>Hardware Requirements</h2>
+
+<h3>Recommended</h3>
+
+<ul>
+<li>Intel Atom 1.6GHz or better</li>
+<li>512MB or more system memory</li>
+<li>External sound card with external power</li>
+</ul><h3>Minimum tested</h3>
+
+<ul>
+<li>Broadcom ARM1176JZF-S 700 MHz (Raspberry Pi SOC CPU)</li>
+<li>256MB of RAM</li>
+<li>Bus-powered USB sound card</li>
+</ul><p>The Raspberry Pi Single-Board Computer is an active development target for OpenOB and is entirely supported without modifications to hardware or software.</p>
+
+<h2>Real-World Users</h2>
 
 <p>This list is new; if you're using OpenOB in the real world (or testing/developing with it/evaluating it), let me know so you can be added to the list (or just add yourself in a fork and throw in a pull request).</p>
 
 <ul>
-<li>
-<a href="http://insanityradio.com">Insanity Radio 103.2 FM (UK Community Radio)</a> - Studio-Transmitter Link for FM, outside broadcasts from events</li>
-</ul><h2>Credits</h2>
+<li>"Insanity Radio 103.2FM":<a href="http://insanityradio.com/">http://insanityradio.com/</a> - Studio-Transmitter Link for FM, outside broadcasts from events</li>
+</ul><h2>Licensing and Credits</h2>
 
-<p>OpenOB was developed by James Harrison for Insanity Radio. I couldn't have figured out a lot of stuff about how to get GStreamer and Python talking without some sample code from Alexandre Bourget. And of course, the GStreamer guys rock for managing to develop such an amazing toolkit for us developers.</p>
-        </section>
+<p>OpenOB was developed by James Harrison, with chunks of example code used from Alexandre Bourget and various other GStreamer documentation sites such as the PyGST manual.</p>
 
-        <aside id="sidebar">
-          <a href="https://github.com/JamesHarrison/openob/zipball/master" class="button">
-            <small>Download</small>
-            .zip file
-          </a>
-          <a href="https://github.com/JamesHarrison/openob/tarball/master" class="button">
-            <small>Download</small>
-            .tar.gz file
-          </a>
+<p>Copyright (c) 2012, James Harrison</p>
 
-          <p class="repo-owner"><a href="https://github.com/JamesHarrison/openob"></a> is maintained by <a href="https://github.com/JamesHarrison">JamesHarrison</a>.</p>
+<p>All rights reserved.</p>
 
-          <p>This page was generated by <a href="pages.github.com">GitHub Pages</a> using the Architect theme by <a href="http://twitter.com/jasonlong">Jason Long</a>.</p>
-        </aside>
-      </div>
+<p>Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following  conditions are met:
+    * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+    * Neither the name of the OpenOB project nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.</p>
+
+<p>THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL JAMES HARRISON OR OTHER OPENOB CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
+      </section>
     </div>
 
-  
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">OpenOB maintained by <a href="https://github.com/JamesHarrison">JamesHarrison</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
   </body>
 </html>
