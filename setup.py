@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 from distutils.core import setup
-
+from setuptools import setup
 setup(name='OpenOB',
-      version='2.3',
+      version='2.3.1',
       description='Broadcast audio over IP codec built with PyGST',
       author='James Harrison',
       author_email='james@talkunafraid.co.uk',
@@ -11,6 +11,7 @@ setup(name='OpenOB',
       scripts=['bin/openob'],
       packages=['openob','openob.rtp'],
       requires=['pygst','colorama', 'redis'],
+      install_requires=['colorama','redis'],
       classifiers=["Programming Language :: Python",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 2",
