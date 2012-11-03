@@ -99,6 +99,14 @@ This will default to 96kbps Opus encoded audio from ALSA. You can vary the bitra
 * JACK server (optionally, ALSA is fine though)
 * Redis server (only needed on the configuration server, usually configured on the receiver)
 
+## Networking
+
+OpenOB requires network connectivity of at least 128kbps to support a stable link. A recommended bandwidth of 256kbps permits some more leeway when it comes to IP overhead and so on.
+
+You need ports open to accept audio coming into a link. By default OpenOB needs ports 3000-3002 open. You do not need to open these on a transmitter, only a receiver.
+
+You can change the port range used with the command line flag -p, which sets the first port number.
+
 ## Troubleshooting
 
 ### Audio levels
@@ -144,6 +152,7 @@ The Raspberry Pi Single-Board Computer is an active development target for OpenO
 This list is new; if you're using OpenOB in the real world (or testing/developing with it/evaluating it), let me know so you can be added to the list (or just add yourself in a fork and throw in a pull request).
 
 * "Insanity Radio 103.2FM":http://insanityradio.com/ - Studio-Transmitter Link for FM, outside broadcasts from events
+* "Stafford FM":http://staffordfm.com/ - Studio-Transmitter Link
 
 ## Licensing and Credits
 

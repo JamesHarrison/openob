@@ -1,7 +1,10 @@
+import sys
 import time
 import redis
 from openob.rtp.tx import RTPTransmitter
 from openob.rtp.rx import RTPReceiver
+import gst
+from colorama import Fore, Back, Style
 # OpenOB Link Manager
 # One of these runs at each end and negotiates everything (RX pushes config info to TX), reconnects when links fail, and so on.
 class Manager:
@@ -21,13 +24,16 @@ class Manager:
             print(" -- Connected to configuration server")
             break
           except Exception, e:
-            print(" -- Couldn't connect to Redis! Ensure your configuration host is set properly, and you can connect to the default Redis port on that host from here (%s)." % e)
-            print("    Waiting half a second and attempting to connect again.")
+            print(Fore.BLACK + Back.RED + " -- Couldn't connect to Redis! Ensure your configuration host is set properly, and you can connect to the default Redis port on that host from here (%s)." % e)
+            print("    Waiting half a second and attempting to connect again." + Fore.RESET + Back.RESET)
             time.sleep(0.5)
 
         # So if we're a transmitter, let's set the options the receiver needs to know about
         link_key = "openob2:"+opts.link_name+":"
         if opts.mode == 'tx':
+          if opts.encoding == 'celt' and int(opts.bitrate) > 192:
+            print(Fore.BLACK + Back.YELLOW + " -- WARNING: Can't use bitrates higher than 192kbps for CELT, limiting" + Fore.RESET + Back.RESET)
+            opts.bitrate = 192
           # We're a transmitter!
           config.set(link_key+"port", opts.port)
           config.set(link_key+"jitter_buffer", opts.jitter_buffer)
@@ -39,16 +45,20 @@ class Manager:
           print("   - Encoding:      %s" % config.get(link_key+"encoding"))
           print("   - Bitrate:       %s kbit/s" % config.get(link_key+"bitrate"))
           # Okay, we can't set caps yet - we need to configure ourselves first.
-          transmitter = RTPTransmitter(audio_input=opts.audio_input, audio_device=opts.device, base_port=opts.port, encoding=opts.encoding, bitrate=opts.bitrate, jack_name=("openob_tx_%s" % opts.link_name), receiver_address=opts.receiver_host)
-          # Set it up, get caps
           try:
-            transmitter.run()
-            config.set(link_key+"caps", transmitter.get_caps())
-            print("   - Caps:          %s" % config.get(link_key+"caps"))
-            transmitter.loop()
-          except Exception, e:
-            print(" -- Lost connection or otherwise had the transmitter fail on us, restarting (%s)" % e)
-            time.sleep(0.5)
+            transmitter = RTPTransmitter(audio_input=opts.audio_input, audio_device=opts.device, base_port=opts.port, encoding=opts.encoding, bitrate=opts.bitrate, jack_name=("openob_tx_%s" % opts.link_name), receiver_address=opts.receiver_host)
+            # Set it up, get caps
+            try:
+              transmitter.run()
+              config.set(link_key+"caps", transmitter.get_caps())
+              print("   - Caps:          %s" % config.get(link_key+"caps"))
+              transmitter.loop()
+            except Exception, e:
+              print(Fore.BLACK + Back.RED + " -- Lost connection or otherwise had the transmitter fail on us, restarting (%s)" % e)
+              time.sleep(0.5)
+          except gst.ElementNotFoundError, e:
+            print(Fore.BLACK + Back.RED + (" -- Couldn't fulfill our gstreamer module dependencies! You don't have the following element available: %s" % e) + Fore.RESET + Back.RESET)
+            sys.exit(1)
         else:
           # We're a receiver!
           # Default values.
@@ -60,8 +70,8 @@ class Manager:
           while True:
             try:
               if config.get(link_key+"port") == None:
-                print(" -- Unable to configure myself from the configuration host; has the transmitter been started yet, and have you got the same link name on each end?")
-                print("    Waiting half a second and attempting to reconfigure myself.")
+                print(Fore.BLACK + Back.YELLOW + " -- Unable to configure myself from the configuration host; has the transmitter been started yet, and have you got the same link name on each end?")
+                print("    Waiting half a second and attempting to reconfigure myself." + Fore.RESET + Back.RESET)
                 time.sleep(0.5)
               port = int(config.get(link_key+"port"))
               caps = config.get(link_key+"caps")
@@ -76,8 +86,8 @@ class Manager:
               print("   - Caps:          %s" % caps)
               break
             except Exception, e:
-              print(" -- Unable to configure myself from the configuration host; has the transmitter been started yet? (%s)" % e)
-              print("    Waiting half a second and attempting to reconfigure myself.")
+              print(Fore.BLACK + Back.YELLOW + " -- Unable to configure myself from the configuration host; has the transmitter been started yet? (%s)" % e)
+              print("    Waiting half a second and attempting to reconfigure myself." + Fore.RESET + Back.RESET)
               time.sleep(0.5)
               #raise
           # Okay, we can now configure ourself
@@ -86,9 +96,9 @@ class Manager:
             receiver.run()
             receiver.loop()
           except Exception, e:
-            print(" -- Lost connection or otherwise had the receiver fail on us, restarting (%s)" % e)
+            print(Fore.BLACK + Back.RED + (" -- Lost connection or otherwise had the receiver fail on us, restarting (%s)" % e) + Fore.RESET + Back.RESET)
             time.sleep(0.5)
 
       except Exception, e:
-        print(" -- Unhandled exception occured, please report this as a bug!")
+        print(Fore.BLACK + Back.RED + " -- Unhandled exception occured, please report this as a bug!" + Fore.RESET + Back.RESET)
         raise

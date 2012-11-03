@@ -1,0 +1,17 @@
+Source: openob
+Maintainer: James Harrison <james@talkunafraid.co.uk>
+Section: Sound
+Priority: optional
+XS-Python-Version: >=2.7
+Architecture: source
+Standards-Version: 3.9.4.0
+Urgency: low
+Homepage: http://jamesharrison.github.com/openob
+Vcs-Git: git://github.com/JamesHarrison/openob.git
+
+Depends: python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse python-colorama
+Build-Depends: python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse python-colorama
+
+Description: Low-latency audio over IP for broadcast systems
+  OpenOB is a low-latency tool that uses Python and GStreamer to manage real time audio over IP links.
+
