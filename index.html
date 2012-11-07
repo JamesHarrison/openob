@@ -1,37 +1,37 @@
 <!DOCTYPE html>
 <html>
-
   <head>
-    <meta charset='utf-8' />
-    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
-    <meta name="description" content="OpenOB : The Open Outside Broadcast project for low-latency high-reliability broadcast audio" />
-
-    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
-
-    <title>OpenOB</title>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <link href='https://fonts.googleapis.com/css?family=Chivo:900' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <title>OpenOB by JamesHarrison</title>
   </head>
 
   <body>
+    <div id="container">
+      <div class="inner">
 
-    <!-- HEADER -->
-    <div id="header_wrap" class="outer">
-        <header class="inner">
-          <a id="forkme_banner" href="https://github.com/JamesHarrison/openob">View on GitHub</a>
-
-          <h1 id="project_title">OpenOB</h1>
-          <h2 id="project_tagline">The Open Outside Broadcast project for low-latency high-reliability broadcast audio</h2>
-
-            <section id="downloads">
-              <a class="zip_download_link" href="https://github.com/JamesHarrison/openob/zipball/master">Download this project as a .zip file</a>
-              <a class="tar_download_link" href="https://github.com/JamesHarrison/openob/tarball/master">Download this project as a tar.gz file</a>
-            </section>
+        <header>
+          <h1>OpenOB</h1>
+          <h2>The Open Outside Broadcast project for low-latency high-reliability broadcast audio</h2>
         </header>
-    </div>
 
-    <!-- MAIN CONTENT -->
-    <div id="main_content_wrap" class="outer">
-      <section id="main_content" class="inner">
-        <h1>OpenOB</h1>
+        <section id="downloads" class="clearfix">
+          <a href="https://github.com/JamesHarrison/openob/zipball/master" id="download-zip" class="button"><span>Download .zip</span></a>
+          <a href="https://github.com/JamesHarrison/openob/tarball/master" id="download-tar-gz" class="button"><span>Download .tar.gz</span></a>
+          <a href="https://github.com/JamesHarrison/openob" id="view-on-github" class="button"><span>View on GitHub</span></a>
+        </section>
+
+        <hr>
+
+        <section id="main_content">
+          <h1>OpenOB</h1>
 
 <p>OpenOB (Open Outside Broadcast) is a simple Python/GStreamer based application which implements a highly configurable RTP-based audio link system.</p>
 
@@ -73,25 +73,19 @@
 
 <h2>Usage/Installation</h2>
 
+<h3>Operating System</h3>
+
+<p><em>It is recommended that you run OpenOB on a dedicated system to avoid glitches</em> unless you know what you're doing with regards to real-time kernels and priorities.</p>
+
+<p>The primary operating system that OpenOB is developed on is Debian, currently the Wheezy version in testing. It's recommended you use a server version of the OS without a graphical interface to avoid additional overhead. That said, OpenOB is very lightweight and does cope fine with a desktop UI alongside it on relatively chunky hardware (something newer than a Pentium 4 with a GHz or so kicking about).</p>
+
 <h3>Non-Python Dependencies</h3>
-
-<p>To install dependencies on an Ubuntu box you can run the following:</p>
-
-<pre><code>sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
-gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly \
-gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa
-</code></pre>
-
-<p>You'll need two Python libraries; on 12.04 these can be fetched as packages but prior versions need the latest versions, so use easy_install (installed with python-setuptools above):</p>
-
-<pre><code>sudo easy_install redis;sudo easy_install argparse
-</code></pre>
 
 <p>On Debian Wheezy and later you should be able to just run the following:</p>
 
 <pre><code>sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
 gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-ffmpeg gstreamer0.10-tools \
-python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse
+python-gobject python-gobject-2 gstreamer0.10-alsa python-argparse
 </code></pre>
 
 <p>You will also need to install Redis on a machine - it does not need to be on the receiver or transmitter, but the receiver machine is probably where you want to put it.</p>
@@ -129,7 +123,7 @@ python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse
 <h2>Dependencies</h2>
 
 <ul>
-<li>Linux (Ubuntu Server/Desktop tested)</li>
+<li>Linux (Debian Wheezy tested, Ubuntu 12.04 works fine for CELT/PCM but doesn't support Opus)</li>
 <li>gstreamer 0.10, plus plugins (alsasrc/jackaudiosrc, opusenc and rtpopuspay/rtpL16pay bins required - install good, bad and ugly packages, plus any gstreamer-alsa packages for your distro)</li>
 <li>Python 2.7 or lower (3.x tentatively supported)</li>
 <li>Python gstreamer bindings</li>
@@ -137,7 +131,17 @@ python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse
 <li>Python gobject bindings</li>
 <li>JACK server (optionally, ALSA is fine though)</li>
 <li>Redis server (only needed on the configuration server, usually configured on the receiver)</li>
-</ul><h2>Troubleshooting</h2>
+</ul><h2>Networking</h2>
+
+<p>OpenOB requires network connectivity of at least 128kbps to support a stable link. A recommended bandwidth of 256kbps permits some more leeway when it comes to IP overhead and so on.</p>
+
+<p>You need ports open to accept audio coming into a link. By default OpenOB needs ports 3000-3002 open. You do not need to open these on a transmitter, only a receiver.</p>
+
+<p>You can change the port range used with the command line flag -p, which sets the first port number.</p>
+
+<p>If you want to run bidirectional links within networks that you do not have ingress access to, OpenVPN may provide a solution. This has not, however, been tested. Ensure you are running OpenVPN in UDP mode.</p>
+
+<h2>Troubleshooting</h2>
 
 <h3>Audio levels</h3>
 
@@ -162,6 +166,13 @@ python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse
 
 <p>Check your sound card with alsaconfig, and ensure you're passing the right device (arecord -l to get a list) to OpenOB.</p>
 
+<h3>Element unavailable</h3>
+
+<pre><code> -- Couldn't fulfill our gstreamer module dependencies! You don't have the following element available: opusenc
+</code></pre>
+
+<p>If opusenc shows as unavailable you likely don't have the GStreamer bad plugins package installed or it's too old to have Opus. Run <code>gst-inspect opus</code> to see what you've got. You can fall back to the CELT encoder/decoder with <code>-e celt</code> on the command line on the transmitter.</p>
+
 <h2>Hardware Requirements</h2>
 
 <h3>Recommended</h3>
@@ -169,13 +180,15 @@ python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse
 <ul>
 <li>Intel Atom 1.6GHz or better</li>
 <li>512MB or more system memory</li>
-<li>External sound card with external power</li>
+<li>External sound card and external power source</li>
+<li>256kbps synchronous WAN/LAN connection (encoded)</li>
+<li>10Mbps synchronous WAN/LAN connection (lossless)</li>
 </ul><h3>Minimum tested</h3>
 
 <ul>
-<li>Broadcom ARM1176JZF-S 700 MHz (Raspberry Pi SOC CPU)</li>
+<li>Broadcom ARM1176JZF-S 700 MHz (Raspberry Pi SOC CPU) or equivalent (Pentium 4/Celeron D or higher)</li>
 <li>256MB of RAM</li>
-<li>Bus-powered USB sound card</li>
+<li>External sound card strongly recommended (Focusrite Scarlett 2i2 tested on RPi with USB bus power and 2A PSU)</li>
 </ul><p>The Raspberry Pi Single-Board Computer is an active development target for OpenOB and is entirely supported without modifications to hardware or software.</p>
 
 <h2>Real-World Users</h2>
@@ -184,6 +197,7 @@ python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse
 
 <ul>
 <li>"Insanity Radio 103.2FM":<a href="http://insanityradio.com/">http://insanityradio.com/</a> - Studio-Transmitter Link for FM, outside broadcasts from events</li>
+<li>"Stafford FM":<a href="http://staffordfm.com/">http://staffordfm.com/</a> - Studio-Transmitter Link</li>
 </ul><h2>Licensing and Credits</h2>
 
 <p>OpenOB was developed by James Harrison, with chunks of example code used from Alexandre Bourget and various other GStreamer documentation sites such as the PyGST manual.</p>
@@ -198,18 +212,15 @@ python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse
     * Neither the name of the OpenOB project nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.</p>
 
 <p>THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL JAMES HARRISON OR OTHER OPENOB CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
-      </section>
+        </section>
+
+        <footer>
+          OpenOB is maintained by <a href="https://github.com/JamesHarrison">JamesHarrison</a><br>
+          This page was generated by <a href="http://pages.github.com">GitHub Pages</a>. Tactile theme by <a href="http://twitter.com/jasonlong">Jason Long</a>.
+        </footer>
+
+        
+      </div>
     </div>
-
-    <!-- FOOTER  -->
-    <div id="footer_wrap" class="outer">
-      <footer class="inner">
-        <p class="copyright">OpenOB maintained by <a href="https://github.com/JamesHarrison">JamesHarrison</a></p>
-        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
-      </footer>
-    </div>
-
-    
-
   </body>
 </html>
