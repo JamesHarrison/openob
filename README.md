@@ -41,23 +41,19 @@ Latency is by default configured limited on jitter buffer size with a 150ms buff
 
 ## Usage/Installation
 
+### Operating System
+
+*It is recommended that you run OpenOB on a dedicated system to avoid glitches* unless you know what you're doing with regards to real-time kernels and priorities.
+
+The primary operating system that OpenOB is developed on is Debian, currently the Wheezy version in testing. It's recommended you use a server version of the OS without a graphical interface to avoid additional overhead. That said, OpenOB is very lightweight and does cope fine with a desktop UI alongside it on relatively chunky hardware (something newer than a Pentium 4 with a GHz or so kicking about).
+
 ### Non-Python Dependencies
-
-To install dependencies on an Ubuntu box you can run the following:
-
-    sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
-    gstreamer0.10-plugins-bad-multiverse gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly \
-    gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa
-
-You'll need two Python libraries; on 12.04 these can be fetched as packages but prior versions need the latest versions, so use easy_install (installed with python-setuptools above):
-
-    sudo easy_install redis;sudo easy_install argparse
 
 On Debian Wheezy and later you should be able to just run the following:
 
     sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
     gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-ffmpeg gstreamer0.10-tools \
-    python-gobject python-gobject-2 gstreamer0.10-alsa python-redis python-argparse
+    python-gobject python-gobject-2 gstreamer0.10-alsa python-argparse
 
 You will also need to install Redis on a machine - it does not need to be on the receiver or transmitter, but the receiver machine is probably where you want to put it.
  
@@ -90,7 +86,7 @@ This will default to 96kbps Opus encoded audio from ALSA. You can vary the bitra
 
 ## Dependencies
 
-* Linux (Ubuntu Server/Desktop tested)
+* Linux (Debian Wheezy tested, Ubuntu 12.04 works fine for CELT/PCM but doesn't support Opus)
 * gstreamer 0.10, plus plugins (alsasrc/jackaudiosrc, opusenc and rtpopuspay/rtpL16pay bins required - install good, bad and ugly packages, plus any gstreamer-alsa packages for your distro)
 * Python 2.7 or lower (3.x tentatively supported)
 * Python gstreamer bindings
@@ -106,6 +102,8 @@ OpenOB requires network connectivity of at least 128kbps to support a stable lin
 You need ports open to accept audio coming into a link. By default OpenOB needs ports 3000-3002 open. You do not need to open these on a transmitter, only a receiver.
 
 You can change the port range used with the command line flag -p, which sets the first port number.
+
+If you want to run bidirectional links within networks that you do not have ingress access to, OpenVPN may provide a solution. This has not, however, been tested. Ensure you are running OpenVPN in UDP mode.
 
 ## Troubleshooting
 
@@ -131,19 +129,27 @@ This tends to mean your RX can't talk to Redis. Check you've edited /etc/redis/r
 
 Check your sound card with alsaconfig, and ensure you're passing the right device (arecord -l to get a list) to OpenOB.
 
+### Element unavailable
+
+     -- Couldn't fulfill our gstreamer module dependencies! You don't have the following element available: opusenc
+
+If opusenc shows as unavailable you likely don't have the GStreamer bad plugins package installed or it's too old to have Opus. Run `gst-inspect opus` to see what you've got. You can fall back to the CELT encoder/decoder with `-e celt` on the command line on the transmitter.
+
 ## Hardware Requirements
 
 ### Recommended
 
 * Intel Atom 1.6GHz or better
 * 512MB or more system memory
-* External sound card with external power
+* External sound card and external power source
+* 256kbps synchronous WAN/LAN connection (encoded)
+* 10Mbps synchronous WAN/LAN connection (lossless)
 
 ### Minimum tested
 
-* Broadcom ARM1176JZF-S 700 MHz (Raspberry Pi SOC CPU)
+* Broadcom ARM1176JZF-S 700 MHz (Raspberry Pi SOC CPU) or equivalent (Pentium 4/Celeron D or higher)
 * 256MB of RAM
-* Bus-powered USB sound card
+* External sound card strongly recommended (Focusrite Scarlett 2i2 tested on RPi with USB bus power and 2A PSU)
 
 The Raspberry Pi Single-Board Computer is an active development target for OpenOB and is entirely supported without modifications to hardware or software.
 
@@ -151,8 +157,8 @@ The Raspberry Pi Single-Board Computer is an active development target for OpenO
 
 This list is new; if you're using OpenOB in the real world (or testing/developing with it/evaluating it), let me know so you can be added to the list (or just add yourself in a fork and throw in a pull request).
 
-* "Insanity Radio 103.2FM":http://insanityradio.com/ - Studio-Transmitter Link for FM, outside broadcasts from events
-* "Stafford FM":http://staffordfm.com/ - Studio-Transmitter Link
+* [Insanity Radio 103.2FM](http://insanityradio.com/) - Studio-Transmitter Link for FM, outside broadcasts from events
+* [Stafford FM](http://staffordfm.com/) - Studio-Transmitter Link
 
 ## Licensing and Credits
 

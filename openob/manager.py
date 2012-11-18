@@ -45,8 +45,9 @@ class Manager:
           print("   - Encoding:      %s" % config.get(link_key+"encoding"))
           print("   - Bitrate:       %s kbit/s" % config.get(link_key+"bitrate"))
           # Okay, we can't set caps yet - we need to configure ourselves first.
+          opus_options = {'audio': True, 'bandwidth': -1000, 'frame-size': opts.framesize, 'complexity': 7, 'constrained-vbr': True, 'inband-fec': opts.fec, 'packet-loss-percentage': opts.loss, 'dtx': opts.dtx}
           try:
-            transmitter = RTPTransmitter(audio_input=opts.audio_input, audio_device=opts.device, base_port=opts.port, encoding=opts.encoding, bitrate=opts.bitrate, jack_name=("openob_tx_%s" % opts.link_name), receiver_address=opts.receiver_host)
+            transmitter = RTPTransmitter(audio_input=opts.audio_input, audio_device=opts.device, base_port=opts.port, encoding=opts.encoding, bitrate=opts.bitrate, jack_name=("openob_tx_%s" % opts.link_name), receiver_address=opts.receiver_host, opus_options)
             # Set it up, get caps
             try:
               transmitter.run()

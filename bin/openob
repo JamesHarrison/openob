@@ -19,6 +19,11 @@ parser_tx.add_argument('-e', '--encoding', type=str, choices=['pcm','celt','opus
 parser_tx.add_argument('-b', '--bitrate', type=int, default=96, help="Bitrate if using CELT/Opus (in kbit/s)", choices=[16,24,32,48,64,96,128,192,256,384])
 parser_tx.add_argument('-p', '--port', type=int, default=3000, help="The base port to use for audio transport. This port must be accessible on the receiving host")
 parser_tx.add_argument('-j', '--jitter_buffer', type=int, default=150, help="The size of the jitter buffer in milliseconds. Affects latency; may be reduced to 5-10ms on fast reliable networks, or increased for poor networks like 3G")
+parser_tx.add_argument('-l', '--loss', type=int, default=0, help="Expected packet loss percentage for Opus, between 0 and 100")
+parser_tx.add_argument('--dtx', type=bool, default=False, help="Enable Opus Discontinuous Transmission support (true/false, default false)")
+parser_tx.add_argument('--fec', type=bool, default=True, help="Enable Opus Inband Forward Error Correction support (true/false, default true)")
+parser_tx.add_argument('--framesize', type=int, default=20, help="Opus frame size (ms)", choices=[5, 10, 20, 40, 60])
+
 parser_tx.set_defaults(mode='tx')
 parser_rx = subparsers.add_parser('rx')
 parser_rx.add_argument('-a', '--audio_output', type=str, choices=['alsa', 'jack', 'pulseaudio'], default='alsa', help="The audio output type for this end of the link")
