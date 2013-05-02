@@ -18,6 +18,7 @@ parser_tx.add_argument('-d', '--device', type=str, default='hw:0', help="The ALS
 parser_tx.add_argument('-e', '--encoding', type=str, choices=['pcm','celt','opus'], default='opus', help="The audio encoding type for this link; PCM for linear audio (16-bit), CELT or Opus (default) for encoded audio")
 parser_tx.add_argument('-b', '--bitrate', type=int, default=96, help="Bitrate if using CELT/Opus (in kbit/s)", choices=[16,24,32,48,64,96,128,192,256,384])
 parser_tx.add_argument('-p', '--port', type=int, default=3000, help="The base port to use for audio transport. This port must be accessible on the receiving host")
+parser_tx.add_argument('-m', '--multicast', type=bool, default=False, help="Start this transmitter in multicast mode, enabling multiple clients to connect at once using the address specified in reciever_host (true/false, default false)")
 parser_tx.add_argument('-j', '--jitter_buffer', type=int, default=150, help="The size of the jitter buffer in milliseconds. Affects latency; may be reduced to 5-10ms on fast reliable networks, or increased for poor networks like 3G")
 parser_tx.add_argument('-l', '--loss', type=int, default=0, help="Expected packet loss percentage for Opus, between 0 and 100")
 parser_tx.add_argument('--dtx', type=bool, default=False, help="Enable Opus Discontinuous Transmission support (true/false, default false)")
