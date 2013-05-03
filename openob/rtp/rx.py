@@ -100,18 +100,18 @@ class RTPReceiver:
         self.started = True
         if len(message.structure['peak']) == 1:
           if int(message.structure['peak'][0]) > -1:
-            print(Fore.BLACK + Back.RED + (" -- Transmitting Mono: M %3.2f (Peak M %3.2f) !!! CLIP !!!" % (message.structure['rms'][0], message.structure['peak'][0])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
+            print(Fore.BLACK + Back.RED + (" -- Receiving Mono: M %3.2f (Peak M %3.2f) !!! CLIP !!!" % (message.structure['rms'][0], message.structure['peak'][0])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
           elif int(message.structure['peak'][0]) > -5:
-            print(Fore.BLACK + Back.YELLOW + (" -- Transmitting Mono: M %3.2f (Peak M %3.2f) !!! LEVEL !!!" % (message.structure['rms'][0], message.structure['peak'][0])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
+            print(Fore.BLACK + Back.YELLOW + (" -- Receiving Mono: M %3.2f (Peak M %3.2f) !!! LEVEL !!!" % (message.structure['rms'][0], message.structure['peak'][0])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
           else:
-            print(Fore.BLACK + Back.GREEN + (" -- Transmitting Mono: M %3.2f (Peak M %3.2f) (Level OK)" % (message.structure['rms'][0], message.structure['peak'][0])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
+            print(Fore.BLACK + Back.GREEN + (" -- Receiving Mono: M %3.2f (Peak M %3.2f) (Level OK)" % (message.structure['rms'][0], message.structure['peak'][0])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
         else:
           if int(message.structure['peak'][0]) > -1 or int(message.structure['peak'][1]) > -1:
-            print(Fore.BLACK + Back.RED + (" -- Transmitting Stereo: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) !!! CLIP  !!!" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
+            print(Fore.BLACK + Back.RED + (" -- Receiving Stereo: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) !!! CLIP  !!!" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
           elif int(message.structure['peak'][0]) > -5 or int(message.structure['peak'][1]) > -5:
-            print(Fore.BLACK + Back.YELLOW + (" -- Transmitting Stereo: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) !!! LEVEL !!!" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
+            print(Fore.BLACK + Back.YELLOW + (" -- Receiving Stereo: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) !!! LEVEL !!!" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
           else:
-            print(Fore.BLACK + Back.GREEN + (" -- Transmitting Stereo: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) (Level OK)" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
+            print(Fore.BLACK + Back.GREEN + (" -- Receiving Stereo: L %3.2f R %3.2f (Peak L %3.2f R %3.2f) (Level OK)" % (message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1])) + Fore.RESET + Back.RESET + Style.RESET_ALL)
       if message.structure.get_name() == 'GstUDPSrcTimeout':
         # Only UDP source configured to emit timeouts is the audio input
         print " -- No data for 5 seconds!"
