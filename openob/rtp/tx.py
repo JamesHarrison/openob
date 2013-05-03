@@ -15,7 +15,9 @@ class RTPTransmitter:
     self.caps = 'None'
     self.encoding = encoding
     # Audio input
-    if audio_input == 'alsa':
+    if audio_input == 'auto':
+      self.source = gst.element_factory_make('autoaudiosrc')
+    elif audio_input == 'alsa':
       self.source = gst.element_factory_make('alsasrc')
       self.source.set_property('device', audio_device)
     elif audio_input == 'jack':

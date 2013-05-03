@@ -12,7 +12,9 @@ class RTPReceiver:
     self.bus = self.pipeline.get_bus()
     self.bus.connect("message", self.on_message)
     # Audio output
-    if audio_output == 'alsa':
+    if audio_output == 'auto':
+      self.sink = gst.element_factory_make("autoaudiosink")
+    elif audio_output == 'alsa':
       self.sink = gst.element_factory_make("alsasink")
       self.sink.set_property('device', audio_device)
     elif audio_output == 'jack':
