@@ -1,6 +1,6 @@
 # OpenOB
 
-*There is now a mailing list available for "OpenOB users":http://lists.talkunafraid.co.uk/listinfo/openob-users to share experiences and discuss future development.*
+*There is now a mailing list available for [OpenOB users](http://lists.talkunafraid.co.uk/listinfo/openob-users) to share experiences and discuss future development.*
 
 OpenOB (Open Outside Broadcast) is a simple Python/GStreamer based application which implements a highly configurable RTP-based audio link system.
 
