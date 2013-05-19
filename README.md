@@ -1,5 +1,7 @@
 # OpenOB
 
+*There is now a mailing list available for "OpenOB users":http://lists.talkunafraid.co.uk/listinfo/openob-users to share experiences and discuss future development.*
+
 OpenOB (Open Outside Broadcast) is a simple Python/GStreamer based application which implements a highly configurable RTP-based audio link system.
 
 It is intended to allow professional broadcasters to avoid expensive 'codec' hardware, which is typically costed based on quality - you pay a premium for better quality or lower latencies. OpenOB supports Opus, a high-quality efficient low-latency codec, and allows you to run all of this off commodity computer hardware at much much lower cost, lowering the bar to entry for broadcasters, allowing professional quality contribution links to be set up with nothing more than an entry-level computer at each end.
