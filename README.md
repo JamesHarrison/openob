@@ -101,7 +101,7 @@ This will default to 96kbps Opus encoded audio from ALSA. You can vary the bitra
 
 OpenOB requires network connectivity of at least 128kbps to support a stable link. A recommended bandwidth of 256kbps permits some more leeway when it comes to IP overhead and so on.
 
-You need ports open to accept audio coming into a link. By default OpenOB needs ports 3000-3002 open. You do not need to open these on a transmitter, only a receiver.
+You need ports open to accept audio coming into a link. By default OpenOB needs ports 3000-3002/udp open, along with 6379/tcp for Redis on your configuraiton host (usually your receiver). You do not need to open these on a transmitter, only a receiver.
 
 You can change the port range used with the command line flag -p, which sets the first port number.
 
