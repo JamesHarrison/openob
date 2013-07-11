@@ -23,7 +23,8 @@ parser_tx.add_argument('-j', '--jitter_buffer', type=int, default=150, help="The
 parser_tx.add_argument('-l', '--loss', type=int, default=0, help="Expected packet loss percentage for Opus, between 0 and 100")
 parser_tx.add_argument('--dtx', type=bool, default=False, help="Enable Opus Discontinuous Transmission support (true/false, default false)")
 parser_tx.add_argument('--fec', type=bool, default=True, help="Enable Opus Inband Forward Error Correction support (true/false, default true)")
-parser_tx.add_argument('--framesize', type=int, default=20, help="Opus frame size (ms)", choices=[5, 10, 20, 40, 60])
+parser_tx.add_argument('--complexity', type=int, default=7, help="Opus Computational Complexity, between 0 and 10 - reduce on CPU-constrained devices")
+parser_tx.add_argument('--framesize', type=int, default=20, help="Opus frame size (ms)", choices=[2, 5, 10, 20, 40, 60])
 
 parser_tx.set_defaults(mode='tx')
 parser_rx = subparsers.add_parser('rx')
