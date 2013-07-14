@@ -161,6 +161,7 @@ This list is new; if you're using OpenOB in the real world (or testing/developin
 
 * [Insanity Radio 103.2FM](http://insanityradio.com/) - Studio-Transmitter Link for FM, outside broadcasts from events
 * [Stafford FM](http://staffordfm.com/) - Studio-Transmitter Link
+* [CSR FM](http://www.csrfm.com/) - FestiNet - multi-stage outside broadcast (Lounge on the Farm 2013)
 
 ## Licensing and Credits
 
