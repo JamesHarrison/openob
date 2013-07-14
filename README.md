@@ -1,5 +1,7 @@
 # OpenOB
 
+*There is now a mailing list available for [OpenOB users](http://lists.talkunafraid.co.uk/listinfo/openob-users) to share experiences and discuss future development.*
+
 OpenOB (Open Outside Broadcast) is a simple Python/GStreamer based application which implements a highly configurable RTP-based audio link system.
 
 It is intended to allow professional broadcasters to avoid expensive 'codec' hardware, which is typically costed based on quality - you pay a premium for better quality or lower latencies. OpenOB supports Opus, a high-quality efficient low-latency codec, and allows you to run all of this off commodity computer hardware at much much lower cost, lowering the bar to entry for broadcasters, allowing professional quality contribution links to be set up with nothing more than an entry-level computer at each end.
@@ -99,7 +101,7 @@ This will default to 96kbps Opus encoded audio from ALSA. You can vary the bitra
 
 OpenOB requires network connectivity of at least 128kbps to support a stable link. A recommended bandwidth of 256kbps permits some more leeway when it comes to IP overhead and so on.
 
-You need ports open to accept audio coming into a link. By default OpenOB needs ports 3000-3002 open. You do not need to open these on a transmitter, only a receiver.
+You need ports open to accept audio coming into a link. By default OpenOB needs ports 3000-3002/udp open, along with 6379/tcp for Redis on your configuraiton host (usually your receiver). You do not need to open these on a transmitter, only a receiver.
 
 You can change the port range used with the command line flag -p, which sets the first port number.
 
@@ -159,6 +161,7 @@ This list is new; if you're using OpenOB in the real world (or testing/developin
 
 * [Insanity Radio 103.2FM](http://insanityradio.com/) - Studio-Transmitter Link for FM, outside broadcasts from events
 * [Stafford FM](http://staffordfm.com/) - Studio-Transmitter Link
+* [CSR FM](http://www.csrfm.com/) - FestiNet - multi-stage outside broadcast (Lounge on the Farm 2013)
 
 ## Licensing and Credits
 
