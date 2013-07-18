@@ -1,3 +1,4 @@
+
 import sys
 import time
 import redis
@@ -47,7 +48,7 @@ class Manager:
           # Okay, we can't set caps yet - we need to configure ourselves first.
           opus_opts = {'audio': True, 'bandwidth': -1000, 'frame-size': opts.framesize, 'complexity': opts.complexity, 'constrained-vbr': True, 'inband-fec': opts.fec, 'packet-loss-percentage': opts.loss, 'dtx': opts.dtx}
           try:
-            transmitter = RTPTransmitter(audio_input=opts.audio_input, audio_device=opts.device, base_port=opts.port, encoding=opts.encoding, bitrate=opts.bitrate, jack_name=("openob_tx_%s" % opts.link_name), receiver_address=opts.receiver_host, opus_options=opus_opts)
+            transmitter = RTPTransmitter(audio_input=opts.audio_input, audio_device=opts.device, base_port=opts.port, encoding=opts.encoding, bitrate=opts.bitrate, jack_name=("openob_tx_%s" % opts.link_name), jack_auto= not opts.no_jack_auto, receiver_address=opts.receiver_host, opus_options=opus_opts)
             # Set it up, get caps
             try:
               transmitter.run()
@@ -81,7 +82,7 @@ class Manager:
               bitrate = int(config.get(link_key+"bitrate"))
               print(" -- Configured from transmitter with:")
               print("   - Base Port:     %s" % port)
-              print("   - Jitter Buffer: %s ms" % caps)
+              print("   - Jitter Buffer: %s ms" % jitter_buffer)
               print("   - Encoding:      %s" % encoding)
               print("   - Bitrate:       %s kbit/s" % bitrate)
               print("   - Caps:          %s" % caps)
@@ -93,11 +94,9 @@ class Manager:
               #raise
             # Okay, we can now configure ourself
 	  try:
-             receiver = RTPReceiver(audio_output=opts.audio_output, audio_device=opts.device, base_port=port, encoding=encoding, caps=caps, bitrate=bitrate, jitter_buffer=jitter_buffer, jack_name=("openob_tx_%s" % opts.link_name) )
+             receiver = RTPReceiver(audio_output=opts.audio_output, audio_device=opts.device, base_port=port, encoding=encoding, caps=caps, bitrate=bitrate, jitter_buffer=jitter_buffer, jack_name=("openob_tx_%s" % opts.link_name), jack_auto= not opts.no_jack_auto )
              try:
-                print "Running"
                 receiver.run()
-                print "looping"
                 receiver.loop()
              except Exception, e:
                 print(Fore.BLACK + Back.RED + (" -- Lost connection or otherwise had the receiver fail on us, restarting (%s)" % e) + Fore.RESET + Back.RESET)
