@@ -91,15 +91,20 @@ class Manager:
               print("    Waiting half a second and attempting to reconfigure myself." + Fore.RESET + Back.RESET)
               time.sleep(0.5)
               #raise
-          # Okay, we can now configure ourself
-          receiver = RTPReceiver(audio_output=opts.audio_output, audio_device=opts.device, base_port=port, encoding=encoding, caps=caps, bitrate=bitrate, jitter_buffer=jitter_buffer, jack_name=("openob_tx_%s" % opts.link_name) )
-          try:
-            receiver.run()
-            receiver.loop()
-          except Exception, e:
-            print(Fore.BLACK + Back.RED + (" -- Lost connection or otherwise had the receiver fail on us, restarting (%s)" % e) + Fore.RESET + Back.RESET)
-            time.sleep(0.5)
-
+            # Okay, we can now configure ourself
+	  try:
+             receiver = RTPReceiver(audio_output=opts.audio_output, audio_device=opts.device, base_port=port, encoding=encoding, caps=caps, bitrate=bitrate, jitter_buffer=jitter_buffer, jack_name=("openob_tx_%s" % opts.link_name) )
+             try:
+                print "Running"
+                receiver.run()
+                print "looping"
+                receiver.loop()
+             except Exception, e:
+                print(Fore.BLACK + Back.RED + (" -- Lost connection or otherwise had the receiver fail on us, restarting (%s)" % e) + Fore.RESET + Back.RESET)
+                time.sleep(0.5)
+          except gst.ElementNotFoundError, e:
+             print(Fore.BLACK + Back.RED + (" -- Couldn't fulfill our gstreamer module dependencies! You don't have the following element available: %s" % e) + Fore.RESET + Back.RESET)
+             sys.exit(1)
       except Exception, e:
         print(Fore.BLACK + Back.RED + " -- Unhandled exception occured, please report this as a bug!" + Fore.RESET + Back.RESET)
         raise
