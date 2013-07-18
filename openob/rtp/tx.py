@@ -22,6 +22,7 @@ class RTPTransmitter:
       self.source = gst.element_factory_make("jackaudiosrc")
       self.source.set_property('connect', 'auto')
       self.source.set_property('name', jack_name)
+      self.source.set_property('client-name', "openob2")
     elif audio_input == 'pulseaudio':
       self.source = gst.element_factory_make("pulsesrc")
 
@@ -32,6 +33,8 @@ class RTPTransmitter:
     self.audiorate = gst.element_factory_make("audiorate")
 
     # Encoding and payloading
+    print "Here's my encoding..."
+    print encoding
     if encoding == 'celt':
       self.encoder = gst.element_factory_make("celtenc", "encoder")
       self.encoder.set_property('bitrate', bitrate*1000)

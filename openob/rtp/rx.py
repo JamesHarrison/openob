@@ -19,6 +19,7 @@ class RTPReceiver:
       self.sink = gst.element_factory_make("jackaudiosink")
       self.sink.set_property('connect', 'auto')
       self.sink.set_property('name', jack_name)
+      self.sink.set_property('client-name', "openob2")
     elif audio_output == 'pulseaudio':
       self.source = gst.element_factory_make("pulsesink")
     # Audio conversion and resampling
