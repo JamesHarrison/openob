@@ -39,8 +39,14 @@ class Manager:
           config.set(link_key+"jitter_buffer", opts.jitter_buffer)
           config.set(link_key+"encoding", opts.encoding)
           config.set(link_key+"bitrate", opts.bitrate)
+          config.set(link_key+"multicast", opts.multicast)
+          if opts.multicast:
+            config.set(link_key+"multicast_ip", opts.receiver_host)
           print(" -- Configured receiver with:")
           print("   - Base Port:     %s" % config.get(link_key+"port"))
+          print("   - Multicast:     %s" % config.get(link_key+"multicast"))
+          if opts.multicast:
+            print("   - Multicast IP:  %s" % config.get(link_key+"multicast_ip"))
           print("   - Jitter Buffer: %s ms" % config.get(link_key+"jitter_buffer"))
           print("   - Encoding:      %s" % config.get(link_key+"encoding"))
           print("   - Bitrate:       %s kbit/s" % config.get(link_key+"bitrate"))
@@ -79,8 +85,16 @@ class Manager:
               jitter_buffer = int(config.get(link_key+"jitter_buffer"))
               encoding = config.get(link_key+"encoding")
               bitrate = int(config.get(link_key+"bitrate"))
+              multicast = bool(config.get(link_key+"multicast"))
+              if multicast:
+                multicast_ip = config.get(link_key+"multicast_ip")
+              else:
+                multicast_ip = "0.0.0.0"
               print(" -- Configured from transmitter with:")
               print("   - Base Port:     %s" % port)
+              print("   - Multicast:     %s" % multicast)
+              if multicast:
+                print("   - Multicast IP:  %s" % multicast_ip)
               print("   - Jitter Buffer: %s ms" % caps)
               print("   - Encoding:      %s" % encoding)
               print("   - Bitrate:       %s kbit/s" % bitrate)
@@ -92,7 +106,7 @@ class Manager:
               time.sleep(0.5)
               #raise
           # Okay, we can now configure ourself
-          receiver = RTPReceiver(audio_output=opts.audio_output, audio_device=opts.device, base_port=port, encoding=encoding, caps=caps, bitrate=bitrate, jitter_buffer=jitter_buffer, jack_name=("openob_tx_%s" % opts.link_name) )
+          receiver = RTPReceiver(audio_output=opts.audio_output, audio_device=opts.device, base_port=port, multicast=multicast, multicast_ip=multicast_ip, encoding=encoding, caps=caps, bitrate=bitrate, jitter_buffer=jitter_buffer, jack_name=("openob_tx_%s" % opts.link_name) )
           try:
             receiver.run()
             receiver.loop()

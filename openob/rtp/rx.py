@@ -5,14 +5,16 @@ import gst
 import re
 from colorama import Fore, Back, Style
 class RTPReceiver:
-  def __init__(self, caps='', audio_output='alsa', audio_device='hw:0', base_port=3000, encoding='celt', bitrate=96, jitter_buffer=150, jack_name='openob_rx'):
+  def __init__(self, caps='', audio_output='alsa', audio_device='hw:0', base_port=3000, multicast=False, multicast_ip='0.0.0.0', encoding='celt', bitrate=96, jitter_buffer=150, jack_name='openob_rx'):
     """Sets up a new RTP receiver"""
     self.started = False
     self.pipeline = gst.Pipeline("rx")
     self.bus = self.pipeline.get_bus()
     self.bus.connect("message", self.on_message)
     # Audio output
-    if audio_output == 'alsa':
+    if audio_output == 'auto':
+      self.sink = gst.element_factory_make("autoaudiosink")
+    elif audio_output == 'alsa':
       self.sink = gst.element_factory_make("alsasink")
       self.sink.set_property('device', audio_device)
     elif audio_output == 'jack':
@@ -47,6 +49,9 @@ class RTPReceiver:
     # Where audio comes in
     self.udpsrc_rtpin = gst.element_factory_make('udpsrc')
     self.udpsrc_rtpin.set_property('port', base_port)
+    if multicast:
+      self.udpsrc_rtpin.set_property('auto_multicast',True)
+      self.udpsrc_rtpin.set_property('multicast_group',multicast_ip)
     caps = caps.replace('\\', '')
     # Fix for gstreamer bug in rtpopuspay fixed in GST-plugins-bad 50140388d2b62d32dd9d0c071e3051ebc5b4083b, bug 686547
     if encoding == 'opus':
@@ -57,6 +62,9 @@ class RTPReceiver:
     # Where our RTCP control messages come in
     self.udpsrc_rtcpin = gst.element_factory_make('udpsrc')
     self.udpsrc_rtcpin.set_property('port', base_port+1)
+    if multicast:
+      self.udpsrc_rtcpin.set_property('auto_multicast',True) 
+      self.udpsrc_rtcpin.set_property('multicast_group',multicast_ip)
     # And where we'll send RTCP Sender Reports (a black hole - we assume we can't contact the sender, and this is optional)
     self.udpsink_rtcpout = gst.element_factory_make('udpsink')
     self.udpsink_rtcpout.set_property('host', "0.0.0.0")
