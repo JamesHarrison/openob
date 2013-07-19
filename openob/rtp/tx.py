@@ -6,7 +6,7 @@ import time
 import re
 from colorama import Fore, Back, Style
 class RTPTransmitter:
-  def __init__(self, audio_input='alsa', audio_device='hw:0', base_port=3000, encoding='opus', bitrate=96, jack_name='openob_tx', receiver_address='localhost', opus_options={'audio': True, 'bandwidth': -1000, 'frame-size': 20, 'complexity': 7, 'constrained-vbr': True, 'inband-fec': True, 'packet-loss-percentage': 3, 'dtx': False}):
+  def __init__(self, audio_input='alsa', audio_device='hw:0', base_port=3000, multicast=True, encoding='opus', bitrate=96, jack_name='openob_tx', receiver_address='localhost', opus_options={'audio': True, 'bandwidth': -1000, 'frame-size': 20, 'complexity': 7, 'constrained-vbr': True, 'inband-fec': True, 'packet-loss-percentage': 3, 'dtx': False}):
     """Sets up a new RTP transmitter"""
     self.started = False
     self.pipeline = gst.Pipeline("tx")
@@ -15,7 +15,9 @@ class RTPTransmitter:
     self.caps = 'None'
     self.encoding = encoding
     # Audio input
-    if audio_input == 'alsa':
+    if audio_input == 'auto':
+      self.source = gst.element_factory_make('autoaudiosrc')
+    elif audio_input == 'alsa':
       self.source = gst.element_factory_make('alsasrc')
       self.source.set_property('device', audio_device)
     elif audio_input == 'jack':
@@ -51,10 +53,14 @@ class RTPTransmitter:
     self.udpsink_rtpout = gst.element_factory_make("udpsink", "udpsink_rtp")
     self.udpsink_rtpout.set_property('host', receiver_address)
     self.udpsink_rtpout.set_property('port', base_port)
+    if multicast:
+      self.udpsink_rtpout.set_property('auto_multicast',True) 
     # And send our control packets out on this
     self.udpsink_rtcpout = gst.element_factory_make("udpsink", "udpsink_rtcp")
     self.udpsink_rtcpout.set_property('host', receiver_address)
     self.udpsink_rtcpout.set_property('port', base_port+1)
+    if multicast:
+      self.udpsink_rtcpout.set_property('auto_multicast',True) 
     # And the receiver will send us RTCP Sender Reports on this
     self.udpsrc_rtcpin = gst.element_factory_make("udpsrc", "udpsrc_rtcp")
     self.udpsrc_rtcpin.set_property('port', base_port+2)
