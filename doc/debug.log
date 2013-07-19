@@ -1,0 +1,30 @@
+2013-07-16 14:33:28,236: p12371t139753589077760 MainProcess - openob - INFO - OpenOB starting up
+2013-07-16 14:33:28,236: p12371t139753589077760 MainProcess - openob - INFO - Setting up new link manager
+2013-07-16 14:33:28,236: p12371t139753589077760 MainProcess - openob.link_manager - INFO - LinkManager established
+2013-07-16 14:33:28,236: p12371t139753589077760 MainProcess - openob.link_manager.test_link - INFO - Starting link 'test_link'
+2013-07-16 14:33:28,237: p12371t139753589077760 MainProcess - openob.link_manager.test_link - INFO - Configured receiver with:
+2013-07-16 14:33:28,237: p12371t139753589077760 MainProcess - openob.link_manager.test_link - INFO - Base Port:     3000
+2013-07-16 14:33:28,238: p12371t139753589077760 MainProcess - openob.link_manager.test_link - INFO - Jitter Buffer: 150 ms
+2013-07-16 14:33:28,238: p12371t139753589077760 MainProcess - openob.link_manager.test_link - INFO - Encoding:      opus
+2013-07-16 14:33:28,238: p12371t139753589077760 MainProcess - openob.link_manager.test_link - INFO - Bitrate:       96 kbit/s
+2013-07-16 14:33:28,249: p12371t139753589077760 MainProcess - openob.link_manager.test_link - CRITICAL - Couldn't fulfill our gstreamer module dependencies! You don't have the following element available on this system: opusenc
+2013-07-16 14:34:05,731: p13062 - openob - INFO - OpenOB starting up
+2013-07-16 14:34:05,731: p13062 - openob - INFO - Setting up new link manager
+2013-07-16 14:34:05,731: p13062 - openob.link_manager - INFO - LinkManager established
+2013-07-16 14:34:05,731: p13062 - openob.link_manager.test_link - INFO - Starting link 'test_link'
+2013-07-16 14:34:05,732: p13062 - openob.link_manager.test_link - INFO - Configured receiver with:
+2013-07-16 14:34:05,732: p13062 - openob.link_manager.test_link - INFO - Base Port:     3000
+2013-07-16 14:34:05,733: p13062 - openob.link_manager.test_link - INFO - Jitter Buffer: 150 ms
+2013-07-16 14:34:05,733: p13062 - openob.link_manager.test_link - INFO - Encoding:      opus
+2013-07-16 14:34:05,733: p13062 - openob.link_manager.test_link - INFO - Bitrate:       96 kbit/s
+2013-07-16 14:34:05,744: p13062 - openob.link_manager.test_link - CRITICAL - Couldn't fulfill our gstreamer module dependencies! You don't have the following element available on this system: opusenc
+2013-07-16 14:34:28,088 - PID 13587 - openob - INFO - OpenOB starting up
+2013-07-16 14:34:28,088 - PID 13587 - openob - INFO - Setting up new link manager
+2013-07-16 14:34:28,088 - PID 13587 - openob.link_manager - INFO - LinkManager established
+2013-07-16 14:34:28,089 - PID 13587 - openob.link_manager.test_link - INFO - Starting link 'test_link'
+2013-07-16 14:34:28,090 - PID 13587 - openob.link_manager.test_link - INFO - Configured receiver with:
+2013-07-16 14:34:28,090 - PID 13587 - openob.link_manager.test_link - INFO - Base Port:     3000
+2013-07-16 14:34:28,090 - PID 13587 - openob.link_manager.test_link - INFO - Jitter Buffer: 150 ms
+2013-07-16 14:34:28,091 - PID 13587 - openob.link_manager.test_link - INFO - Encoding:      opus
+2013-07-16 14:34:28,091 - PID 13587 - openob.link_manager.test_link - INFO - Bitrate:       96 kbit/s
+2013-07-16 14:34:28,102 - PID 13587 - openob.link_manager.test_link - CRITICAL - Couldn't fulfill our gstreamer module dependencies! You don't have the following element available on this system: opusenc

@@ -4,7 +4,7 @@ import argparse
 # Thanks gst for messing with argv
 argv = sys.argv
 sys.argv = []
-from openob.manager import Manager
+from openob.openob import OpenOB
 sys.argv = argv
 
 parser = argparse.ArgumentParser(prog='openob')
@@ -31,5 +31,7 @@ parser_rx.add_argument('-a', '--audio_output', type=str, choices=['alsa', 'jack'
 parser_rx.add_argument('-d', '--device', type=str, default='hw:0', help="The ALSA audio device when in ALSA audio output mode")
 parser_rx.set_defaults(mode='rx')
 opts = parser.parse_args()
-manager = Manager()
-manager.run(opts)
+
+openob = OpenOB()
+linkmanager = openob.link_manager()
+linkmanager.run(opts)

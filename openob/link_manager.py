@@ -1,18 +1,27 @@
+import logging
 import sys
 import time
 import redis
-from openob.rtp.tx import RTPTransmitter
-from openob.rtp.rx import RTPReceiver
+from rtp.tx import RTPTransmitter
+from rtp.rx import RTPReceiver
 import gst
-from colorama import Fore, Back, Style
 # OpenOB Link Manager
 # One of these runs at each end and negotiates everything (RX pushes config info to TX), reconnects when links fail, and so on.
-class Manager:
+class LinkManager(object):
   '''OpenOB Manager. Handles management of links, mostly recovery from failures.'''
+  def __init__(self):
+    self.logger = logging.getLogger('openob.link_manager')
+    self.logger.info("LinkManager established")
+  def process_levels(self, message):
+    if len(message.structure['peak']) == 2:
+      self.logger.info("Peak levels: L %d R %d" % (message.structure['peak'][0], message.structure['peak'][1]))
+    else:
+      self.logger.info("Peak levels: M %d" % message.structure['peak'][0])
+    # L, R, L, R (RMS, RMS, Peak, Peak)
+    # message.structure['rms'][0], message.structure['rms'][1], message.structure['peak'][0], message.structure['peak'][1]
   def run(self, opts):
-    print("-- OpenOB Audio Link")
-    print(" -- Starting Up")
-    print(" -- Parameters: %s" % opts)
+    self.logger = logging.getLogger('openob.link_manager.%s' % opts.link_name)
+    self.logger.info("Starting link '%s'" % opts.link_name)
     # We're now entering the realm where we should desperately try and maintain a link under all circumstances forever.
     while True:
       try:
@@ -21,29 +30,26 @@ class Manager:
         while True:
           try:
             config = redis.Redis(opts.config_host)
-            print(" -- Connected to configuration server")
             break
           except Exception, e:
-            print(Fore.BLACK + Back.RED + " -- Couldn't connect to Redis! Ensure your configuration host is set properly, and you can connect to the default Redis port on that host from here (%s)." % e)
-            print("    Waiting half a second and attempting to connect again." + Fore.RESET + Back.RESET)
             time.sleep(0.5)
 
         # So if we're a transmitter, let's set the options the receiver needs to know about
         link_key = "openob2:"+opts.link_name+":"
         if opts.mode == 'tx':
           if opts.encoding == 'celt' and int(opts.bitrate) > 192:
-            print(Fore.BLACK + Back.YELLOW + " -- WARNING: Can't use bitrates higher than 192kbps for CELT, limiting" + Fore.RESET + Back.RESET)
+            self.logger.warn("Can't use bitrates higher than 192kbps for CELT, limiting from %dkbps" % opts.bitrate)
             opts.bitrate = 192
           # We're a transmitter!
           config.set(link_key+"port", opts.port)
           config.set(link_key+"jitter_buffer", opts.jitter_buffer)
           config.set(link_key+"encoding", opts.encoding)
           config.set(link_key+"bitrate", opts.bitrate)
-          print(" -- Configured receiver with:")
-          print("   - Base Port:     %s" % config.get(link_key+"port"))
-          print("   - Jitter Buffer: %s ms" % config.get(link_key+"jitter_buffer"))
-          print("   - Encoding:      %s" % config.get(link_key+"encoding"))
-          print("   - Bitrate:       %s kbit/s" % config.get(link_key+"bitrate"))
+          self.logger.info("Configured receiver with:")
+          self.logger.info("Base Port:     %s" % config.get(link_key+"port"))
+          self.logger.info("Jitter Buffer: %s ms" % config.get(link_key+"jitter_buffer"))
+          self.logger.info("Encoding:      %s" % config.get(link_key+"encoding"))
+          self.logger.info("Bitrate:       %s kbit/s" % config.get(link_key+"bitrate"))
           # Okay, we can't set caps yet - we need to configure ourselves first.
           opus_opts = {'audio': True, 'bandwidth': -1000, 'frame-size': opts.framesize, 'complexity': opts.complexity, 'constrained-vbr': True, 'inband-fec': opts.fec, 'packet-loss-percentage': opts.loss, 'dtx': opts.dtx}
           try:
@@ -52,13 +58,13 @@ class Manager:
             try:
               transmitter.run()
               config.set(link_key+"caps", transmitter.get_caps())
-              print("   - Caps:          %s" % config.get(link_key+"caps"))
+              self.logger.info("Caps:          %s" % config.get(link_key+"caps"))
               transmitter.loop()
             except Exception, e:
-              print(Fore.BLACK + Back.RED + " -- Lost connection or otherwise had the transmitter fail on us, restarting (%s)" % e)
-              time.sleep(0.5)
+              self.logger.error("Lost connection or otherwise had the transmitter fail on us, restarting (%s)" % e)
+              time.sleep(0.3)
           except gst.ElementNotFoundError, e:
-            print(Fore.BLACK + Back.RED + (" -- Couldn't fulfill our gstreamer module dependencies! You don't have the following element available: %s" % e) + Fore.RESET + Back.RESET)
+            self.logger.critical("Couldn't fulfill our gstreamer module dependencies! You don't have the following element available on this system: %s" % e)
             sys.exit(1)
         else:
           # We're a receiver!
@@ -71,24 +77,22 @@ class Manager:
           while True:
             try:
               if config.get(link_key+"port") == None:
-                print(Fore.BLACK + Back.YELLOW + " -- Unable to configure myself from the configuration host; has the transmitter been started yet, and have you got the same link name on each end?")
-                print("    Waiting half a second and attempting to reconfigure myself." + Fore.RESET + Back.RESET)
+                self.logger.warn("Unable to configure myself from the configuration host; has the transmitter been started yet, and have you got the same link name on each end? Waiting half a second to recheck")
                 time.sleep(0.5)
               port = int(config.get(link_key+"port"))
               caps = config.get(link_key+"caps")
               jitter_buffer = int(config.get(link_key+"jitter_buffer"))
               encoding = config.get(link_key+"encoding")
               bitrate = int(config.get(link_key+"bitrate"))
-              print(" -- Configured from transmitter with:")
-              print("   - Base Port:     %s" % port)
-              print("   - Jitter Buffer: %s ms" % caps)
-              print("   - Encoding:      %s" % encoding)
-              print("   - Bitrate:       %s kbit/s" % bitrate)
-              print("   - Caps:          %s" % caps)
+              self.logger.info("Configured receiver from transmitter with:")
+              self.logger.info("Base Port:     %s" % port)
+              self.logger.info("Jitter Buffer: %s ms" % caps)
+              self.logger.info("Encoding:      %s" % encoding)
+              self.logger.info("Bitrate:       %s kbit/s" % bitrate)
+              self.logger.info("Caps:          %s" % caps)
               break
             except Exception, e:
-              print(Fore.BLACK + Back.YELLOW + " -- Unable to configure myself from the configuration host; has the transmitter been started yet? (%s)" % e)
-              print("    Waiting half a second and attempting to reconfigure myself." + Fore.RESET + Back.RESET)
+              self.logger.warn("Unable to configure myself from the configuration host; has the transmitter been started yet, and have you got the same link name on each end? Waiting half a second to recheck")
               time.sleep(0.5)
               #raise
           # Okay, we can now configure ourself
@@ -97,9 +101,9 @@ class Manager:
             receiver.run()
             receiver.loop()
           except Exception, e:
-            print(Fore.BLACK + Back.RED + (" -- Lost connection or otherwise had the receiver fail on us, restarting (%s)" % e) + Fore.RESET + Back.RESET)
+            self.logger.error("Lost connection or otherwise had the transmitter fail on us, restarting (%s)" % e)
             time.sleep(0.5)
 
       except Exception, e:
-        print(Fore.BLACK + Back.RED + " -- Unhandled exception occured, please report this as a bug!" + Fore.RESET + Back.RESET)
+        self.logger.critical("Unhandled exception occured, please report me as a bug! (%s)" % e)
         raise

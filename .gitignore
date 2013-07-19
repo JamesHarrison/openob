@@ -8,3 +8,5 @@ MANIFEST
 dist/*
 dist
 .pypirc
+doc/build/*
+*.log
