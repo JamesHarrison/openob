@@ -93,7 +93,7 @@ class RTPTransmitter:
     # Now we get to link this up to our encoder/payloader
 
     if encoding != 'pcm':
-      gst.element_link_many(self.audioconvert, self.encoder, self.queue, self.payloader)
+      gst.element_link_many(self.audioconvert, self.queue, self.encoder, self.payloader)
     else:
       gst.element_link_many(self.audioconvert, self.queue, self.payloader)
 

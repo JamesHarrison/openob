@@ -77,7 +77,7 @@ class RTPReceiver:
     self.pipeline.add(self.audiorate, self.audioresample, self.audioconvert, self.sink, self.level, self.depayloader, self.rtpbin, self.udpsrc_rtpin, self.udpsrc_rtcpin, self.udpsink_rtcpout, self.queue)
     if encoding != 'pcm':
       self.pipeline.add(self.decoder)
-      gst.element_link_many(self.depayloader,self.queue, self.decoder, self.audioconvert)
+      gst.element_link_many( self.depayloader, self.decoder, self.queue, self.audioconvert)
     else:
       gst.element_link_many(self.depayloader, self.queue, self.audioconvert)
     gst.element_link_many(self.audioconvert, self.audioresample, self.audiorate, self.level, self.sink)
