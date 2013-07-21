@@ -69,6 +69,7 @@ class RTPTransmitter:
     # Queue to ease jitteryness
     self.queue = gst.element_factory_make("queue")
     self.queue.set_property('min-threshold-time', 500000)
+    self.queue2 = gst.element_factory_make("queue")
 
     # Our level monitor, also used for continuous audio
     self.level = gst.element_factory_make("level")
@@ -76,7 +77,7 @@ class RTPTransmitter:
     self.level.set_property('interval', 1000000000)
 
     # Add to the pipeline
-    self.pipeline.add(self.source, self.audioconvert, self.audioresample, self.audiorate, self.payloader, self.udpsink_rtpout, self.udpsink_rtcpout, self.udpsrc_rtcpin, self.rtpbin, self.level, self.queue)
+    self.pipeline.add(self.source, self.queue2, self.audioconvert, self.audioresample, self.audiorate, self.payloader, self.udpsink_rtpout, self.udpsink_rtcpout, self.udpsrc_rtcpin, self.rtpbin, self.level, self.queue)
     if encoding != 'pcm':
       # Only add an encoder if we're not in PCM mode
       self.pipeline.add(self.encoder)
