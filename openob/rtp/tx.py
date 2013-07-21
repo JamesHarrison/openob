@@ -29,6 +29,9 @@ class RTPTransmitter:
     elif audio_input == 'pulseaudio':
       self.source = gst.element_factory_make("pulsesrc")
 
+    # Queue for the capture
+    self.input_queue = gst.element_factory_make("queue")
+
     # Audio conversion and resampling
     self.audioconvert = gst.element_factory_make("audioconvert")
     self.audioresample = gst.element_factory_make("audioresample")
@@ -67,9 +70,8 @@ class RTPTransmitter:
     self.rtpbin = gst.element_factory_make("gstrtpbin","gstrtpbin")
 
     # Queue to ease jitteryness
-    self.queue = gst.element_factory_make("queue")
-    self.queue.set_property('min-threshold-time', 500000)
-    self.queue2 = gst.element_factory_make("queue")
+    self.output_queue = gst.element_factory_make("queue")
+    self.output_queue.set_property('min-threshold-time', 500000)
 
     # Our level monitor, also used for continuous audio
     self.level = gst.element_factory_make("level")
@@ -77,7 +79,7 @@ class RTPTransmitter:
     self.level.set_property('interval', 1000000000)
 
     # Add to the pipeline
-    self.pipeline.add(self.source, self.queue2, self.audioconvert, self.audioresample, self.audiorate, self.payloader, self.udpsink_rtpout, self.udpsink_rtcpout, self.udpsrc_rtcpin, self.rtpbin, self.level, self.queue)
+    self.pipeline.add(self.source, self.audioconvert, self.audioresample, self.audiorate, self.payloader, self.udpsink_rtpout, self.udpsink_rtcpout, self.udpsrc_rtcpin, self.rtpbin, self.level, self.input_queue, self.output_queue)
     if encoding != 'pcm':
       # Only add an encoder if we're not in PCM mode
       self.pipeline.add(self.encoder)
@@ -89,15 +91,15 @@ class RTPTransmitter:
       self.capsfilter =  gst.element_factory_make("capsfilter", "filter")
       self.capsfilter.set_property("caps", caps)
       self.pipeline.add(self.capsfilter)
-      gst.element_link_many(self.source, self.capsfilter, self.level, self.audioresample, self.audiorate, self.audioconvert)
+      gst.element_link_many(self.source, self.input_queue, self.capsfilter, self.level,self.audioresample, self.audiorate, self.audioconvert)
     else:
-      gst.element_link_many(self.source, self.level, self.audioresample, self.audiorate, self.audioconvert)
+      gst.element_link_many(self.source, self.input_queue, self.level, self.audioresample, self.audiorate, self.audioconvert)
     # Now we get to link this up to our encoder/payloader
 
     if encoding != 'pcm':
-      gst.element_link_many(self.audioconvert, self.encoder, self.queue, self.payloader)
+      gst.element_link_many(self.audioconvert, self.encoder, self.output_queue, self.payloader)
     else:
-      gst.element_link_many(self.audioconvert, self.queue, self.payloader)
+      gst.element_link_many(self.audioconvert, self.output_queue, self.payloader)
 
     # And now the RTP bits
     self.payloader.link_pads('src', self.rtpbin, 'send_rtp_sink_0')
