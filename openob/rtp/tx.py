@@ -68,6 +68,7 @@ class RTPTransmitter:
 
     # Queue to ease jitteryness
     self.queue = gst.element_factory_make("queue")
+    self.queue.set_property('min-threshold-time', 500000)
 
     # Our level monitor, also used for continuous audio
     self.level = gst.element_factory_make("level")
