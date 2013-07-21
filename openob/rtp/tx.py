@@ -88,15 +88,15 @@ class RTPTransmitter:
       self.capsfilter =  gst.element_factory_make("capsfilter", "filter")
       self.capsfilter.set_property("caps", caps)
       self.pipeline.add(self.capsfilter)
-      gst.element_link_many(self.source, self.capsfilter, self.level,self.audioresample, self.queue, self.audiorate, self.audioconvert)
+      gst.element_link_many(self.source, self.capsfilter, self.level, self.audioresample, self.audiorate, self.audioconvert)
     else:
-      gst.element_link_many(self.source, self.level, self.queue,  self.audioresample, self.queue, self.audiorate, self.audioconvert)
+      gst.element_link_many(self.source, self.level, self.audioresample, self.audiorate, self.audioconvert)
     # Now we get to link this up to our encoder/payloader
 
     if encoding != 'pcm':
-      gst.element_link_many(self.audiconvert, self.encoder, self.payloader)
+      gst.element_link_many(self.audiconvert, self.encoder, self.queue, self.payloader)
     else:
-      gst.element_link_many(self.audioconvert, self.payloader)
+      gst.element_link_many(self.audioconvert, self.queue, self.payloader)
 
     # And now the RTP bits
     self.payloader.link_pads('src', self.rtpbin, 'send_rtp_sink_0')
