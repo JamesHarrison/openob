@@ -71,13 +71,15 @@ class RTPReceiver:
     self.level.set_property('message', True)
     self.level.set_property('interval', 1000000000)
 
+    # Make a queue to ease jitteryness
+    self.queue = gst.element_factory_make('queue')
     # And now we've got it all set up we need to add the elements
-    self.pipeline.add(self.audiorate, self.audioresample, self.audioconvert, self.sink, self.level, self.depayloader, self.rtpbin, self.udpsrc_rtpin, self.udpsrc_rtcpin, self.udpsink_rtcpout)
+    self.pipeline.add(self.audiorate, self.audioresample, self.audioconvert, self.sink, self.level, self.depayloader, self.rtpbin, self.udpsrc_rtpin, self.udpsrc_rtcpin, self.udpsink_rtcpout, self.queue)
     if encoding != 'pcm':
       self.pipeline.add(self.decoder)
-      gst.element_link_many(self.depayloader, self.decoder, self.audioconvert)
+      gst.element_link_many(self.depayloader,self.queue, self.decoder, self.audioconvert)
     else:
-      gst.element_link_many(self.depayloader, self.audioconvert)
+      gst.element_link_many(self.depayloader, self.queue, self.audioconvert)
     gst.element_link_many(self.audioconvert, self.audioresample, self.audiorate, self.level, self.sink)
     for p in self.udpsrc_rtpin.pads():
       print p

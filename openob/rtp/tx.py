@@ -66,13 +66,16 @@ class RTPTransmitter:
     # Our RTP manager
     self.rtpbin = gst.element_factory_make("gstrtpbin","gstrtpbin")
 
+    # Queue to ease jitteryness
+    self.queue = gst.element_factory_make("queue")
+
     # Our level monitor, also used for continuous audio
     self.level = gst.element_factory_make("level")
     self.level.set_property('message', True)
     self.level.set_property('interval', 1000000000)
 
     # Add to the pipeline
-    self.pipeline.add(self.source, self.audioconvert, self.audioresample, self.audiorate, self.payloader, self.udpsink_rtpout, self.udpsink_rtcpout, self.udpsrc_rtcpin, self.rtpbin, self.level)
+    self.pipeline.add(self.source, self.audioconvert, self.audioresample, self.audiorate, self.payloader, self.udpsink_rtpout, self.udpsink_rtcpout, self.udpsrc_rtcpin, self.rtpbin, self.level, self.queue)
     if encoding != 'pcm':
       # Only add an encoder if we're not in PCM mode
       self.pipeline.add(self.encoder)
@@ -90,9 +93,9 @@ class RTPTransmitter:
     # Now we get to link this up to our encoder/payloader
 
     if encoding != 'pcm':
-      gst.element_link_many(self.audioconvert, self.encoder, self.payloader)
+      gst.element_link_many(self.audioconvert, self.encoder, self.queue, self.payloader)
     else:
-      gst.element_link_many(self.audioconvert, self.payloader)
+      gst.element_link_many(self.audioconvert, self.queue, self.payloader)
 
     # And now the RTP bits
     self.payloader.link_pads('src', self.rtpbin, 'send_rtp_sink_0')
