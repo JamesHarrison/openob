@@ -71,16 +71,22 @@ class RTPReceiver:
     self.level.set_property('message', True)
     self.level.set_property('interval', 1000000000)
 
-    # Make a queue to ease jitteryness
-    self.queue = gst.element_factory_make('queue')
+    # Queue to go in front of the depayloader
+    self.input_queue = gst.element_factory_make('queue')
+    self.input_queue.set_property('min-threshold-time', 500000)
+
+    # Queue to go in front of the audio output
+    self.output_queue = gst.element_factory_make('queue')
+    self.output_queue.set_property('min-threshold-time', 500000)
+
     # And now we've got it all set up we need to add the elements
-    self.pipeline.add(self.audiorate, self.audioresample, self.audioconvert, self.sink, self.level, self.depayloader, self.rtpbin, self.udpsrc_rtpin, self.udpsrc_rtcpin, self.udpsink_rtcpout, self.queue)
+    self.pipeline.add(self.audiorate, self.audioresample, self.audioconvert, self.sink, self.level, self.depayloader, self.rtpbin, self.udpsrc_rtpin, self.udpsrc_rtcpin, self.udpsink_rtcpout, self.input_queue, self.output_queue)
     if encoding != 'pcm':
       self.pipeline.add(self.decoder)
-      gst.element_link_many( self.depayloader, self.decoder, self.queue, self.audioconvert)
+      gst.element_link_many( self.depayloader, self.input_queue, self.decoder,  self.audioconvert)
     else:
-      gst.element_link_many(self.depayloader, self.queue, self.audioconvert)
-    gst.element_link_many(self.audioconvert, self.audioresample, self.audiorate, self.level, self.sink)
+      gst.element_link_many(self.depayloader, self.input_queue, self.audioconvert)
+    gst.element_link_many(self.audioconvert, self.audioresample, self.audiorate, self.level, self.output_queue, self.sink)
     for p in self.udpsrc_rtpin.pads():
       print p
       print p.get_caps()
@@ -100,8 +106,11 @@ class RTPReceiver:
     self.rtpbin.unlink(self.depayloader)
     # Relink
     self.rtpbin.link(self.depayloader)
+
   def on_message (self, bus, message):
     if message.type == gst.MESSAGE_ELEMENT:
+      if message.structure.get_name() == 'queue':
+        print message.structure.to_string()
       if message.structure.get_name() == 'level':
         self.started = True
         if len(message.structure['peak']) == 1:
