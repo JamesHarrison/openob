@@ -11,19 +11,30 @@ class LinkConfig(object):
     config = None
     while True:
       try:
-        config = redis.Redis(opts.config_host)
+        self.redis = redis.Redis(opts.config_host)
         break
       except Exception, e:
         time.sleep(0.5)
 
   def get(self, key, block=False):
+    """Get a configuration value
+
+    Can block on a non-existent key if desired with the block kwarg; in this mode the get will block until the key has a value (that is not False)
     """
-    Get a configuration value
-    """
-    pass
+    ns_key = "openob3:%s:%s" % (self.link_name, key)
+    if block:
+      val = False
+      while !val:
+        val = self.redis.get(ns_key)
+      return val
+    else:
+      return self.redis.get(ns_key)
+    return val
 
   def set(self, key, value):
     """
     Set a configuration value
     """
+    ns_key = "openob3:%s:%s" % (self.link_name, key)
+    self.redis.set(ns_key, value)
     pass

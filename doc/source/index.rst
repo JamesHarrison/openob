@@ -13,6 +13,9 @@ OpenOB can be used for:
 
 It can be used on a variety of network connections, with operating bitrates as low as 16kbps in compressed mode, and support for fully lossless operation in linear PCM mode.
 
+Documentation Index
+===================
+
 .. toctree::
    :maxdepth: 2
 
@@ -20,7 +23,8 @@ It can be used on a variety of network connections, with operating bitrates as l
    tutorial
    configuration
    integration
-
+   raspberrypi
+   developers
 
 History 
 =======
