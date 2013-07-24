@@ -5,7 +5,7 @@ import gst
 import re
 from colorama import Fore, Back, Style
 class RTPReceiver:
-  def __init__(self, caps='', audio_output='alsa', audio_device='hw:0', base_port=3000, multicast=False, multicast_ip='0.0.0.0', encoding='celt', bitrate=96, jitter_buffer=150, jack_name='openob_rx'):
+  def __init__(self, caps='', audio_output='alsa', audio_device='hw:0', base_port=3000, multicast=False, multicast_ip='0.0.0.0', encoding='celt', bitrate=96, jitter_buffer=150, jack_name='openob_rx', jack_auto=True):
     """Sets up a new RTP receiver"""
     self.started = False
     self.pipeline = gst.Pipeline("rx")
@@ -19,7 +19,10 @@ class RTPReceiver:
       self.sink.set_property('device', audio_device)
     elif audio_output == 'jack':
       self.sink = gst.element_factory_make("jackaudiosink")
-      self.sink.set_property('connect', 'auto')
+      if jack_auto:
+        self.sink.set_property('connect', 'auto')
+      else:
+        self.sink.set_property('connect', 'none')
       self.sink.set_property('name', jack_name)
     elif audio_output == 'pulseaudio':
       self.source = gst.element_factory_make("pulsesink")

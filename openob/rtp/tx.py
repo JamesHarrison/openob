@@ -6,7 +6,7 @@ import time
 import re
 from colorama import Fore, Back, Style
 class RTPTransmitter:
-  def __init__(self, audio_input='alsa', audio_device='hw:0', audio_rate=0, base_port=3000, multicast=True, encoding='opus', bitrate=96, jack_name='openob_tx', receiver_address='localhost', opus_options={'audio': True, 'bandwidth': -1000, 'frame-size': 20, 'complexity': 7, 'constrained-vbr': True, 'inband-fec': True, 'packet-loss-percentage': 3, 'dtx': False}):
+  def __init__(self, audio_input='alsa', audio_device='hw:0', audio_rate=0, base_port=3000, multicast=True, encoding='opus', bitrate=96, jack_name='openob_tx', jack_auto = True, receiver_address='localhost', opus_options={'audio': True, 'bandwidth': -1000, 'frame-size': 20, 'complexity': 7, 'constrained-vbr': True, 'inband-fec': True, 'packet-loss-percentage': 3, 'dtx': False}):
     """Sets up a new RTP transmitter"""
     self.started = False
     self.pipeline = gst.Pipeline("tx")
@@ -22,7 +22,10 @@ class RTPTransmitter:
       self.source.set_property('device', audio_device)
     elif audio_input == 'jack':
       self.source = gst.element_factory_make("jackaudiosrc")
-      self.source.set_property('connect', 'auto')
+      if jack_auto:
+        self.source.set_property('connect', 'auto')
+      else:
+        self.source.set_property('connect', 'none')
       self.source.set_property('name', jack_name)
     elif audio_input == 'pulseaudio':
       self.source = gst.element_factory_make("pulsesrc")

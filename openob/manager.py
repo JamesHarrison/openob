@@ -55,7 +55,7 @@ class Manager:
           # Okay, we can't set caps yet - we need to configure ourselves first.
           opus_opts = {'audio': True, 'bandwidth': -1000, 'frame-size': opts.framesize, 'complexity': opts.complexity, 'constrained-vbr': True, 'inband-fec': opts.fec, 'packet-loss-percentage': opts.loss, 'dtx': opts.dtx}
           try:
-            transmitter = RTPTransmitter(audio_input=opts.audio_input, audio_device=opts.device, audio_rate = opts.samplerate, base_port=opts.port, encoding=opts.encoding, bitrate=opts.bitrate, jack_name=("openob_tx_%s" % opts.link_name), receiver_address=opts.receiver_host, opus_options=opus_opts)
+            transmitter = RTPTransmitter(audio_input=opts.audio_input, audio_device=opts.device, audio_rate = opts.samplerate, base_port=opts.port, encoding=opts.encoding, bitrate=opts.bitrate, jack_name=("openob_tx_%s" % opts.link_name), jack_auto = opts.jack_auto, receiver_address=opts.receiver_host, opus_options=opus_opts)
             # Set it up, get caps
             try:
               transmitter.run()
@@ -110,7 +110,7 @@ class Manager:
               time.sleep(0.5)
               #raise
           # Okay, we can now configure ourself
-          receiver = RTPReceiver(audio_output=opts.audio_output, audio_device=opts.device, base_port=port, multicast=multicast, multicast_ip=multicast_ip, encoding=encoding, caps=caps, bitrate=bitrate, jitter_buffer=jitter_buffer, jack_name=("openob_tx_%s" % opts.link_name) )
+          receiver = RTPReceiver(audio_output=opts.audio_output, audio_device=opts.device, base_port=port, multicast=multicast, multicast_ip=multicast_ip, encoding=encoding, caps=caps, bitrate=bitrate, jitter_buffer=jitter_buffer, jack_name=("openob_tx_%s" % opts.link_name), jack_auto = opts.jack_auto )
           try:
             receiver.run()
             receiver.loop()
