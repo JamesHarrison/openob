@@ -55,7 +55,7 @@ class Manager:
           # Okay, we can't set caps yet - we need to configure ourselves first.
           opus_opts = {'audio': True, 'bandwidth': -1000, 'frame-size': opts.framesize, 'complexity': opts.complexity, 'constrained-vbr': True, 'inband-fec': opts.fec, 'packet-loss-percentage': opts.loss, 'dtx': opts.dtx}
           try:
-            transmitter = RTPTransmitter(audio_input=opts.audio_input, audio_device=opts.device, audio_samplerate = opts.samplerate, base_port=opts.port, encoding=opts.encoding, bitrate=opts.bitrate, jack_name=("openob_tx_%s" % opts.link_name), receiver_address=opts.receiver_host, opus_options=opus_opts)
+            transmitter = RTPTransmitter(audio_input=opts.audio_input, audio_device=opts.device, audio_rate = opts.samplerate, base_port=opts.port, encoding=opts.encoding, bitrate=opts.bitrate, jack_name=("openob_tx_%s" % opts.link_name), receiver_address=opts.receiver_host, opus_options=opus_opts)
             # Set it up, get caps
             try:
               transmitter.run()
@@ -88,6 +88,7 @@ class Manager:
               encoding = config.get(link_key+"encoding")
               bitrate = int(config.get(link_key+"bitrate"))
               multicast = bool(config.get(link_key+"multicast"))
+              samplerate = config.get(link_key+"input_samplerate")
               if multicast:
                 multicast_ip = config.get(link_key+"multicast_ip")
               else:
@@ -101,6 +102,7 @@ class Manager:
               print("   - Encoding:      %s" % encoding)
               print("   - Bitrate:       %s kbit/s" % bitrate)
               print("   - Caps:          %s" % caps)
+              print("   - Input Sample Rate:       %s Hz" % samplerate)
               break
             except Exception, e:
               print(Fore.BLACK + Back.YELLOW + " -- Unable to configure myself from the configuration host; has the transmitter been started yet? (%s)" % e)

@@ -91,9 +91,9 @@ class RTPTransmitter:
 
     # if audio_rate has been specified, then add that to the capsfilter
     if audio_rate != 0:
-      self.capsfilter.set_property("caps", gst.Caps('%s, channels=2, rate=%d' % (type, audio_rate))
+      self.capsfilter.set_property("caps", gst.Caps('%s, channels=2, rate=%d' % (type, audio_rate) ) )
     else:
-      self.capsfilter.set_property("caps", gst.Caps('%s, channels=2' % type))
+      self.capsfilter.set_property("caps", gst.Caps('%s, channels=2' % type ) )
 
     gst.element_link_many(self.source, self.capsfilter, self.level, self.audioresample, self.audiorate, self.audioconvert)
 
