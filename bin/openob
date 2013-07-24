@@ -14,6 +14,7 @@ subparsers = parser.add_subparsers(help="The link mode to operate in on this end
 parser_tx = subparsers.add_parser('tx')
 parser_tx.add_argument('receiver_host', type=str, help="The receiver for this transmitter. The machine at this address must be running an rx-mode Manager for this link name")
 parser_tx.add_argument('-a', '--audio_input', type=str, choices=['auto', 'alsa', 'jack', 'pulseaudio'], default='auto', help="The audio source type for this end of the link")
+parser_tx.add_argument('-r', '--samplerate', type=int, default=0, help="Set the sample rate to request from the input (Hz)")
 parser_tx.add_argument('-d', '--device', type=str, default='hw:0', help="The ALSA audio device when in ALSA audio input mode")
 parser_tx.add_argument('-e', '--encoding', type=str, choices=['pcm','celt','opus'], default='opus', help="The audio encoding type for this link; PCM for linear audio (16-bit), CELT or Opus (default) for encoded audio")
 parser_tx.add_argument('-b', '--bitrate', type=int, default=96, help="Bitrate if using CELT/Opus (in kbit/s)", choices=[16,24,32,48,64,96,128,192,256,384])

@@ -6,7 +6,7 @@ import time
 import re
 from colorama import Fore, Back, Style
 class RTPTransmitter:
-  def __init__(self, audio_input='alsa', audio_device='hw:0', base_port=3000, multicast=True, encoding='opus', bitrate=96, jack_name='openob_tx', receiver_address='localhost', opus_options={'audio': True, 'bandwidth': -1000, 'frame-size': 20, 'complexity': 7, 'constrained-vbr': True, 'inband-fec': True, 'packet-loss-percentage': 3, 'dtx': False}):
+  def __init__(self, audio_input='alsa', audio_device='hw:0', audio_rate=0, base_port=3000, multicast=True, encoding='opus', bitrate=96, jack_name='openob_tx', receiver_address='localhost', opus_options={'audio': True, 'bandwidth': -1000, 'frame-size': 20, 'complexity': 7, 'constrained-vbr': True, 'inband-fec': True, 'packet-loss-percentage': 3, 'dtx': False}):
     """Sets up a new RTP transmitter"""
     self.started = False
     self.pipeline = gst.Pipeline("tx")
@@ -72,25 +72,32 @@ class RTPTransmitter:
     self.level = gst.element_factory_make("level")
     self.level.set_property('message', True)
     self.level.set_property('interval', 1000000000)
+    
+    # Add a capsfilter to allow specification of input sample rate
+    self.capsfilter = gst.element_factory_make("capsfilter")
 
     # Add to the pipeline
-    self.pipeline.add(self.source, self.audioconvert, self.audioresample, self.audiorate, self.payloader, self.udpsink_rtpout, self.udpsink_rtcpout, self.udpsrc_rtcpin, self.rtpbin, self.level)
+    self.pipeline.add(self.source, self.capsfilter, self.audioconvert, self.audioresample, self.audiorate, self.payloader, self.udpsink_rtpout, self.udpsink_rtcpout, self.udpsrc_rtcpin, self.rtpbin, self.level)
+
     if encoding != 'pcm':
       # Only add an encoder if we're not in PCM mode
       self.pipeline.add(self.encoder)
 
-    # Add a capsfilter to set JACK up right if we're using JACK for input
-    # Then link our input section
+    # Decide which format to apply to the capsfilter (Jack uses float)
     if audio_input == 'jack':
-      caps = gst.Caps('audio/x-raw-float, channels=2')
-      self.capsfilter =  gst.element_factory_make("capsfilter", "filter")
-      self.capsfilter.set_property("caps", caps)
-      self.pipeline.add(self.capsfilter)
-      gst.element_link_many(self.source, self.capsfilter, self.level, self.audioresample, self.audiorate, self.audioconvert)
+      type = 'audio/x-raw-float'
     else:
-      gst.element_link_many(self.source, self.level, self.audioresample, self.audiorate, self.audioconvert)
-    # Now we get to link this up to our encoder/payloader
+      type = 'audio/x-raw-int'
 
+    # if audio_rate has been specified, then add that to the capsfilter
+    if audio_rate != 0:
+      self.capsfilter.set_property("caps", gst.Caps('%s, channels=2, rate=%d' % (type, audio_rate))
+    else:
+      self.capsfilter.set_property("caps", gst.Caps('%s, channels=2' % type))
+
+    gst.element_link_many(self.source, self.capsfilter, self.level, self.audioresample, self.audiorate, self.audioconvert)
+
+    # Now we get to link this up to our encoder/payloader
     if encoding != 'pcm':
       gst.element_link_many(self.audioconvert, self.encoder, self.payloader)
     else:
