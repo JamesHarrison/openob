@@ -25,12 +25,14 @@ parser_tx.add_argument('--dtx', type=bool, default=False, help="Enable Opus Disc
 parser_tx.add_argument('--fec', type=bool, default=True, help="Enable Opus Inband Forward Error Correction support (true/false, default true)")
 parser_tx.add_argument('--complexity', type=int, default=7, help="Opus Computational Complexity, between 0 and 10 - reduce on CPU-constrained devices")
 parser_tx.add_argument('--framesize', type=int, default=20, help="Opus frame size (ms)", choices=[2, 5, 10, 20, 40, 60])
+parser_tx.add_argument('--samplerate', type=int, default=0, help="Capture sample rate", choices=[0, 32000, 44100, 48000, 96000])
 
 parser_tx.set_defaults(mode='tx')
 parser_rx = subparsers.add_parser('rx')
 parser_rx.add_argument('-a', '--audio_output', type=str, choices=['alsa', 'jack', 'pulseaudio'], default='alsa', help="The audio output type for this end of the link")
 parser_rx.add_argument('-d', '--device', type=str, default='hw:0', help="The ALSA audio device when in ALSA audio output mode")
 parser_rx.add_argument('-nja','--no_jack_auto', action='store_true', help="Enable or disable auto connection for Jack outputs")
+parser_rx.add_argument('-j', '--jitter_buffer', type=int, default=150, help="The size of the jitter buffer in milliseconds. Affects latency; may be reduced to 5-10ms on fast reliable networks, or increased for poor networks like 3G")
 
 parser_rx.set_defaults(mode='rx')
 opts = parser.parse_args()

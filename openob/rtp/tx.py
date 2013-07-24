@@ -6,7 +6,7 @@ import time
 import re
 from colorama import Fore, Back, Style
 class RTPTransmitter:
-  def __init__(self, audio_input='alsa', audio_device='hw:0', base_port=3000, encoding='opus', bitrate=96, jack_name='openob_tx', jack_auto=True, receiver_address='localhost', opus_options={'audio': True, 'bandwidth': -1000, 'frame-size': 20, 'complexity': 7, 'constrained-vbr': True, 'inband-fec': True, 'packet-loss-percentage': 3, 'dtx': False}):
+  def __init__(self, audio_input='alsa', audio_device='hw:0', audio_rate=48000, base_port=3000, encoding='opus', bitrate=96, jack_name='openob_tx', jack_auto=True, receiver_address='localhost', opus_options={'audio': True, 'bandwidth': -1000, 'frame-size': 20, 'complexity': 7, 'constrained-vbr': True, 'inband-fec': True, 'packet-loss-percentage': 3, 'dtx': False}):
     """Sets up a new RTP transmitter"""
     self.started = False
     self.pipeline = gst.Pipeline("tx")
@@ -28,9 +28,6 @@ class RTPTransmitter:
       self.source.set_property('client-name', "openob2")
     elif audio_input == 'pulseaudio':
       self.source = gst.element_factory_make("pulsesrc")
-
-    # Queue for the capture
-    self.input_queue = gst.element_factory_make("queue")
 
     # Audio conversion and resampling
     self.audioconvert = gst.element_factory_make("audioconvert")
@@ -69,37 +66,40 @@ class RTPTransmitter:
     # Our RTP manager
     self.rtpbin = gst.element_factory_make("gstrtpbin","gstrtpbin")
 
-    # Queue to ease jitteryness
-    self.output_queue = gst.element_factory_make("queue")
-    self.output_queue.set_property('min-threshold-time', 500000)
-
     # Our level monitor, also used for continuous audio
     self.level = gst.element_factory_make("level")
     self.level.set_property('message', True)
     self.level.set_property('interval', 1000000000)
 
+    # Naxxfish branch: Add a capsfilter to set up the inputs right
+    self.capsfilter =  gst.element_factory_make("capsfilter")
+    if audio_rate != 0:
+      caps_params = 'channels=2, rate=%d' % audio_rate
+    else:
+      caps_params = 'channels=2'
+    
     # Add to the pipeline
-    self.pipeline.add(self.source, self.audioconvert, self.audioresample, self.audiorate, self.payloader, self.udpsink_rtpout, self.udpsink_rtcpout, self.udpsrc_rtcpin, self.rtpbin, self.level, self.input_queue, self.output_queue)
+    self.pipeline.add(self.source, self.capsfilter, self.audioconvert, self.audioresample, self.audiorate, self.payloader, self.udpsink_rtpout, self.udpsink_rtcpout, self.udpsrc_rtcpin, self.rtpbin, self.level)
+
     if encoding != 'pcm':
       # Only add an encoder if we're not in PCM mode
       self.pipeline.add(self.encoder)
 
-    # Add a capsfilter to set JACK up right if we're using JACK for input
-    # Then link our input section
     if audio_input == 'jack':
-      caps = gst.Caps('audio/x-raw-float, channels=2')
-      self.capsfilter =  gst.element_factory_make("capsfilter", "filter")
+      # Naxxfish branch: add samplerate into the capsfilter if one has been requested
+      caps = gst.Caps('audio/x-raw-float, %s' % caps_params)
       self.capsfilter.set_property("caps", caps)
-      self.pipeline.add(self.capsfilter)
-      gst.element_link_many(self.source, self.input_queue, self.capsfilter, self.level,self.audioresample, self.audiorate, self.audioconvert)
+      gst.element_link_many(self.source, self.capsfilter, self.level, self.audioresample, self.audiorate, self.audioconvert)
     else:
-      gst.element_link_many(self.source, self.input_queue, self.level, self.audioresample, self.audiorate, self.audioconvert)
+      caps = gst.Caps('audio/x-raw-int, %s' % caps_params)
+      self.capsfilter.set_property("caps", caps)
+      gst.element_link_many(self.source, self.capsfilter, self.level, self.audioresample, self.audiorate, self.audioconvert)
     # Now we get to link this up to our encoder/payloader
 
     if encoding != 'pcm':
-      gst.element_link_many(self.audioconvert, self.encoder, self.output_queue, self.payloader)
+      gst.element_link_many(self.audioconvert, self.encoder,self.payloader)
     else:
-      gst.element_link_many(self.audioconvert, self.output_queue, self.payloader)
+      gst.element_link_many(self.audioconvert,  self.payloader)
 
     # And now the RTP bits
     self.payloader.link_pads('src', self.rtpbin, 'send_rtp_sink_0')

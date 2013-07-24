@@ -40,15 +40,17 @@ class Manager:
           config.set(link_key+"jitter_buffer", opts.jitter_buffer)
           config.set(link_key+"encoding", opts.encoding)
           config.set(link_key+"bitrate", opts.bitrate)
+          config.set(link_key+"input_samplerate", opts.samplerate)
           print(" -- Configured receiver with:")
           print("   - Base Port:     %s" % config.get(link_key+"port"))
           print("   - Jitter Buffer: %s ms" % config.get(link_key+"jitter_buffer"))
           print("   - Encoding:      %s" % config.get(link_key+"encoding"))
           print("   - Bitrate:       %s kbit/s" % config.get(link_key+"bitrate"))
+          print("   - Input Sample rate:  %s Hz" % config.get(link_key+"input_samplerate"))
           # Okay, we can't set caps yet - we need to configure ourselves first.
           opus_opts = {'audio': True, 'bandwidth': -1000, 'frame-size': opts.framesize, 'complexity': opts.complexity, 'constrained-vbr': True, 'inband-fec': opts.fec, 'packet-loss-percentage': opts.loss, 'dtx': opts.dtx}
           try:
-            transmitter = RTPTransmitter(audio_input=opts.audio_input, audio_device=opts.device, base_port=opts.port, encoding=opts.encoding, bitrate=opts.bitrate, jack_name=("openob_tx_%s" % opts.link_name), jack_auto= not opts.no_jack_auto, receiver_address=opts.receiver_host, opus_options=opus_opts)
+            transmitter = RTPTransmitter(audio_input=opts.audio_input, audio_device=opts.device, audio_rate=opts.samplerate, base_port=opts.port, encoding=opts.encoding, bitrate=opts.bitrate, jack_name=("openob_tx_%s" % opts.link_name), jack_auto= not opts.no_jack_auto, receiver_address=opts.receiver_host, opus_options=opus_opts)
             # Set it up, get caps
             try:
               transmitter.run()
