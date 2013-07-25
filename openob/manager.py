@@ -40,6 +40,7 @@ class Manager:
           config.set(link_key+"encoding", opts.encoding)
           config.set(link_key+"bitrate", opts.bitrate)
           config.set(link_key+"multicast", opts.multicast)
+          config.set(link_key+"input_samplerate", opts.samplerate)
           if opts.multicast:
             config.set(link_key+"multicast_ip", opts.receiver_host)
           print(" -- Configured receiver with:")
@@ -50,10 +51,11 @@ class Manager:
           print("   - Jitter Buffer: %s ms" % config.get(link_key+"jitter_buffer"))
           print("   - Encoding:      %s" % config.get(link_key+"encoding"))
           print("   - Bitrate:       %s kbit/s" % config.get(link_key+"bitrate"))
+          print("   - Sample Rate:       %s Hz" % config.get(link_key+"input_samplerate"))
           # Okay, we can't set caps yet - we need to configure ourselves first.
           opus_opts = {'audio': True, 'bandwidth': -1000, 'frame-size': opts.framesize, 'complexity': opts.complexity, 'constrained-vbr': True, 'inband-fec': opts.fec, 'packet-loss-percentage': opts.loss, 'dtx': opts.dtx}
           try:
-            transmitter = RTPTransmitter(audio_input=opts.audio_input, audio_device=opts.device, base_port=opts.port, encoding=opts.encoding, bitrate=opts.bitrate, jack_name=("openob_tx_%s" % opts.link_name), receiver_address=opts.receiver_host, opus_options=opus_opts)
+            transmitter = RTPTransmitter(audio_input=opts.audio_input, audio_device=opts.device, audio_rate = opts.samplerate, base_port=opts.port, encoding=opts.encoding, bitrate=opts.bitrate, jack_name=("openob_tx_%s" % opts.link_name), jack_auto = opts.jack_auto, receiver_address=opts.receiver_host, opus_options=opus_opts)
             # Set it up, get caps
             try:
               transmitter.run()
@@ -86,6 +88,7 @@ class Manager:
               encoding = config.get(link_key+"encoding")
               bitrate = int(config.get(link_key+"bitrate"))
               multicast = bool(config.get(link_key+"multicast"))
+              samplerate = config.get(link_key+"input_samplerate")
               if multicast:
                 multicast_ip = config.get(link_key+"multicast_ip")
               else:
@@ -99,6 +102,7 @@ class Manager:
               print("   - Encoding:      %s" % encoding)
               print("   - Bitrate:       %s kbit/s" % bitrate)
               print("   - Caps:          %s" % caps)
+              print("   - Input Sample Rate:       %s Hz" % samplerate)
               break
             except Exception, e:
               print(Fore.BLACK + Back.YELLOW + " -- Unable to configure myself from the configuration host; has the transmitter been started yet? (%s)" % e)
@@ -106,7 +110,7 @@ class Manager:
               time.sleep(0.5)
               #raise
           # Okay, we can now configure ourself
-          receiver = RTPReceiver(audio_output=opts.audio_output, audio_device=opts.device, base_port=port, multicast=multicast, multicast_ip=multicast_ip, encoding=encoding, caps=caps, bitrate=bitrate, jitter_buffer=jitter_buffer, jack_name=("openob_tx_%s" % opts.link_name) )
+          receiver = RTPReceiver(audio_output=opts.audio_output, audio_device=opts.device, base_port=port, multicast=multicast, multicast_ip=multicast_ip, encoding=encoding, caps=caps, bitrate=bitrate, jitter_buffer=jitter_buffer, jack_name=("openob_tx_%s" % opts.link_name), jack_auto = opts.jack_auto )
           try:
             receiver.run()
             receiver.loop()
