@@ -11,8 +11,12 @@ OpenOB can be used for:
 * Outside broadcast contribution links
 * Studio to transmitter distribution links
 
-
 It can be used on a variety of network connections, with operating bitrates as low as 16kbps in compressed mode, and support for fully lossless operation in linear PCM mode.
+
+.. WARNING::
+  This is the documentation for the currently-unreleased/unstable OpenOB 3 rewrite. Some documentation here may be relevant (such as the tutorial and configuration guide) but you should use the `old documentation`_ as your main reference.
+
+.. _old documentation: https://github.com/JamesHarrison/openob/blob/master/README.md
 
 Documentation Index
 ===================
