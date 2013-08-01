@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial &mdash; OpenOB 3.0 ALPHA documentation</title>
+    
+    <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.0 ALPHA',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/theme_extras.js"></script>
+    <link rel="top" title="OpenOB 3.0 ALPHA documentation" href="index.html" />
+    <link rel="next" title="Configuring OpenOB" href="configuration.html" />
+    <link rel="prev" title="Introduction" href="intro.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="index.html">
+          <span>OpenOB 3.0 ALPHA documentation</span></a></h1>
+        <h2 class="heading"><span>Tutorial</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        «&#160;&#160;<a href="intro.html">Introduction</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="configuration.html">Configuring OpenOB</a>&#160;&#160;»
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <div class="section" id="tutorial">
+<h1>Tutorial<a class="headerlink" href="#tutorial" title="Permalink to this headline">¶</a></h1>
+<p>Getting started with OpenOB is easy - this guide will take you through setting up OpenOB on two computers next to each other on a simple network.</p>
+<p>We assume for the purposes of this guide that the two computers are standard x86/64 desktops, and not SBCs like the Raspberry Pi etc. We also assume these machines are Debian based, though Ubuntu should work with this guide similarly.</p>
+<div class="section" id="openob-system-basics">
+<h2>OpenOB System Basics<a class="headerlink" href="#openob-system-basics" title="Permalink to this headline">¶</a></h2>
+<p>OpenOB systems are made up of two or three computers. These are the transmitter, a receiver, and configuration server. Typically the configuration server is also installed on the receiver, but this is not always the case, and many OpenOB links (comprised of a transmitter and receiver pair) can share one configuration server.</p>
+</div>
+<div class="section" id="installing-prerequisites">
+<h2>Installing Prerequisites<a class="headerlink" href="#installing-prerequisites" title="Permalink to this headline">¶</a></h2>
+<p>OpenOB relies on the GStreamer media framework for the underlying audio transport elements.</p>
+<p>Additionally, OpenOB needs some Python extensions, and on the configuration server, we must also install the Redis server used for configuration management.</p>
+<p>On Debian you can install the prerequisites with the following command:</p>
+<div class="highlight-bash"><div class="highlight"><pre>sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa python-argparse
+</pre></div>
+</div>
+<p>This should also work on Ubuntu. Your GStreamer implementation must be recent enough to support Opus; this is supported in Ubuntu 13.04 and Debian Wheezy or newer. In order to ensure compatibility, it is recommended that both ends of the link use the same version of GStreamer, which is most easily achieved by running the same operating system version on each end and installing the distribution&#8217;s packages as detailed above.</p>
+<p>On one machine, which for this tutorial we&#8217;ll assume is also our receiver, we&#8217;ll install Redis:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span class="o">[</span>user@rx-host<span class="o">]</span> <span class="nv">$ </span>sudo apt-get install redis-server
+</pre></div>
+</div>
+<p>We also need to make sure Redis binds itself to be accessible to remote machines, not just localhost. You can edit <tt class="docutils literal"><span class="pre">/etc/redis/redis.conf</span></tt> yourself or run the following to instantly make this adjustment</p>
+<div class="highlight-bash"><div class="highlight"><pre><span class="o">[</span>user@rx-host<span class="o">]</span> <span class="nv">$ </span>sudo sed -i.bak ‘s/bind 127.*/bind 0.0.0.0/’ /etc/redis/redis.conf <span class="o">&amp;&amp;</span> sudo service redis restart
+</pre></div>
+</div>
+</div>
+<div class="section" id="installing-openob">
+<h2>Installing OpenOB<a class="headerlink" href="#installing-openob" title="Permalink to this headline">¶</a></h2>
+<p>Now we can install OpenOB itself. You can install from git for the bleeding edge, but package releases are tested and stable, and easily installed:</p>
+<div class="highlight-bash"><div class="highlight"><pre>sudo easy_install OpenOB
+</pre></div>
+</div>
+</div>
+<div class="section" id="networking">
+<h2>Networking<a class="headerlink" href="#networking" title="Permalink to this headline">¶</a></h2>
+<p>Make sure you know the IP addresses of each machine and make sure there is no firewall between them. If there is a firewall in place, refer to <a class="reference internal" href="configuration.html#firewall-configuration"><em>Firewall Configuration</em></a> to ensure it is configured properly.</p>
+</div>
+<div class="section" id="audio-testing">
+<h2>Audio testing<a class="headerlink" href="#audio-testing" title="Permalink to this headline">¶</a></h2>
+<p>You should plug in an audio source to the microphone input of your transmitter - I recommend a music player of some sort for testing - and some speakers or headphones to the output of your receiver. Make sure these work before you proceed.</p>
+</div>
+<div class="section" id="setting-up-a-link">
+<h2>Setting up a link<a class="headerlink" href="#setting-up-a-link" title="Permalink to this headline">¶</a></h2>
+<p>It&#8217;s time to send some audio. The default settings will be fine to start with, so we&#8217;ll set up a simple link.</p>
+<p>Let&#8217;s assume your receiver is also your config server, and has the IP address <tt class="docutils literal"><span class="pre">192.168.0.10</span></tt>. The transmitter&#8217;s address does not matter.</p>
+<p>First we&#8217;ll start the receiver.</p>
+<div class="highlight-bash"><div class="highlight"><pre><span class="o">[</span>user@rx-host<span class="o">]</span> <span class="nv">$ </span>openob 192.168.0.10 <span class="nb">test</span>-link rx
+</pre></div>
+</div>
+<p>Note the <tt class="docutils literal"><span class="pre">test-link</span></tt> name for the link. This is to differentiate between multiple links between hosts. The IP address we&#8217;re giving is for the configuration host, and the &#8216;rx&#8217; string says this is a receiver.</p>
+<p>The receiver will flail around and complain that it can&#8217;t configure itself. This is expected.</p>
+<p>Now let&#8217;s start the transmitter.</p>
+<div class="highlight-bash"><div class="highlight"><pre><span class="o">[</span>user@tx-host<span class="o">]</span> <span class="nv">$ </span>openob 192.168.0.10 <span class="nb">test</span>-link tx 192.168.0.10
+</pre></div>
+</div>
+<p>We&#8217;re passing this the same arguments as the receiver, but asking it to be a transmitter instead, and providing the target destination IP address.</p>
+<p>This will spin up and send some configuration information to the configuration server. When the receiver next checks for configuration (in a second or two) it will spin up with the parameters sent by the transmitter, and you should start hearing audio from the receiver&#8217;s sound card.</p>
+<p>To close the link, just <tt class="kbd docutils literal"><span class="pre">Control-c</span></tt> both ends to send a kill signal.</p>
+</div>
+</div>
+
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        «&#160;&#160;<a href="intro.html">Introduction</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="configuration.html">Configuring OpenOB</a>&#160;&#160;»
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2013, James Harrison.
+      Last updated on Aug 01, 2013.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Configuring OpenOB &mdash; OpenOB 3.0 ALPHA documentation</title>
+    
+    <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.0 ALPHA',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/theme_extras.js"></script>
+    <link rel="top" title="OpenOB 3.0 ALPHA documentation" href="index.html" />
+    <link rel="next" title="Integrating OpenOB" href="integration.html" />
+    <link rel="prev" title="Tutorial" href="tutorial.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="index.html">
+          <span>OpenOB 3.0 ALPHA documentation</span></a></h1>
+        <h2 class="heading"><span>Configuring OpenOB</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        «&#160;&#160;<a href="tutorial.html">Tutorial</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="integration.html">Integrating OpenOB</a>&#160;&#160;»
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <div class="section" id="configuring-openob">
+<h1>Configuring OpenOB<a class="headerlink" href="#configuring-openob" title="Permalink to this headline">¶</a></h1>
+<p>OpenOB is configured at runtime on the command line on the transmitter. The receiver has configuration to indicate what</p>
+<div class="section" id="bitrates-and-bandwidths">
+<span id="id1"></span><h2>Bitrates and Bandwidths<a class="headerlink" href="#bitrates-and-bandwidths" title="Permalink to this headline">¶</a></h2>
+<p>In linear PCM mode the input sample rate of your sound card determines the sample rate of the link. You can in theory run 192kHz LPCM links (to transport broadcast FM modulation, for instance) but this is not tested. 48kHz audio uses around 1400kbps. You cannot make use of OpenOB&#8217;s redundancy features (PLC, FEC etc) as these are Opus features.</p>
+<p>In Opus mode, the input sample rate is constrained by Opus&#8217; requirements (with 48kHz being the typical maximum) and bitrate can be set between 16 and 384kbps. Lower bitrates or input sample rates imply lower Opus bandwidth modes.</p>
+<div class="section" id="framing-overhead">
+<h3>Framing Overhead<a class="headerlink" href="#framing-overhead" title="Permalink to this headline">¶</a></h3>
+<p>OpenOB supports multiple framing sizes for Opus, configurable with &#8211;framesize. This defaults to 20ms frames, which induces a 22.5ms algorithmic delay in the codec. In 20ms frame mode, the bitrates specified on the command line will closely match on-the-wire bitrates.</p>
+<p>When using lower frame sizes, the amount of framing overhead increases and the algorithmic latency decreases. In most cases, leaving frame size alone is recommended. Where very low latency is required, 10ms frame sizes only incur a 10% bitrate overhead, as shown in the table below.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="29%" />
+<col width="49%" />
+<col width="23%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>Frame Size</td>
+<td>Algorithmic Delay</td>
+<td>Overhead</td>
+</tr>
+<tr class="row-even"><td>20ms</td>
+<td>22.5ms</td>
+<td>0%</td>
+</tr>
+<tr class="row-odd"><td>10ms</td>
+<td>12.5ms</td>
+<td>10%</td>
+</tr>
+<tr class="row-even"><td>5ms</td>
+<td>7.5ms</td>
+<td>32.5%</td>
+</tr>
+<tr class="row-odd"><td>2.5ms</td>
+<td>5ms</td>
+<td>75%</td>
+</tr>
+</tbody>
+</table>
+<p>In the worst-case 2.5ms frame size, a 64kbps configured bitrate will consume around 112kbps on the wire.</p>
+</div>
+<div class="section" id="example-bitrates">
+<h3>Example Bitrates<a class="headerlink" href="#example-bitrates" title="Permalink to this headline">¶</a></h3>
+<p>These bitrates are not definitive and are provided as a suggestion only. Work is ongoing within standards bodies such as the EBU to define appropriate bitrates for Opus in professional usage.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="7%" />
+<col width="93%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>Bitrate</td>
+<td>Usage</td>
+</tr>
+<tr class="row-even"><td>256kbps</td>
+<td>Full-bandwidth music; studio-transmitter links, etc</td>
+</tr>
+<tr class="row-odd"><td>128kbps</td>
+<td>Full-bandwidth music; bitrate constrained contribution feed recommended minimum</td>
+</tr>
+<tr class="row-even"><td>64kbps</td>
+<td>Wide-bandwidth music; minimum recommended</td>
+</tr>
+<tr class="row-odd"><td>64kbps</td>
+<td>Speech; high quality wide-bandwidth</td>
+</tr>
+<tr class="row-even"><td>32kbps</td>
+<td>Speech; medium quality wide-bandwidth</td>
+</tr>
+<tr class="row-odd"><td>24kbps</td>
+<td>Speech; medium quality medium-bandwidth; bitrate constrained contribution feed recommended minimum</td>
+</tr>
+<tr class="row-even"><td>16kbps</td>
+<td>Speech; low quality narrowband</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="section" id="firewall-configuration">
+<span id="id2"></span><h2>Firewall Configuration<a class="headerlink" href="#firewall-configuration" title="Permalink to this headline">¶</a></h2>
+<p>You must have the following ports open between the transmitter and receiver:</p>
+<ul class="simple">
+<li>UDP 3000</li>
+<li>TCP 6379</li>
+</ul>
+<p>If you need to negotiate a firewall or Network Address Translation (NAT) gateway, you may wish to run OpenOB within a VPN tunnel; this can be done so long as the tunnel itself uses UDP (to allow for loss to occur without incurring retransmission delays).</p>
+</div>
+</div>
+
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        «&#160;&#160;<a href="tutorial.html">Tutorial</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="integration.html">Integrating OpenOB</a>&#160;&#160;»
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2013, James Harrison.
+      Last updated on Aug 01, 2013.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

@@ -1,228 +1,133 @@
-<!DOCTYPE html>
-<html>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <meta charset='utf-8'>
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <link href='https://fonts.googleapis.com/css?family=Chivo:900' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
-    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
-    <!--[if lt IE 9]>
-    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-    <title>OpenOB by JamesHarrison</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>OpenOB - Open Audio over IP for Broadcasters &mdash; OpenOB 3.0 ALPHA documentation</title>
+    
+    <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.0 ALPHA',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/theme_extras.js"></script>
+    <link rel="top" title="OpenOB 3.0 ALPHA documentation" href="#" />
+    <link rel="next" title="Introduction" href="intro.html" /> 
   </head>
-
   <body>
-    <div id="container">
-      <div class="inner">
-
-        <header>
-          <h1>OpenOB</h1>
-          <h2>The Open Outside Broadcast project for low-latency high-reliability broadcast audio</h2>
-        </header>
-
-        <section id="downloads" class="clearfix">
-          <a href="https://github.com/JamesHarrison/openob/zipball/master" id="download-zip" class="button"><span>Download .zip</span></a>
-          <a href="https://github.com/JamesHarrison/openob/tarball/master" id="download-tar-gz" class="button"><span>Download .tar.gz</span></a>
-          <a href="https://github.com/JamesHarrison/openob" id="view-on-github" class="button"><span>View on GitHub</span></a>
-        </section>
-
-        <hr>
-
-        <section id="main_content">
-          <h1>OpenOB</h1>
-
-<p>OpenOB (Open Outside Broadcast) is a simple Python/GStreamer based application which implements a highly configurable RTP-based audio link system.</p>
-
-<p>It is intended to allow professional broadcasters to avoid expensive 'codec' hardware, which is typically costed based on quality - you pay a premium for better quality or lower latencies. OpenOB supports Opus, a high-quality efficient low-latency codec, and allows you to run all of this off commodity computer hardware at much much lower cost, lowering the bar to entry for broadcasters, allowing professional quality contribution links to be set up with nothing more than an entry-level computer at each end.</p>
-
-<p>While outside broadcast contribution links are the primary use-case, the system is also usable for other tasks requiring a high-reliability audio link, such as studio-studio links and studio-transmitter links.</p>
-
-<h2>Features</h2>
-
-<ul>
-<li>IETF standard Opus codec - variable bandwidth and bitrate, 16-384kbps, superior to practically everything</li>
-<li>Linear PCM mode for transparent audio transit over 1600kbps capable connections (LANs, fast wifi)</li>
-<li>Trivial configuration and setup via command line</li>
-<li>Transmitter-configured receivers for standalone receiver operation and control</li>
-<li>Low latency performance (under 5ms PCM, under 50ms Opus) with variable jitter buffer</li>
-<li>Automatic link recovery</li>
-<li>Simple command-line interface for operators, color coded level feedback</li>
-</ul><p>OpenOB is 100% open source, lightweight, and runs on a Raspberry Pi or similar mini-SBCs - with it you can build a broadcast quality STL or OB rig for under £200, bringing IP STLs and OBs to student and community radio who could previously not afford £3500 an end links. It can run over wired or wireless networks as well as 3G cellular data networks.</p>
-
-<h2>Development Status</h2>
-
-<p>OpenOB is stable and suitable for production usage.</p>
-
-<p>If you intend to put it into production, test thoroughly before doing so, as with any other system you might deploy.</p>
-
-<h2>Technical Information</h2>
-
-<p>OpenOB is a single program which can be run as a transmitter or receiver. It is configured by command-line options.</p>
-
-<p>By default the Opus codec is used for audio transport. This is a codec equally suited to music as it is to speech, and which is very bandwidth efficient, allowing good quality links at as low as 16 or 32kbps with very high quality links at 96kbps and above. It's also patent-free and unencumbered. Opus' predecessor, CELT, is also available for legacy systems.</p>
-
-<p>Additionally, OpenOB can move raw little-endian PCM 16-bit audio around, allowing for entirely transparent lossless audio links for studio-transmitter links or OBs where a high quality link is available.</p>
-
-<p>The actual network protocol used to move audio is the Real Time Protocol.</p>
-
-<p>Audio level monitoring is provided via simple printouts at each end for easy debugging. Network failures are recovered from automatically. Level monitoring of each end along with timestamps are provided bidirectionally for debugging and monitoring, so you can easily see what's going on at each end.</p>
-
-<p>Latency is by default configured limited on jitter buffer size with a 150ms buffer, which works well on congested switched networks with no QoS. 10ms and lower are possible on suitable hardware with a suitable connection.</p>
-
-<h2>Usage/Installation</h2>
-
-<h3>Operating System</h3>
-
-<p><em>It is recommended that you run OpenOB on a dedicated system to avoid glitches</em> unless you know what you're doing with regards to real-time kernels and priorities.</p>
-
-<p>The primary operating system that OpenOB is developed on is Debian, currently the Wheezy version in testing. It's recommended you use a server version of the OS without a graphical interface to avoid additional overhead. That said, OpenOB is very lightweight and does cope fine with a desktop UI alongside it on relatively chunky hardware (something newer than a Pentium 4 with a GHz or so kicking about).</p>
-
-<h3>Non-Python Dependencies</h3>
-
-<p>On Debian Wheezy and later you should be able to just run the following:</p>
-
-<pre><code>sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad \ 
-gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-ffmpeg gstreamer0.10-tools \
-python-gobject python-gobject-2 gstreamer0.10-alsa python-argparse
-</code></pre>
-
-<p>You will also need to install Redis on a machine - it does not need to be on the receiver or transmitter, but the receiver machine is probably where you want to put it.</p>
-
-<pre><code>sudo apt-get install redis-server
-</code></pre>
-
-<p>You then need to edit /etc/redis/redis.conf and instruct redis to bind to your external IP address or 0.0.0.0, then restart redis.</p>
-
-<h3>Installing</h3>
-
-<pre><code>sudo easy_install OpenOB
-</code></pre>
-
-<p>That's it!</p>
-
-<p>You can now run OpenOB. <code>openob -h</code> will list help; <code>openob dummyhost someconfig rx -h</code> will give help for the receiver mode, for instance.</p>
-
-<h3>Example Usage</h3>
-
-<p>Basic usage in all cases is this - you need a receiver and a transmitter, the receiver runs like this:</p>
-
-<pre><code>openob rx.example.org test-link rx
-</code></pre>
-
-<p>The transmitter like this:</p>
-
-<pre><code>openob rx.example.org test-link tx rx.example.org
-</code></pre>
-
-<p>This assumes rx.example.org is both your receiving host and your Redis server. </p>
-
-<p>This will default to 96kbps Opus encoded audio from ALSA. You can vary the bitrate with the <code>-b</code> flag, eg <code>-b 192</code> for high quality or <code>-b 16</code> to see how speech works at low bitrates.</p>
-
-<h2>Dependencies</h2>
-
-<ul>
-<li>Linux (Debian Wheezy tested, Ubuntu 12.04 works fine for CELT/PCM but doesn't support Opus)</li>
-<li>gstreamer 0.10, plus plugins (alsasrc/jackaudiosrc, opusenc and rtpopuspay/rtpL16pay bins required - install good, bad and ugly packages, plus any gstreamer-alsa packages for your distro)</li>
-<li>Python 2.7 or lower (3.x tentatively supported)</li>
-<li>Python gstreamer bindings</li>
-<li>Python redis bindings</li>
-<li>Python gobject bindings</li>
-<li>JACK server (optionally, ALSA is fine though)</li>
-<li>Redis server (only needed on the configuration server, usually configured on the receiver)</li>
-</ul><h2>Networking</h2>
-
-<p>OpenOB requires network connectivity of at least 128kbps to support a stable link. A recommended bandwidth of 256kbps permits some more leeway when it comes to IP overhead and so on.</p>
-
-<p>You need ports open to accept audio coming into a link. By default OpenOB needs ports 3000-3002 open. You do not need to open these on a transmitter, only a receiver.</p>
-
-<p>You can change the port range used with the command line flag -p, which sets the first port number.</p>
-
-<p>If you want to run bidirectional links within networks that you do not have ingress access to, OpenVPN may provide a solution. This has not, however, been tested. Ensure you are running OpenVPN in UDP mode.</p>
-
-<h2>Troubleshooting</h2>
-
-<h3>Audio levels</h3>
-
-<p>OpenOB tries to be really obvious and provides extreme visual feedback in the terminal for users. The level readout will be suffixed with !!! LEVELS !!! if the input is close to clipping, and it will be suffixed with !!! CLIP !!! if it's very very close. These appear in orange or red backgrounds.</p>
-
-<p>Normal communication shows up in green to indicate how well everything is going.</p>
-
-<h3>Intermittent glitching</h3>
-
-<p>Check the CPU available on each machine - OpenOB should be using under 70% and nothing else should be getting in the way.</p>
-
-<p>If the CPU is not an issue, adjust the jitter buffer to give yourself more resistance against network disruption.</p>
-
-<h3>Redis Unreachable</h3>
-
-<pre><code>-- Unable to configure myself from the configuration host; has the transmitter been started yet? (Error 111 connecting some-address:6379. Connection refused.)
-</code></pre>
-
-<p>This tends to mean your RX can't talk to Redis. Check you've edited /etc/redis/redis.conf to either comment out the bind 127.0.0.1 default or set bind to your public IP, then restart Redis. You may also have a firewall issue - ensure TCP port 6379 is open.</p>
-
-<h3>Silence/-700 level</h3>
-
-<p>Check your sound card with alsaconfig, and ensure you're passing the right device (arecord -l to get a list) to OpenOB.</p>
-
-<h3>Element unavailable</h3>
-
-<pre><code> -- Couldn't fulfill our gstreamer module dependencies! You don't have the following element available: opusenc
-</code></pre>
-
-<p>If opusenc shows as unavailable you likely don't have the GStreamer bad plugins package installed or it's too old to have Opus. Run <code>gst-inspect opus</code> to see what you've got. You can fall back to the CELT encoder/decoder with <code>-e celt</code> on the command line on the transmitter.</p>
-
-<h2>Hardware Requirements</h2>
-
-<h3>Recommended</h3>
-
-<ul>
-<li>Intel Atom 1.6GHz or better</li>
-<li>512MB or more system memory</li>
-<li>External sound card and external power source</li>
-<li>256kbps synchronous WAN/LAN connection (encoded)</li>
-<li>10Mbps synchronous WAN/LAN connection (lossless)</li>
-</ul><h3>Minimum tested</h3>
-
-<ul>
-<li>Broadcom ARM1176JZF-S 700 MHz (Raspberry Pi SOC CPU) or equivalent (Pentium 4/Celeron D or higher)</li>
-<li>256MB of RAM</li>
-<li>External sound card strongly recommended (Focusrite Scarlett 2i2 tested on RPi with USB bus power and 2A PSU)</li>
-</ul><p>The Raspberry Pi Single-Board Computer is an active development target for OpenOB and is entirely supported without modifications to hardware or software.</p>
-
-<h2>Real-World Users</h2>
-
-<p>This list is new; if you're using OpenOB in the real world (or testing/developing with it/evaluating it), let me know so you can be added to the list (or just add yourself in a fork and throw in a pull request).</p>
-
-<ul>
-<li>
-<a href="http://insanityradio.com/">Insanity Radio 103.2FM</a> - Studio-Transmitter Link for FM, outside broadcasts from events</li>
-<li>
-<a href="http://staffordfm.com/">Stafford FM</a> - Studio-Transmitter Link</li>
-</ul><h2>Licensing and Credits</h2>
-
-<p>OpenOB was developed by James Harrison, with chunks of example code used from Alexandre Bourget and various other GStreamer documentation sites such as the PyGST manual.</p>
-
-<p>Copyright (c) 2012, James Harrison</p>
-
-<p>All rights reserved.</p>
-
-<p>Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following  conditions are met:
-    * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
-    * Neither the name of the OpenOB project nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.</p>
-
-<p>THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL JAMES HARRISON OR OTHER OPENOB CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
-        </section>
-
-        <footer>
-          OpenOB is maintained by <a href="https://github.com/JamesHarrison">JamesHarrison</a><br>
-          This page was generated by <a href="http://pages.github.com">GitHub Pages</a>. Tactile theme by <a href="http://twitter.com/jasonlong">Jason Long</a>.
-        </footer>
-
-        
+      <div class="header"><h1 class="heading"><a href="#">
+          <span>OpenOB 3.0 ALPHA documentation</span></a></h1>
+        <h2 class="heading"><span>OpenOB - Open Audio over IP for Broadcasters</span></h2>
       </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="#">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="intro.html">Introduction</a>&#160;&#160;»
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <div class="section" id="openob-open-audio-over-ip-for-broadcasters">
+<h1>OpenOB - Open Audio over IP for Broadcasters<a class="headerlink" href="#openob-open-audio-over-ip-for-broadcasters" title="Permalink to this headline">¶</a></h1>
+<p>The OpenOB project is an audio over IP software package designed for broadcast engineers and system integrators at broadcasters.</p>
+<p>The goal of the project is to provide a simple framework for configuring and managing quasi-real-time (&lt;30ms latency) audio streams between devices over standard IP networks, which can be extended to support more complex configurations such as talkback links or high reliability configurations.</p>
+<p>OpenOB can be used for:</p>
+<ul class="simple">
+<li>Studio to studio contribution links</li>
+<li>Outside broadcast contribution links</li>
+<li>Studio to transmitter distribution links</li>
+</ul>
+<p>It can be used on a variety of network connections, with operating bitrates as low as 16kbps in compressed mode, and support for fully lossless operation in linear PCM mode.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">This is the documentation for the currently-unreleased/unstable OpenOB 3 rewrite. Some documentation here may be relevant (such as the tutorial and configuration guide) but you should use the <a class="reference external" href="https://github.com/JamesHarrison/openob/blob/master/README.md">old documentation</a> as your main reference.</p>
+</div>
+</div>
+<div class="section" id="documentation-index">
+<h1>Documentation Index<a class="headerlink" href="#documentation-index" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="intro.html#architecture">Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="intro.html#audio-quality">Audio Quality</a></li>
+<li class="toctree-l2"><a class="reference internal" href="intro.html#system-requirements">System Requirements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tutorial.html#openob-system-basics">OpenOB System Basics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial.html#installing-prerequisites">Installing Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial.html#installing-openob">Installing OpenOB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial.html#networking">Networking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial.html#audio-testing">Audio testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="tutorial.html#setting-up-a-link">Setting up a link</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuring OpenOB</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#bitrates-and-bandwidths">Bitrates and Bandwidths</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#firewall-configuration">Firewall Configuration</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="developer-documentation">
+<h2>Developer Documentation<a class="headerlink" href="#developer-documentation" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="integration.html">Integrating OpenOB</a></li>
+<li class="toctree-l1"><a class="reference internal" href="developers.html">Developer Info</a></li>
+<li class="toctree-l1"><a class="reference internal" href="zookeeper.html">Zookeeper API</a></li>
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="history">
+<h1>History<a class="headerlink" href="#history" title="Permalink to this headline">¶</a></h1>
+<p>OpenOB was developed by James Harrison at Insanity Radio, a London based community radio station, as a studio-transmitter link.</p>
+<p>It was later developed into a more generic tool and published. It is now in regular use in a number of community radio stations in the UK and abroad, and continues to be developed and expanded.</p>
+</div>
+<div class="section" id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><em>Index</em></a></li>
+<li><a class="reference internal" href="py-modindex.html"><em>Module Index</em></a></li>
+<li><a class="reference internal" href="search.html"><em>Search Page</em></a></li>
+</ul>
+</div>
+
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="#">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="intro.html">Introduction</a>&#160;&#160;»
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2013, James Harrison.
+      Last updated on Aug 01, 2013.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
     </div>
   </body>
 </html>

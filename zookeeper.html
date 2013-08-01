@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Zookeeper API &mdash; OpenOB 3.0 ALPHA documentation</title>
+    
+    <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.0 ALPHA',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/theme_extras.js"></script>
+    <link rel="top" title="OpenOB 3.0 ALPHA documentation" href="index.html" />
+    <link rel="prev" title="Developer Info" href="developers.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="index.html">
+          <span>OpenOB 3.0 ALPHA documentation</span></a></h1>
+        <h2 class="heading"><span>Zookeeper API</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        «&#160;&#160;<a href="developers.html">Developer Info</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <div class="section" id="zookeeper-api">
+<h1>Zookeeper API<a class="headerlink" href="#zookeeper-api" title="Permalink to this headline">¶</a></h1>
+<p>OpenOB 3 uses a new inter-link communications system based on the Apache Zookeeper project. Zookeeper is an off the shelf distributed system coordination server which supports advanced features and high availability clustering.</p>
+<p>Where previously links were constrained to being simple A-B connections and a set of assumptions allowed for simple use of a Redis server to manage coordination, the demand for more complex link configurations has spurred a change to this more flexible system. However, it requires more forethought!</p>
+<p>Zookeeper&#8217;s main interface is a hierarchal namespace containing <em>znodes</em>. This is similar to a file system but with sequential consistency, atomicity, reliability and timeliness. In clusters, clients are guaranteed to see the same view of the system regardless of which server they use.</p>
+<div class="section" id="concepts">
+<h2>Concepts<a class="headerlink" href="#concepts" title="Permalink to this headline">¶</a></h2>
+<p>We have <em>nodes</em>. These are computers running an OpenOB node daemon. They may be transmitters, receivers, or both, and are centrally configured.</p>
+<p>These nodes have <em>interfaces</em>. These are audio interfaces, defined in a local config file, which can be used for input or output.</p>
+<p>Each interface can participate in a <em>link</em>. The participation may be as a transmitter or as a receiver.</p>
+<div class="section" id="link-types">
+<h3>Link Types<a class="headerlink" href="#link-types" title="Permalink to this headline">¶</a></h3>
+<p>To support our use cases, we have to abstract the following link types.</p>
+<ul class="simple">
+<li>One-to-one: Interface A to interface B. Single unicast RTP stream.</li>
+<li>One-to-one (multistream): Interface A to interface B. Multiple unicast RTP streams on differing ports and/or addresses.</li>
+<li>One-to-many: Interface A to interface B, C, D. Multiple unicast RTP streams.</li>
+<li>Multicast: Interface A to interfaces B, C, D. Single multicast SSM RTP stream.</li>
+</ul>
+<p>In all of these link types the transmitter behaves differently at the UDP/RTP sinking level. The receivers must also configure themselves differently, again at the UDP/RTP level. All other parts of the TX/RX pipeline are unaffected by these.</p>
+</div>
+<div class="section" id="metadata">
+<h3>Metadata<a class="headerlink" href="#metadata" title="Permalink to this headline">¶</a></h3>
+<p>Some link detail should be transmitted by its location in the Zookeeper node hierarchy. To express more complex configuration data such as stream capabilities or requested bitrate/jitter buffer, data can be added to the nodes themselves.</p>
+<p>This data shall be in JSON format and be comprised of a hash containing any information.</p>
+</div>
+</div>
+<div class="section" id="znode-hierarchy">
+<h2>znode Hierarchy<a class="headerlink" href="#znode-hierarchy" title="Permalink to this headline">¶</a></h2>
+<p>Zookeeper</p>
+<p>Each node will register an ephemeral znode:</p>
+<div class="highlight-python"><pre>/node/:node_name</pre>
+</div>
+<p>Where :node_name will be the system hostname or FQDN, or a value set in the OpenOB node configuration file. This ephemeral znode can be used by clients to identify which nodes are up, as the node will be removed on network connectivity loss.</p>
+<p>For each interface that is an input (ie, an input from a USB microphone), the node will register a znode:</p>
+<div class="highlight-python"><pre>/tx/:node_name/:interface_name</pre>
+</div>
+<p>Where :interface_name is the name defined in the node configuration file. The name should be made conformant to the znode naming requirements.</p>
+<p>For interfaces that are outputs (ie, connected to a transmitter or speakers), the node will register a znode:</p>
+<div class="highlight-python"><pre>/rx/:node_name/:interface_name</pre>
+</div>
+<p>These interface nodes should contain any relevant metadata about the interface, including any name or descriptive information specified in the configuration file. The node is responsible for cleaning up any old interfaces defined under <tt class="docutils literal"><span class="pre">/(rx|tx)/:node_name</span></tt>.</p>
+<p>The znodes under rx/tx are persistent - that is, a node that crashes or shuts down and comes back up should act on the znodes present as if they had just appeared. There should be no functional difference between a freshly started node and a node that has been configured by znodes changing while it is running.</p>
+<p>The children of interface nodes represent a RX or TX portion of a link configuration.</p>
+<div class="section" id="znode-example">
+<h3>znode Example<a class="headerlink" href="#znode-example" title="Permalink to this headline">¶</a></h3>
+<p>Assume we have one node, <tt class="docutils literal"><span class="pre">studio</span></tt>, and we&#8217;d like to transmit to another node, <tt class="docutils literal"><span class="pre">transmitter</span></tt>. The studio node has an input interface named <tt class="docutils literal"><span class="pre">desk-outputs</span></tt> and the transmitter node has an output interface named <tt class="docutils literal"><span class="pre">processor-input</span></tt>. This is a one-to-one link.</p>
+<p>The configuration client can look at <tt class="docutils literal"><span class="pre">/node</span></tt>&#8216;s children to identify which nodes are available, and sees both <tt class="docutils literal"><span class="pre">studio</span></tt> and <tt class="docutils literal"><span class="pre">transmitter</span></tt>.</p>
+<p>For each node the client can now look at <tt class="docutils literal"><span class="pre">/tx/:node_name</span></tt> and <tt class="docutils literal"><span class="pre">/rx/:node_name</span></tt> to identify what interfaces are available. It may perform a further check for children on these interface znodes to see which are available. This could be displayed to the user.</p>
+<p>Knowing which nodes/interfaces this link requires, and having verified the nodes and interfaces are available, the configuration client creates a new znode, <tt class="docutils literal"><span class="pre">/tx/studio/desk-outputs/transmitter/processor-input</span></tt>, along with the requested parameters as data on that znode (bitrate etc).</p>
+<p>The studio node, seeing this new znode, ensures there are no children under <tt class="docutils literal"><span class="pre">/rx/transmitter/processor-input</span></tt>. If there are none it proceeds to start a transmitter. Once the stream is set up and port capabilities are available, a new znode is created by the transmitter at <tt class="docutils literal"><span class="pre">/rx/transmitter/processor-input/studio/desk-outputs</span></tt> with the parameters required to receive the stream.</p>
+<p>The transmitter node sees this new znode and starts a receiver with the given parameters.</p>
+<p>If either node crashes or is restarted, it reads its interface configuration file, deletes any znodes under <tt class="docutils literal"><span class="pre">/(tx|rx)/:node_name</span></tt> that do not appear in the configuration file, and for the remaining znodes it checks for children and starts any transmitters or receivers as required to match its running state with the configuration in Zookeeper.</p>
+</div>
+<div class="section" id="one-to-one-multistream">
+<h3>One-to-one (multistream)<a class="headerlink" href="#one-to-one-multistream" title="Permalink to this headline">¶</a></h3>
+</div>
+<div class="section" id="one-to-many">
+<h3>One-to-many<a class="headerlink" href="#one-to-many" title="Permalink to this headline">¶</a></h3>
+</div>
+<div class="section" id="multicast">
+<h3>Multicast<a class="headerlink" href="#multicast" title="Permalink to this headline">¶</a></h3>
+</div>
+</div>
+</div>
+
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        «&#160;&#160;<a href="developers.html">Developer Info</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2013, James Harrison.
+      Last updated on Aug 01, 2013.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>

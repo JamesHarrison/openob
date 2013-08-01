@@ -1,0 +1,134 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Introduction &mdash; OpenOB 3.0 ALPHA documentation</title>
+    
+    <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/print.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.0 ALPHA',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/theme_extras.js"></script>
+    <link rel="top" title="OpenOB 3.0 ALPHA documentation" href="index.html" />
+    <link rel="next" title="Tutorial" href="tutorial.html" />
+    <link rel="prev" title="OpenOB - Open Audio over IP for Broadcasters" href="index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="index.html">
+          <span>OpenOB 3.0 ALPHA documentation</span></a></h1>
+        <h2 class="heading"><span>Introduction</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        «&#160;&#160;<a href="index.html">OpenOB - Open Audio over IP for Broadcasters</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="tutorial.html">Tutorial</a>&#160;&#160;»
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <div class="section" id="introduction">
+<h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h1>
+<p>OpenOB is an audio over IP (AoIP) transciever tool that can manage establishment and recovery of AoIP links in a low overhead manner.</p>
+<p>It supports lossless linear PCM audio as well as the Opus audio codec for compressed audio operation. It is designed to operate as a standalone tool, but is also straightforward to use in your own projects, such as for building AoIP hardware.</p>
+<div class="section" id="architecture">
+<h2>Architecture<a class="headerlink" href="#architecture" title="Permalink to this headline">¶</a></h2>
+<p>OpenOB is a peer to peer audio streaming system with a central configuration server.</p>
+<p>The program itself is a set of Python classes wrapping the PyGST bindings for the GStreamer media framework, which itself performs the audio encoding/decoding and transmission.</p>
+<p>An OpenOB <em>link</em> is comprised of a receiver and transmitter pair.</p>
+<p>All OpenOB transmitters and receivers communicate configuration data by way of a <em>configuration server</em>.</p>
+<p>The audio is sent directly between transmitter and receiver using the Real Time Protocol.</p>
+</div>
+<div class="section" id="audio-quality">
+<h2>Audio Quality<a class="headerlink" href="#audio-quality" title="Permalink to this headline">¶</a></h2>
+<p>OpenOB in linear PCM mode with appropriate sound cards is measurably transparent, over any network (assuming properly configured jitter buffer and sufficient bandwidth).</p>
+<p>In Opus mode, OpenOB performs as well as the codec permits, which in the case of Opus is very well - at higher bitrates it is generally accepted to be equivalent in quality to higher-bitrate AAC and MP3 (ie 96k Opus beats 128k MP3). At lower bitrates, it also performs well, beating out codecs like G.722 for speech content.</p>
+<p>The main limiting factors to quality are the sound cards used in the computers used by OpenOB, and available bitrate.</p>
+<p>For most entry-level broadcast purposes, sufficiently well-engineered integrated audio cards may be sufficient for users. However, for professional use, the use of a professional sound card is typically required. OpenOB plays well with ALSA and JACK as well as other GStreamer supported audio sources, giving you excellent out of the box compatibility with a wide range of professional audio cards.</p>
+<div class="sidebar">
+<p class="first sidebar-title">Sound Cards</p>
+<p>OpenOB works with any ALSA supported device, and can also make use of the JACK audio server to make use of more complex routing configurations.</p>
+<p>Any card that supports ALSA or can be used via JACK&#8217;s firewire modules can be used, in other words.</p>
+<p>Tested cards include:</p>
+<ul class="last simple">
+<li>Behringer UCA202</li>
+<li>ART USB Dual Tube</li>
+</ul>
+</div>
+</div>
+<div class="section" id="system-requirements">
+<h2>System Requirements<a class="headerlink" href="#system-requirements" title="Permalink to this headline">¶</a></h2>
+<p>OpenOB is relatively lightweight and will run on many systems; the requirement for near-real-time audio does impose more restrictions than mere CPU and RAM requirements.</p>
+<p>The following is a recommended set of specifications that are known to run OpenOB and handle external sound cards without issue.</p>
+<ul class="simple">
+<li>Dual-core Intel Atom, i3 or better &#64; 1.2GHz or better</li>
+<li>512MB RAM (2GB if you want a desktop environment)</li>
+<li>100Mbps NIC</li>
+<li>Debian Wheezy (7.0)</li>
+</ul>
+<p>OpenOB has been known to run on systems with significantly lower specifications.</p>
+<div class="section" id="embedded-systems">
+<h3>Embedded Systems<a class="headerlink" href="#embedded-systems" title="Permalink to this headline">¶</a></h3>
+<p>OpenOB can be run on a Raspberry Pi, but due to a bug in the Pi USB drivers it can only run at 32kHz sample rate when using a USB audio codec, making it unsuitable for full-bandwidth operations on a Pi.</p>
+<p>The BeagleBoard xM can run OpenOB in full bandwidth mode with a USB audio codec.</p>
+<p>Other embedded systems that may handle OpenOB but have not been tested include:</p>
+<ul class="simple">
+<li>BeagleBoard Black</li>
+<li>Olimex Linux boards</li>
+</ul>
+</div>
+<div class="section" id="network">
+<h3>Network<a class="headerlink" href="#network" title="Permalink to this headline">¶</a></h3>
+<p>OpenOB offers a variety of modes that allow for low-bitrate operation for speech only links, and medium to high bitrate full bandwidth links for musical content. The <a class="reference internal" href="configuration.html#bitrates-and-bandwidths"><em>Bitrates and Bandwidths</em></a> section of the manual discusses these recommendations in detail.</p>
+<p>In general your network must support more than 24 kilobytes per second with near-zero loss. You will need to be able to open ports on the firewall at the receiver side; transmitters can emit audio from behind NAT gateways and most permissive egress firewalls.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p>When determining your network requirements, budget for at least 6kbps overhead to allow OpenOB itself room to communicate configuration data.</p>
+<p class="last">Also bear in mind that framing sizes and error correction will add overhead to the basic audio bitstream itself.</p>
+</div>
+</div>
+</div>
+</div>
+
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        «&#160;&#160;<a href="index.html">OpenOB - Open Audio over IP for Broadcasters</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="tutorial.html">Tutorial</a>&#160;&#160;»
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2013, James Harrison.
+      Last updated on Aug 01, 2013.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+    </div>
+  </body>
+</html>
