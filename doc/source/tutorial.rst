@@ -17,19 +17,25 @@ OpenOB relies on the GStreamer media framework for the underlying audio transpor
 
 Additionally, OpenOB needs some Python extensions, and on the configuration server, we must also install the Redis server used for configuration management.
 
-On Debian you can install the prerequisites with the following command::
+On Debian you can install the prerequisites with the following command:
+
+.. code-block:: bash
 
   sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa python-argparse
 
-This should also work on Ubuntu. Your GStreamer implementation must be recent enough to support Opus; this is supported in Ubuntu 13.04 and Debian Wheezy or newer.
+This should also work on Ubuntu. Your GStreamer implementation must be recent enough to support Opus; this is supported in Ubuntu 13.04 and Debian Wheezy or newer. In order to ensure compatibility, it is recommended that both ends of the link use the same version of GStreamer, which is most easily achieved by running the same operating system version on each end and installing the distribution's packages as detailed above.
 
-On one machine, which for this tutorial we'll assume is also our receiver, we'll install Redis::
+On one machine, which for this tutorial we'll assume is also our receiver, we'll install Redis:
 
-  sudo apt-get install redis-server
+.. code-block:: bash
 
-We also need to make sure Redis binds itself to be accessible to remote machines, not just localhost. You can edit ``/etc/redis/redis.conf`` yourself or run the following to instantly make this adjustment::
+  [user@rx-host] $ sudo apt-get install redis-server
 
-  sudo sed -i.bak ‘s/bind 127.*/bind 0.0.0.0/’ /etc/redis/redis.conf && sudo service redis restart
+We also need to make sure Redis binds itself to be accessible to remote machines, not just localhost. You can edit ``/etc/redis/redis.conf`` yourself or run the following to instantly make this adjustment
+
+.. code-block:: bash
+
+  [user@rx-host] $ sudo sed -i.bak ‘s/bind 127.*/bind 0.0.0.0/’ /etc/redis/redis.conf && sudo service redis restart
 
 Installing OpenOB
 -----------------
@@ -76,3 +82,5 @@ Now let's start the transmitter.
 We're passing this the same arguments as the receiver, but asking it to be a transmitter instead, and providing the target destination IP address.
 
 This will spin up and send some configuration information to the configuration server. When the receiver next checks for configuration (in a second or two) it will spin up with the parameters sent by the transmitter, and you should start hearing audio from the receiver's sound card.
+
+To close the link, just :kbd:`Control-c` both ends to send a kill signal.

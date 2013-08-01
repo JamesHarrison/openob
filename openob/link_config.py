@@ -24,7 +24,7 @@ class LinkConfig(object):
     ns_key = "openob3:%s:%s" % (self.link_name, key)
     if block:
       val = False
-      while !val:
+      while not val:
         val = self.redis.get(ns_key)
       return val
     else:

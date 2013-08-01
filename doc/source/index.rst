@@ -11,6 +11,7 @@ OpenOB can be used for:
 * Outside broadcast contribution links
 * Studio to transmitter distribution links
 
+
 It can be used on a variety of network connections, with operating bitrates as low as 16kbps in compressed mode, and support for fully lossless operation in linear PCM mode.
 
 Documentation Index
@@ -22,9 +23,16 @@ Documentation Index
    intro
    tutorial
    configuration
+
+Developer Documentation
+-----------------------
+
+.. toctree::
+   :maxdepth: 1
+
    integration
-   raspberrypi
    developers
+   zookeeper
 
 History 
 =======
