@@ -6,7 +6,7 @@ import time
 import re
 from colorama import Fore, Back, Style
 class RTPTransmitter:
-  def __init__(self, audio_input='alsa', audio_device='hw:0', audio_rate=0, base_port=3000, multicast=True, encoding='opus', bitrate=96, jack_name='openob_tx', jack_auto = True, receiver_address='localhost', opus_options={'audio': True, 'bandwidth': -1000, 'frame-size': 20, 'complexity': 7, 'constrained-vbr': True, 'inband-fec': True, 'packet-loss-percentage': 3, 'dtx': False}):
+  def __init__(self, audio_input='alsa', audio_device='hw:0', audio_rate=0, base_port=3000, multicast=True, encoding='opus', bitrate=96, jack_name='openob_tx', jack_auto = True, receiver_address='localhost', opus_options={'audio': True, 'bandwidth': -1000, 'frame-size': 20, 'complexity': 7, 'constrained-vbr': True, 'inband-fec': True, 'packet-loss-percentage': 3, 'dtx': False}, queuesize=0):
     """Sets up a new RTP transmitter"""
     self.started = False
     self.pipeline = gst.Pipeline("tx")
@@ -29,7 +29,10 @@ class RTPTransmitter:
       self.source.set_property('name', jack_name)
     elif audio_input == 'pulseaudio':
       self.source = gst.element_factory_make("pulsesrc")
-
+    if queuesize != 0:
+	self.queue = gst.element_factory_make("queue")
+	self.queue.set_property("max-size-time", queuesize*1000)
+	self.pipeline.add(self.queue)
     # Audio conversion and resampling
     self.audioconvert = gst.element_factory_make("audioconvert")
     self.audioresample = gst.element_factory_make("audioresample")
@@ -98,7 +101,13 @@ class RTPTransmitter:
     else:
       self.capsfilter.set_property("caps", gst.Caps('%s, channels=2' % type ) )
 
-    gst.element_link_many(self.source, self.capsfilter, self.level, self.audioresample, self.audiorate, self.audioconvert)
+    # Link via a queue if a queuesize has been provided
+    if queuesize != 0:
+	gst.element_link_many(self.source, self.queue, self.capsfilter)
+    else:
+	gst.element_link_many(self.source, self.capsfilter)
+    # Then continue linking the pipeline together
+    gst.element_link_many(self.capsfilter, self.level, self.audioresample, self.audiorate, self.audioconvert)
 
     # Now we get to link this up to our encoder/payloader
     if encoding != 'pcm':
