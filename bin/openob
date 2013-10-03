@@ -22,6 +22,7 @@ parser_tx.add_argument('-p', '--port', type=int, default=3000, help="The base po
 parser_tx.add_argument('-m', '--multicast', type=bool, default=False, help="Start this transmitter in multicast mode, enabling multiple clients to connect at once using the address specified in reciever_host (true/false, default false)")
 parser_tx.add_argument('-j', '--jitter_buffer', type=int, default=150, help="The size of the jitter buffer in milliseconds. Affects latency; may be reduced to 5-10ms on fast reliable networks, or increased for poor networks like 3G")
 parser_tx.add_argument('-l', '--loss', type=int, default=0, help="Expected packet loss percentage for Opus, between 0 and 100")
+parser_tx.add_argument('-q', '--queue', type=int, default=0, help="Input queue (size in ms)")
 parser_tx.add_argument('--dtx', type=bool, default=False, help="Enable Opus Discontinuous Transmission support (true/false, default false)")
 parser_tx.add_argument('--fec', type=bool, default=True, help="Enable Opus Inband Forward Error Correction support (true/false, default true)")
 parser_tx.add_argument('--complexity', type=int, default=7, help="Opus Computational Complexity, between 0 and 10 - reduce on CPU-constrained devices")
