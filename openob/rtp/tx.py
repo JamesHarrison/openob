@@ -31,8 +31,8 @@ class RTPTransmitter:
       self.source = gst.element_factory_make("pulsesrc")
     if queuesize != 0:
 	self.queue = gst.element_factory_make("queue")
-	self.queue.set_property("min-threshold-time", queuesize*1000)
-	self.queue.set_property("max-size-time", queuesize*1000*2)
+	self.queue.set_property("min-threshold-time", queuesize*1000*1000) # convert from ms to ns
+	self.queue.set_property("max-size-time", queuesize*1000*1000*2)
 	self.pipeline.add(self.queue)
     # Audio conversion and resampling
     self.audioconvert = gst.element_factory_make("audioconvert")
