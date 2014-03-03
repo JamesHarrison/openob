@@ -43,11 +43,11 @@ class RTPTransmitter(object):
         # Encoding and payloading
         if self.link_config.encoding == 'opus':
             self.encoder = gst.element_factory_make("opusenc", "encoder")
-            self.encoder.set_property('bitrate', self.link_config.bitrate * 1000)
+            self.encoder.set_property('bitrate', int(self.link_config.bitrate) * 1000)
             self.encoder.set_property('frame-size', self.link_config.opus_framesize)
-            self.encoder.set_property('complexity', self.link_config.opus_complexity)
+            self.encoder.set_property('complexity', int(self.link_config.opus_complexity))
             self.encoder.set_property('inband-fec', self.link_config.opus_fec)
-            self.encoder.set_property('packet-loss-percentage', self.link_config.opus_loss_expectation)
+            self.encoder.set_property('packet-loss-percentage', int(self.link_config.opus_loss_expectation))
             self.encoder.set_property('dtx', self.link_config.opus_dtx)
             self.payloader = gst.element_factory_make("rtpopuspay", "payloader")
         elif self.link_config.encoding == 'pcm':
