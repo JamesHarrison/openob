@@ -36,11 +36,16 @@ class AudioInterface(object):
     def set_from_argparse(self, opts):
         """Set up the audio interface from argparse options"""
         self.set("mode", opts.mode)
-        self.set("type", opts.audio_input)
-        self.set("samplerate", opts.samplerate)
-        if opts.audio_input == 'alsa':
+
+        if opts.mode == "tx":
+            self.set("type", opts.audio_input)
+            self.set("samplerate", opts.samplerate)
+        elif opts.mode == "rx":
+            self.set("type", opts.audio_output)
+
+        if self.get("type") == "alsa":
             self.set("device", opts.device)
-        elif opts.audio_input == 'jack':
+        elif self.get("type") == "jack":
             if opts.jack_auto is not False:
                 self.set("jack_auto", opts.jack_auto)
             if opts.jack_name is not None:
