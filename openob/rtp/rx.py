@@ -18,12 +18,13 @@ class RTPReceiver(object):
         self.audio_interface = audio_interface
         self.logger_factory = LoggerFactory()
         self.logger = self.logger_factory.getLogger('node.%s.link.%s.%s' % (node_name, self.link_config.name, self.audio_interface.mode))
+        caps = self.link_config.get("caps")
         # Audio output
         if self.audio_interface.type == 'auto':
             self.sink = gst.element_factory_make("autoaudiosink")
         elif self.audio_interface.type == 'alsa':
             self.sink = gst.element_factory_make("alsasink")
-            self.sink.set_property('device', self.audio_interface.device)
+            self.sink.set_property('device', self.audio_interface.alsa_device)
         elif self.audio_interface.type == 'jack':
             self.sink = gst.element_factory_make("jackaudiosink")
             if self.audio_interface.jack_auto:

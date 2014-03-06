@@ -36,11 +36,10 @@ class LinkConfig(object):
 
     def blocking_get(self, key):
         """Get a value, blocking until it's not None if needed"""
-        scoped_key = self.scoped_key(key)
         while True:
-            value = self.get(scoped_key)
+            value = self.get(key)
             if value is not None:
-                self.logger.debug("Fetched (blocking) %s, got %s" % (scoped_key, value))
+                self.logger.debug("Fetched (blocking) %s, got %s" % (key, value))
                 return value
             time.sleep(0.1)
 
@@ -77,16 +76,16 @@ class LinkConfig(object):
     def set_from_argparse(self, opts):
         """Given an optparse object from bin/openob, configure this link"""
         self.set("name", opts.link_name)
-        self.set("port", opts.port)
-        self.set("jitter_buffer", opts.jitter_buffer)
-        self.set("encoding", opts.encoding)
-        self.set("bitrate", opts.bitrate)
-        self.set("multicast", opts.multicast)
-        self.set("input_samplerate", opts.samplerate)
-        self.set("receiver_host", opts.receiver_host)
-        self.set("opus_framesize", opts.framesize)
-        self.set("opus_complexity", opts.complexity)
-        self.set("opus_fec", opts.fec)
-        self.set("opus_loss_expectation", opts.loss)
-        self.set("opus_dtx", opts.dtx)
-
+        if opts.mode == "tx":
+            self.set("port", opts.port)
+            self.set("jitter_buffer", opts.jitter_buffer)
+            self.set("encoding", opts.encoding)
+            self.set("bitrate", opts.bitrate)
+            self.set("multicast", opts.multicast)
+            self.set("input_samplerate", opts.samplerate)
+            self.set("receiver_host", opts.receiver_host)
+            self.set("opus_framesize", opts.framesize)
+            self.set("opus_complexity", opts.complexity)
+            self.set("opus_fec", opts.fec)
+            self.set("opus_loss_expectation", opts.loss)
+            self.set("opus_dtx", opts.dtx)
