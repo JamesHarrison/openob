@@ -131,7 +131,6 @@ class RTPTransmitter(object):
         self.bus.connect('message', self.on_message)
 
     def run(self):
-        self.udpsink_rtpout.set_locked_state(gst.STATE_PLAYING)
         self.pipeline.set_state(gst.STATE_PLAYING)
         while self.caps == 'None':
             self.logger.warn("Waiting for audio interface/caps")
