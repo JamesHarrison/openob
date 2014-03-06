@@ -64,15 +64,7 @@ class RTPTransmitter(object):
         self.udpsink_rtpout.set_property('port', self.link_config.port)
         if self.link_config.multicast:
             self.udpsink_rtpout.set_property('auto_multicast', True)
-        # # And send our control packets out on this
-        # self.udpsink_rtcpout = gst.element_factory_make(
-        #     "udpsink", "udpsink_rtcp")
-        # self.udpsink_rtcpout.set_property('host', self.link_config.receiver_host)
-        # self.udpsink_rtcpout.set_property('port', self.link_config.port + 1)
-        # # And the receiver will send us RTCP Sender Reports on this
-        # self.udpsrc_rtcpin = gst.element_factory_make("udpsrc", "udpsrc_rtcp")
-        # self.udpsrc_rtcpin.set_property('port', self.link_config.port + 2)
-        # # (but we'll ignore them/operate fine without them because we assume we're stuck behind a firewall)
+
         # Our RTP manager
         self.rtpbin = gst.element_factory_make("gstrtpbin", "gstrtpbin")
 
