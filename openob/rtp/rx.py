@@ -24,7 +24,7 @@ class RTPReceiver(object):
             self.sink = gst.element_factory_make("autoaudiosink")
         elif self.audio_interface.type == 'alsa':
             self.sink = gst.element_factory_make("alsasink")
-            self.sink.set_property('device', self.audio_interface.device)
+            self.sink.set_property('device', self.audio_interface.alsa_device)
         elif self.audio_interface.type == 'jack':
             self.sink = gst.element_factory_make("jackaudiosink")
             if self.audio_interface.jack_auto:

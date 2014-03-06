@@ -44,7 +44,7 @@ class AudioInterface(object):
             self.set("type", opts.audio_output)
 
         if self.get("type") == "alsa":
-            self.set("device", opts.device)
+            self.set("alsa_device", opts.alsa_device)
         elif self.get("type") == "jack":
             if opts.jack_auto is not False:
                 self.set("jack_auto", opts.jack_auto)

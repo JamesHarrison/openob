@@ -26,7 +26,7 @@ class RTPTransmitter(object):
             self.source = gst.element_factory_make('autoaudiosrc')
         elif self.audio_interface.type == 'alsa':
             self.source = gst.element_factory_make('alsasrc')
-            self.source.set_property('device', self.audio_interface.device)
+            self.source.set_property('device', self.audio_interface.alsa_device)
         elif self.audio_interface.type == 'jack':
             self.source = gst.element_factory_make("jackaudiosrc")
             if self.audio_interface.jack_auto:
