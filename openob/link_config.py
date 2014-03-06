@@ -36,11 +36,10 @@ class LinkConfig(object):
 
     def blocking_get(self, key):
         """Get a value, blocking until it's not None if needed"""
-        scoped_key = self.scoped_key(key)
         while True:
-            value = self.get(scoped_key)
+            value = self.get(key)
             if value is not None:
-                self.logger.debug("Fetched (blocking) %s, got %s" % (scoped_key, value))
+                self.logger.debug("Fetched (blocking) %s, got %s" % (key, value))
                 return value
             time.sleep(0.1)
 
