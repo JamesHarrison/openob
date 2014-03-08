@@ -1,5 +1,9 @@
 
-## 3.0.0
+## 3.0.0a2
+
+* 
+
+## 3.0.0a1
 
 * Refactored the Manager into Node, LinkConfig, AudioInterface and Logger classes
 * Refactored logging to use Python's logging framework
