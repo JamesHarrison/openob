@@ -26,7 +26,7 @@ class RTPTransmitter(object):
             self.source = gst.element_factory_make('autoaudiosrc')
         elif self.audio_interface.type == 'alsa':
             self.source = gst.element_factory_make('alsasrc')
-            self.source.set_property('device', self.audio_interface.device)
+            self.source.set_property('device', self.audio_interface.alsa_device)
         elif self.audio_interface.type == 'jack':
             self.source = gst.element_factory_make("jackaudiosrc")
             if self.audio_interface.jack_auto:
@@ -43,11 +43,11 @@ class RTPTransmitter(object):
         # Encoding and payloading
         if self.link_config.encoding == 'opus':
             self.encoder = gst.element_factory_make("opusenc", "encoder")
-            self.encoder.set_property('bitrate', self.link_config.bitrate * 1000)
+            self.encoder.set_property('bitrate', int(self.link_config.bitrate) * 1000)
             self.encoder.set_property('frame-size', self.link_config.opus_framesize)
-            self.encoder.set_property('complexity', self.link_config.opus_complexity)
+            self.encoder.set_property('complexity', int(self.link_config.opus_complexity))
             self.encoder.set_property('inband-fec', self.link_config.opus_fec)
-            self.encoder.set_property('packet-loss-percentage', self.link_config.opus_loss_expectation)
+            self.encoder.set_property('packet-loss-percentage', int(self.link_config.opus_loss_expectation))
             self.encoder.set_property('dtx', self.link_config.opus_dtx)
             self.payloader = gst.element_factory_make("rtpopuspay", "payloader")
         elif self.link_config.encoding == 'pcm':
@@ -64,15 +64,7 @@ class RTPTransmitter(object):
         self.udpsink_rtpout.set_property('port', self.link_config.port)
         if self.link_config.multicast:
             self.udpsink_rtpout.set_property('auto_multicast', True)
-        # # And send our control packets out on this
-        # self.udpsink_rtcpout = gst.element_factory_make(
-        #     "udpsink", "udpsink_rtcp")
-        # self.udpsink_rtcpout.set_property('host', self.link_config.receiver_host)
-        # self.udpsink_rtcpout.set_property('port', self.link_config.port + 1)
-        # # And the receiver will send us RTCP Sender Reports on this
-        # self.udpsrc_rtcpin = gst.element_factory_make("udpsrc", "udpsrc_rtcp")
-        # self.udpsrc_rtcpin.set_property('port', self.link_config.port + 2)
-        # # (but we'll ignore them/operate fine without them because we assume we're stuck behind a firewall)
+
         # Our RTP manager
         self.rtpbin = gst.element_factory_make("gstrtpbin", "gstrtpbin")
 
@@ -131,7 +123,6 @@ class RTPTransmitter(object):
         self.bus.connect('message', self.on_message)
 
     def run(self):
-        self.udpsink_rtpout.set_locked_state(gst.STATE_PLAYING)
         self.pipeline.set_state(gst.STATE_PLAYING)
         while self.caps == 'None':
             self.logger.warn("Waiting for audio interface/caps")
