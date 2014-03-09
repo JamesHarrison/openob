@@ -92,18 +92,22 @@
 <p>It&#8217;s time to send some audio. The default settings will be fine to start with, so we&#8217;ll set up a simple link.</p>
 <p>Let&#8217;s assume your receiver is also your config server, and has the IP address <tt class="docutils literal"><span class="pre">192.168.0.10</span></tt>. The transmitter&#8217;s address does not matter.</p>
 <p>First we&#8217;ll start the receiver.</p>
-<div class="highlight-bash"><div class="highlight"><pre><span class="o">[</span>user@rx-host<span class="o">]</span> <span class="nv">$ </span>openob 192.168.0.10 <span class="nb">test</span>-link rx
+<div class="highlight-bash"><div class="highlight"><pre><span class="o">[</span>user@rx-host<span class="o">]</span> <span class="nv">$ </span>openob 192.168.0.10 <span class="nb">test</span>-rx-node <span class="nb">test</span>-link rx
 </pre></div>
 </div>
-<p>Note the <tt class="docutils literal"><span class="pre">test-link</span></tt> name for the link. This is to differentiate between multiple links between hosts. The IP address we&#8217;re giving is for the configuration host, and the &#8216;rx&#8217; string says this is a receiver.</p>
-<p>The receiver will flail around and complain that it can&#8217;t configure itself. This is expected.</p>
+<p>Note the <tt class="docutils literal"><span class="pre">test-link</span></tt> name for the link. This is to differentiate between multiple links between hosts. The IP address we&#8217;re giving is for the configuration host, and the &#8216;rx&#8217; string says this is a receiver. The <tt class="docutils literal"><span class="pre">test-rx-node</span></tt> name is the node name, which identifies this computer.</p>
+<p>The receiver will flail around and complain that it can&#8217;t configure itself. This is expected!</p>
 <p>Now let&#8217;s start the transmitter.</p>
-<div class="highlight-bash"><div class="highlight"><pre><span class="o">[</span>user@tx-host<span class="o">]</span> <span class="nv">$ </span>openob 192.168.0.10 <span class="nb">test</span>-link tx 192.168.0.10
+<div class="highlight-bash"><div class="highlight"><pre><span class="o">[</span>user@tx-host<span class="o">]</span> <span class="nv">$ </span>openob 192.168.0.10 <span class="nb">test</span>-tx-node <span class="nb">test</span>-link tx 192.168.0.10
 </pre></div>
 </div>
-<p>We&#8217;re passing this the same arguments as the receiver, but asking it to be a transmitter instead, and providing the target destination IP address.</p>
-<p>This will spin up and send some configuration information to the configuration server. When the receiver next checks for configuration (in a second or two) it will spin up with the parameters sent by the transmitter, and you should start hearing audio from the receiver&#8217;s sound card.</p>
+<p>We&#8217;re passing this the same arguments as the receiver, but asking it to be a transmitter instead, and providing the target destination IP address (which since we&#8217;re using the receiver as our configuration server, is the same as the configuration server&#8217;s address).</p>
+<p>This will start up and send some configuration information to the configuration server. When the receiver next checks for configuration (in a second or two) it will start up with the parameters sent by the transmitter, and you should start hearing audio from the receiver&#8217;s sound card.</p>
 <p>To close the link, just <tt class="kbd docutils literal"><span class="pre">Control-c</span></tt> both ends to send a kill signal.</p>
+</div>
+<div class="section" id="further-usage">
+<h2>Further Usage<a class="headerlink" href="#further-usage" title="Permalink to this headline">¶</a></h2>
+<p>OpenOB has many options on the command line. To find out about them, run <tt class="docutils literal"><span class="pre">openob</span> <span class="pre">-h</span></tt>, or <tt class="docutils literal"><span class="pre">openob</span> <span class="pre">your-config-host</span> <span class="pre">node-name</span> <span class="pre">link-name</span> <span class="pre">tx</span> <span class="pre">-h</span></tt> to find out about tx/rx specific options.</p>
 </div>
 </div>
 

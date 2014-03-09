@@ -67,20 +67,25 @@ First we'll start the receiver.
 
 .. code-block:: bash
 
-  [user@rx-host] $ openob 192.168.0.10 test-link rx
+  [user@rx-host] $ openob 192.168.0.10 test-rx-node test-link rx
 
-Note the ``test-link`` name for the link. This is to differentiate between multiple links between hosts. The IP address we're giving is for the configuration host, and the 'rx' string says this is a receiver.
+Note the ``test-link`` name for the link. This is to differentiate between multiple links between hosts. The IP address we're giving is for the configuration host, and the 'rx' string says this is a receiver. The ``test-rx-node`` name is the node name, which identifies this computer.
 
-The receiver will flail around and complain that it can't configure itself. This is expected.
+The receiver will flail around and complain that it can't configure itself. This is expected!
 
 Now let's start the transmitter.
 
 .. code-block:: bash
 
-  [user@tx-host] $ openob 192.168.0.10 test-link tx 192.168.0.10
+  [user@tx-host] $ openob 192.168.0.10 test-tx-node test-link tx 192.168.0.10
 
-We're passing this the same arguments as the receiver, but asking it to be a transmitter instead, and providing the target destination IP address.
+We're passing this the same arguments as the receiver, but asking it to be a transmitter instead, and providing the target destination IP address (which since we're using the receiver as our configuration server, is the same as the configuration server's address).
 
-This will spin up and send some configuration information to the configuration server. When the receiver next checks for configuration (in a second or two) it will spin up with the parameters sent by the transmitter, and you should start hearing audio from the receiver's sound card.
+This will start up and send some configuration information to the configuration server. When the receiver next checks for configuration (in a second or two) it will start up with the parameters sent by the transmitter, and you should start hearing audio from the receiver's sound card.
 
 To close the link, just :kbd:`Control-c` both ends to send a kill signal.
+
+Further Usage
+-------------
+
+OpenOB has many options on the command line. To find out about them, run ``openob -h``, or ``openob your-config-host node-name link-name tx -h`` to find out about tx/rx specific options.
