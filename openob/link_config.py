@@ -89,3 +89,13 @@ class LinkConfig(object):
             self.set("opus_fec", opts.fec)
             self.set("opus_loss_expectation", opts.loss)
             self.set("opus_dtx", opts.dtx)
+
+    def commit_changes(self, restart=False):
+        """
+            To be called after calls to set() on a running link to signal
+            a reconfiguration event for that link. If restart is True, the link
+            should simply terminate itself so it can be restarted with the new
+            parameters. If restart is False, the link should set all parameters
+            it can which do not involve a restart.
+        """
+        raise(NotImplementedError, "Link reconfiguration is not yet implemented")

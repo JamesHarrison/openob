@@ -4,10 +4,9 @@ from openob.logger import LoggerFactory
 class AudioInterface(object):
 
     """
-        The LinkConfig class encapsulates link configuration. It's genderless;
-        a TX node should be able to set up a new link and an RX node should be
-        able (once the TX node has specified the port caps) to configure itself
-        to receive the stream using the data and methods in this config.
+        The AudioInterface class describes an audio interface on a Node.
+        The configuration is not shared across the network. The type property of
+        an AudioInterface should define the mode of link operation.
     """
 
     def __init__(self, node_name, interface_name='default'):
