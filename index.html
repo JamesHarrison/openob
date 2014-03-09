@@ -6,16 +6,15 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>OpenOB - Open Audio over IP for Broadcasters &mdash; OpenOB 3.0 ALPHA documentation</title>
+    <title>OpenOB - Open Audio over IP for Broadcasters &mdash; OpenOB 3.0 alpha2 documentation</title>
     
     <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="_static/print.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.0 ALPHA',
+        VERSION:     '3.0 alpha2',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -24,13 +23,12 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="_static/theme_extras.js"></script>
-    <link rel="top" title="OpenOB 3.0 ALPHA documentation" href="#" />
+    <link rel="top" title="OpenOB 3.0 alpha2 documentation" href="#" />
     <link rel="next" title="Introduction" href="intro.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="#">
-          <span>OpenOB 3.0 ALPHA documentation</span></a></h1>
+          <span>OpenOB 3.0 alpha2 documentation</span></a></h1>
         <h2 class="heading"><span>OpenOB - Open Audio over IP for Broadcasters</span></h2>
       </div>
       <div class="topnav">
@@ -48,17 +46,18 @@
   <div class="section" id="openob-open-audio-over-ip-for-broadcasters">
 <h1>OpenOB - Open Audio over IP for Broadcasters<a class="headerlink" href="#openob-open-audio-over-ip-for-broadcasters" title="Permalink to this headline">¶</a></h1>
 <p>The OpenOB project is an audio over IP software package designed for broadcast engineers and system integrators at broadcasters.</p>
-<p>The goal of the project is to provide a simple framework for configuring and managing quasi-real-time (&lt;30ms latency) audio streams between devices over standard IP networks, which can be extended to support more complex configurations such as talkback links or high reliability configurations.</p>
+<p>The goal of the project is to provide a simple framework for configuring and managing low delay audio links between devices over standard IP networks, with a programmer-friendly API for easy integration into other projects.</p>
 <p>OpenOB can be used for:</p>
 <ul class="simple">
 <li>Studio to studio contribution links</li>
 <li>Outside broadcast contribution links</li>
+<li>Talkback links</li>
 <li>Studio to transmitter distribution links</li>
 </ul>
-<p>It can be used on a variety of network connections, with operating bitrates as low as 16kbps in compressed mode, and support for fully lossless operation in linear PCM mode.</p>
+<p>It can be used on a variety of network connections (including over the internet and mobile links such as 3G), with operating bitrates as low as 16kbps in compressed mode, and support for fully lossless operation in linear PCM mode.</p>
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
-<p class="last">This is the documentation for the currently-unreleased/unstable OpenOB 3 rewrite. Some documentation here may be relevant (such as the tutorial and configuration guide) but you should use the <a class="reference external" href="https://github.com/JamesHarrison/openob/blob/master/README.md">old documentation</a> as your main reference.</p>
+<p class="last">This is the documentation for the currently-unreleased/unstable OpenOB 3 refactoring. If you are using the 2.3 version from PyPi some documentation may be incorrect or misleading.</p>
 </div>
 </div>
 <div class="section" id="documentation-index">
@@ -83,6 +82,7 @@
 <li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuring OpenOB</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="configuration.html#bitrates-and-bandwidths">Bitrates and Bandwidths</a></li>
 <li class="toctree-l2"><a class="reference internal" href="configuration.html#firewall-configuration">Firewall Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="configuration.html#delay-management">Delay Management</a></li>
 </ul>
 </li>
 </ul>
@@ -93,15 +93,14 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="integration.html">Integrating OpenOB</a></li>
 <li class="toctree-l1"><a class="reference internal" href="developers.html">Developer Info</a></li>
-<li class="toctree-l1"><a class="reference internal" href="zookeeper.html">Zookeeper API</a></li>
 </ul>
 </div>
 </div>
 </div>
 <div class="section" id="history">
 <h1>History<a class="headerlink" href="#history" title="Permalink to this headline">¶</a></h1>
-<p>OpenOB was developed by James Harrison at Insanity Radio, a London based community radio station, as a studio-transmitter link.</p>
-<p>It was later developed into a more generic tool and published. It is now in regular use in a number of community radio stations in the UK and abroad, and continues to be developed and expanded.</p>
+<p>OpenOB was originally developed by James Harrison at Insanity Radio, a London based community radio station, as a studio-transmitter link. Over the years many improvements and updates have been made by a wide community of contributors.</p>
+<p>It is now in regular use in a number of community, non-profit and commercial radio stations in the UK and abroad, and continues to be developed and expanded.</p>
 </div>
 <div class="section" id="indices-and-tables">
 <h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
@@ -125,9 +124,9 @@
       </div>
 
     <div class="footer">
-        &copy; Copyright 2013, James Harrison.
-      Last updated on Aug 01, 2013.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+        &copy; Copyright 2014, James Harrison.
+      Last updated on Mar 09, 2014.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
     </div>
   </body>
 </html>

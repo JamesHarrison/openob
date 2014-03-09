@@ -6,16 +6,15 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Integrating OpenOB &mdash; OpenOB 3.0 ALPHA documentation</title>
+    <title>Integrating OpenOB &mdash; OpenOB 3.0 alpha2 documentation</title>
     
     <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="_static/print.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.0 ALPHA',
+        VERSION:     '3.0 alpha2',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -24,14 +23,13 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="_static/theme_extras.js"></script>
-    <link rel="top" title="OpenOB 3.0 ALPHA documentation" href="index.html" />
+    <link rel="top" title="OpenOB 3.0 alpha2 documentation" href="index.html" />
     <link rel="next" title="Developer Info" href="developers.html" />
     <link rel="prev" title="Configuring OpenOB" href="configuration.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="index.html">
-          <span>OpenOB 3.0 ALPHA documentation</span></a></h1>
+          <span>OpenOB 3.0 alpha2 documentation</span></a></h1>
         <h2 class="heading"><span>Integrating OpenOB</span></h2>
       </div>
       <div class="topnav">
@@ -51,9 +49,30 @@
   <div class="section" id="integrating-openob">
 <h1>Integrating OpenOB<a class="headerlink" href="#integrating-openob" title="Permalink to this headline">¶</a></h1>
 <p>OpenOB provides a simple API for system integrators who want to use OpenOB in their applications; for instance, as part of a hardware AoIP box that can be given to reporters with a very simple interface on it.</p>
-<div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">FIXME: Write some docs here.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">OpenOB is not tested to work in all configurations, and cannot be ensured to function perfectly as an integrated component. You should perform integration testing against your complete stack.</p>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">The following behaviours are described, but not yet implemented. They will be available in a subsequent release.</p>
+</div>
+<div class="section" id="interfacing-with-a-node">
+<h2>Interfacing with a Node<a class="headerlink" href="#interfacing-with-a-node" title="Permalink to this headline">¶</a></h2>
+<p>OpenOB links are formed of two nodes, each of which runs one end of a link.</p>
+<p>Changes can be made to the link configuration. Some of these changes require a link teardown and start to commit, which will result in lost audio frames. Other changes can be performed without disrupting audio at any point. The following parameters do not require a link restart:</p>
+<ul class="simple">
+<li>Encoding bitrate</li>
+<li>Forward error correction packet loss percentage</li>
+<li>Audio frame size</li>
+</ul>
+<p>No parameters in a linear PCM link can be adjusted without a restart.</p>
+<p>Changes to link configuration should be performed by instantiating a new LinkConfig object for the relevant link on the configuration host. The commit_changes function should be called once new values have been set, with the reset flag if appropriate.</p>
+</div>
+<div class="section" id="running-links">
+<h2>Running Links<a class="headerlink" href="#running-links" title="Permalink to this headline">¶</a></h2>
+<p>The RTPTransmitter and RTPReceiver classes can be used directly to run links within your program.</p>
+<p>Care should be taken around handling blocking operations on the receiver in particular, eg waiting for port caps to be sent from the transmitter.</p>
 </div>
 </div>
 
@@ -72,9 +91,9 @@
       </div>
 
     <div class="footer">
-        &copy; Copyright 2013, James Harrison.
-      Last updated on Aug 01, 2013.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+        &copy; Copyright 2014, James Harrison.
+      Last updated on Mar 09, 2014.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
     </div>
   </body>
 </html>

@@ -6,16 +6,15 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Developer Info &mdash; OpenOB 3.0 ALPHA documentation</title>
+    <title>Developer Info &mdash; OpenOB 3.0 alpha2 documentation</title>
     
     <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="_static/print.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.0 ALPHA',
+        VERSION:     '3.0 alpha2',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -24,14 +23,12 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="_static/theme_extras.js"></script>
-    <link rel="top" title="OpenOB 3.0 ALPHA documentation" href="index.html" />
-    <link rel="next" title="Zookeeper API" href="zookeeper.html" />
+    <link rel="top" title="OpenOB 3.0 alpha2 documentation" href="index.html" />
     <link rel="prev" title="Integrating OpenOB" href="integration.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="index.html">
-          <span>OpenOB 3.0 ALPHA documentation</span></a></h1>
+          <span>OpenOB 3.0 alpha2 documentation</span></a></h1>
         <h2 class="heading"><span>Developer Info</span></h2>
       </div>
       <div class="topnav">
@@ -40,68 +37,110 @@
         «&#160;&#160;<a href="integration.html">Integrating OpenOB</a>
         &#160;&#160;::&#160;&#160;
         <a class="uplink" href="index.html">Contents</a>
-        &#160;&#160;::&#160;&#160;
-        <a href="zookeeper.html">Zookeeper API</a>&#160;&#160;»
         </p>
 
       </div>
       <div class="content">
         
         
-  <div class="section" id="developer-info">
-<h1>Developer Info<a class="headerlink" href="#developer-info" title="Permalink to this headline">¶</a></h1>
-<p>OpenOB&#8217;s entry point for standalone applications is the OpenOB class. This sets up logging and configuration objects.</p>
-<span class="target" id="module-openob.openob"></span><dl class="class">
-<dt id="openob.openob.OpenOB">
-<em class="property">class </em><tt class="descclassname">openob.openob.</tt><tt class="descname">OpenOB</tt><a class="reference internal" href="_modules/openob/openob.html#OpenOB"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.openob.OpenOB" title="Permalink to this definition">¶</a></dt>
-<dd><p>The base OpenOB class</p>
-<p>Provides basic interfaces onto shared objects and manages logging setup</p>
+  <div class="section" id="module-openob.node">
+<span id="developer-info"></span><h1>Developer Info<a class="headerlink" href="#module-openob.node" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="openob.node.Node">
+<em class="property">class </em><tt class="descclassname">openob.node.</tt><tt class="descname">Node</tt><big>(</big><em>node_name</em><big>)</big><a class="reference internal" href="_modules/openob/node.html#Node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.node.Node" title="Permalink to this definition">¶</a></dt>
+<dd><p>OpenOB node instance.</p>
+<p>Nodes run links. Each Node looks after its end of a link, ensuring
+that it remains running and tries to recover from failures, as well as
+responding to configuration changes.</p>
+<p>Nodes have a name; everything else is link specific.</p>
+<p>For instance, a node might be the &#8216;studio&#8217; node, which would run a
+&#8216;tx&#8217; end for the &#8216;stl&#8217; link.</p>
+<p>Nodes have a config host which is where they store their inter-Node
+data and communicate with other Nodes.</p>
+<dl class="method">
+<dt id="openob.node.Node.run_link">
+<tt class="descname">run_link</tt><big>(</big><em>link_config</em>, <em>audio_interface</em><big>)</big><a class="reference internal" href="_modules/openob/node.html#Node.run_link"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.node.Node.run_link" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run a new TX or RX node.</p>
 </dd></dl>
 
-<span class="target" id="module-openob.link_manager"></span><dl class="class">
-<dt id="openob.link_manager.LinkManager">
-<em class="property">class </em><tt class="descclassname">openob.link_manager.</tt><tt class="descname">LinkManager</tt><a class="reference internal" href="_modules/openob/link_manager.html#LinkManager"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.link_manager.LinkManager" title="Permalink to this definition">¶</a></dt>
-<dd><p>OpenOB Manager. Handles management of links, mostly recovery from failures.</p>
 </dd></dl>
 
 <span class="target" id="module-openob.link_config"></span><dl class="class">
 <dt id="openob.link_config.LinkConfig">
-<em class="property">class </em><tt class="descclassname">openob.link_config.</tt><tt class="descname">LinkConfig</tt><big>(</big><em>link_name</em><big>)</big><a class="reference internal" href="_modules/openob/link_config.html#LinkConfig"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.link_config.LinkConfig" title="Permalink to this definition">¶</a></dt>
-<dd><p>OpenOB LinkConfig object. Abstracts all the relevant configuration parameters for an OpenOB link, setting/retrieving etc.</p>
+<em class="property">class </em><tt class="descclassname">openob.link_config.</tt><tt class="descname">LinkConfig</tt><big>(</big><em>link_name</em>, <em>redis_host</em><big>)</big><a class="reference internal" href="_modules/openob/link_config.html#LinkConfig"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.link_config.LinkConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>The LinkConfig class encapsulates link configuration. It&#8217;s genderless;
+a TX node should be able to set up a new link and an RX node should be
+able (once the TX node has specified the port caps) to configure itself
+to receive the stream using the data and methods in this config.</p>
+<dl class="method">
+<dt id="openob.link_config.LinkConfig.blocking_get">
+<tt class="descname">blocking_get</tt><big>(</big><em>key</em><big>)</big><a class="reference internal" href="_modules/openob/link_config.html#LinkConfig.blocking_get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.link_config.LinkConfig.blocking_get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a value, blocking until it&#8217;s not None if needed</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="openob.link_config.LinkConfig.commit_changes">
+<tt class="descname">commit_changes</tt><big>(</big><em>restart=False</em><big>)</big><a class="reference internal" href="_modules/openob/link_config.html#LinkConfig.commit_changes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.link_config.LinkConfig.commit_changes" title="Permalink to this definition">¶</a></dt>
+<dd><p>To be called after calls to set() on a running link to signal
+a reconfiguration event for that link. If restart is True, the link
+should simply terminate itself so it can be restarted with the new
+parameters. If restart is False, the link should set all parameters
+it can which do not involve a restart.</p>
+</dd></dl>
+
 <dl class="method">
 <dt id="openob.link_config.LinkConfig.get">
-<tt class="descname">get</tt><big>(</big><em>key</em>, <em>block=False</em><big>)</big><a class="reference internal" href="_modules/openob/link_config.html#LinkConfig.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.link_config.LinkConfig.get" title="Permalink to this definition">¶</a></dt>
-<dd><p>Get a configuration value</p>
-<p>Can block on a non-existent key if desired with the block kwarg; in this mode the get will block until the key has a value (that is not False)</p>
+<tt class="descname">get</tt><big>(</big><em>key</em><big>)</big><a class="reference internal" href="_modules/openob/link_config.html#LinkConfig.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.link_config.LinkConfig.get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a value from the config store</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="openob.link_config.LinkConfig.scoped_key">
+<tt class="descname">scoped_key</tt><big>(</big><em>key</em><big>)</big><a class="reference internal" href="_modules/openob/link_config.html#LinkConfig.scoped_key"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.link_config.LinkConfig.scoped_key" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return an appropriate key name scoped to a link</p>
 </dd></dl>
 
 <dl class="method">
 <dt id="openob.link_config.LinkConfig.set">
 <tt class="descname">set</tt><big>(</big><em>key</em>, <em>value</em><big>)</big><a class="reference internal" href="_modules/openob/link_config.html#LinkConfig.set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.link_config.LinkConfig.set" title="Permalink to this definition">¶</a></dt>
-<dd><p>Set a configuration value</p>
-</dd></dl>
-
-</dd></dl>
-
-<span class="target" id="module-openob.config"></span><dl class="class">
-<dt id="openob.config.Config">
-<em class="property">class </em><tt class="descclassname">openob.config.</tt><tt class="descname">Config</tt><a class="reference internal" href="_modules/openob/config.html#Config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.config.Config" title="Permalink to this definition">¶</a></dt>
-<dd><p>The Config class provides a friendly API onto the configuration backend</p>
-<dl class="method">
-<dt id="openob.config.Config.get">
-<tt class="descname">get</tt><big>(</big><em>key</em><big>)</big><a class="reference internal" href="_modules/openob/config.html#Config.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.config.Config.get" title="Permalink to this definition">¶</a></dt>
-<dd><p>Gets a given parameter</p>
+<dd><p>Set a value in the config store</p>
 </dd></dl>
 
 <dl class="method">
-<dt id="openob.config.Config.set">
-<tt class="descname">set</tt><big>(</big><em>key</em>, <em>value</em><big>)</big><a class="reference internal" href="_modules/openob/config.html#Config.set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.config.Config.set" title="Permalink to this definition">¶</a></dt>
-<dd><p>Sets a given parameter</p>
+<dt id="openob.link_config.LinkConfig.set_from_argparse">
+<tt class="descname">set_from_argparse</tt><big>(</big><em>opts</em><big>)</big><a class="reference internal" href="_modules/openob/link_config.html#LinkConfig.set_from_argparse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.link_config.LinkConfig.set_from_argparse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given an optparse object from bin/openob, configure this link</p>
 </dd></dl>
 
 </dd></dl>
 
-<span class="target" id="module-openob.rtp.tx"></span><span class="target" id="module-openob.rtp.rx"></span></div>
+<span class="target" id="module-openob.audio_interface"></span><dl class="class">
+<dt id="openob.audio_interface.AudioInterface">
+<em class="property">class </em><tt class="descclassname">openob.audio_interface.</tt><tt class="descname">AudioInterface</tt><big>(</big><em>node_name</em>, <em>interface_name='default'</em><big>)</big><a class="reference internal" href="_modules/openob/audio_interface.html#AudioInterface"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.audio_interface.AudioInterface" title="Permalink to this definition">¶</a></dt>
+<dd><p>The AudioInterface class describes an audio interface on a Node.
+The configuration is not shared across the network. The type property of
+an AudioInterface should define the mode of link operation.</p>
+<dl class="method">
+<dt id="openob.audio_interface.AudioInterface.get">
+<tt class="descname">get</tt><big>(</big><em>key</em><big>)</big><a class="reference internal" href="_modules/openob/audio_interface.html#AudioInterface.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.audio_interface.AudioInterface.get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a config value</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="openob.audio_interface.AudioInterface.set">
+<tt class="descname">set</tt><big>(</big><em>key</em>, <em>value</em><big>)</big><a class="reference internal" href="_modules/openob/audio_interface.html#AudioInterface.set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.audio_interface.AudioInterface.set" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set a config value</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="openob.audio_interface.AudioInterface.set_from_argparse">
+<tt class="descname">set_from_argparse</tt><big>(</big><em>opts</em><big>)</big><a class="reference internal" href="_modules/openob/audio_interface.html#AudioInterface.set_from_argparse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#openob.audio_interface.AudioInterface.set_from_argparse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set up the audio interface from argparse options</p>
+</dd></dl>
+
+</dd></dl>
+
+<span class="target" id="module-openob.rtp.tx"></span><span class="target" id="module-openob.rtp.rx"></span><span class="target" id="module-openob.logger"></span></div>
 
 
       </div>
@@ -111,16 +150,14 @@
         «&#160;&#160;<a href="integration.html">Integrating OpenOB</a>
         &#160;&#160;::&#160;&#160;
         <a class="uplink" href="index.html">Contents</a>
-        &#160;&#160;::&#160;&#160;
-        <a href="zookeeper.html">Zookeeper API</a>&#160;&#160;»
         </p>
 
       </div>
 
     <div class="footer">
-        &copy; Copyright 2013, James Harrison.
-      Last updated on Aug 01, 2013.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+        &copy; Copyright 2014, James Harrison.
+      Last updated on Mar 09, 2014.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
     </div>
   </body>
 </html>

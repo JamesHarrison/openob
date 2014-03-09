@@ -1,19 +1,13 @@
 Developer Info
 ==============
 
-OpenOB's entry point for standalone applications is the OpenOB class. This sets up logging and configuration objects.
-
-.. automodule:: openob.openob
-  :members:
-
-
-.. automodule:: openob.link_manager
+.. automodule:: openob.node
   :members:
 
 .. automodule:: openob.link_config
   :members:
 
-.. automodule:: openob.config
+.. automodule:: openob.audio_interface
   :members:
 
 .. automodule:: openob.rtp.tx
@@ -22,4 +16,5 @@ OpenOB's entry point for standalone applications is the OpenOB class. This sets 
 .. automodule:: openob.rtp.rx
   :members:
 
-
+.. automodule:: openob.logger
+  :members:

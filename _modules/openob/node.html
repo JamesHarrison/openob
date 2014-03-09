@@ -1,0 +1,141 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>openob.node &mdash; OpenOB 3.0 alpha2 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '3.0 alpha2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="OpenOB 3.0 alpha2 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>OpenOB 3.0 alpha2 documentation</span></a></h1>
+        <h2 class="heading"><span>openob.node</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for openob.node</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">openob.logger</span> <span class="kn">import</span> <span class="n">LoggerFactory</span>
+<span class="kn">from</span> <span class="nn">openob.rtp.tx</span> <span class="kn">import</span> <span class="n">RTPTransmitter</span>
+<span class="kn">from</span> <span class="nn">openob.rtp.rx</span> <span class="kn">import</span> <span class="n">RTPReceiver</span>
+<span class="kn">from</span> <span class="nn">openob.link_config</span> <span class="kn">import</span> <span class="n">LinkConfig</span>
+<span class="kn">from</span> <span class="nn">gst</span> <span class="kn">import</span> <span class="n">ElementNotFoundError</span>
+
+
+<div class="viewcode-block" id="Node"><a class="viewcode-back" href="../../developers.html#openob.node.Node">[docs]</a><span class="k">class</span> <span class="nc">Node</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        OpenOB node instance.</span>
+
+<span class="sd">        Nodes run links. Each Node looks after its end of a link, ensuring</span>
+<span class="sd">        that it remains running and tries to recover from failures, as well as</span>
+<span class="sd">        responding to configuration changes.</span>
+
+<span class="sd">        Nodes have a name; everything else is link specific.</span>
+
+<span class="sd">        For instance, a node might be the &#39;studio&#39; node, which would run a</span>
+<span class="sd">        &#39;tx&#39; end for the &#39;stl&#39; link.</span>
+
+<span class="sd">        Nodes have a config host which is where they store their inter-Node</span>
+<span class="sd">        data and communicate with other Nodes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set up a new node.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">node_name</span> <span class="o">=</span> <span class="n">node_name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger_factory</span> <span class="o">=</span> <span class="n">LoggerFactory</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger_factory</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;node.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_name</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Node.run_link"><a class="viewcode-back" href="../../developers.html#openob.node.Node.run_link">[docs]</a>    <span class="k">def</span> <span class="nf">run_link</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">link_config</span><span class="p">,</span> <span class="n">audio_interface</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">          Run a new TX or RX node.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># We&#39;re now entering the realm where we should desperately try and</span>
+        <span class="c"># maintain a link under all circumstances forever.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Link </span><span class="si">%s</span><span class="s"> initial setup start on </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">link_config</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_name</span><span class="p">))</span>
+        <span class="n">link_logger</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger_factory</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;node.</span><span class="si">%s</span><span class="s">.link.</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">node_name</span><span class="p">,</span> <span class="n">link_config</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">audio_interface</span><span class="o">.</span><span class="n">mode</span><span class="p">))</span>
+        <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">audio_interface</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s">&#39;tx&#39;</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">transmitter</span> <span class="o">=</span> <span class="n">RTPTransmitter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">node_name</span><span class="p">,</span> <span class="n">link_config</span><span class="p">,</span> <span class="n">audio_interface</span><span class="p">)</span>
+                        <span class="n">link_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Starting up transmitter&quot;</span><span class="p">)</span>
+                        <span class="n">transmitter</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+                        <span class="n">caps</span> <span class="o">=</span> <span class="n">transmitter</span><span class="o">.</span><span class="n">get_caps</span><span class="p">()</span>
+                        <span class="n">link_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Got caps, setting config - </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">caps</span><span class="p">)</span>
+                        <span class="n">link_config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&quot;caps&quot;</span><span class="p">,</span> <span class="n">caps</span><span class="p">)</span>
+                        <span class="n">transmitter</span><span class="o">.</span><span class="n">loop</span><span class="p">()</span>
+                    <span class="k">except</span> <span class="n">ElementNotFoundError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="n">link_logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s">&quot;GStreamer element missing: </span><span class="si">%s</span><span class="s"> - will now exit&quot;</span> <span class="o">%</span> <span class="n">e</span><span class="p">)</span>
+                        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="n">link_logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s">&quot;Transmitter crashed for some reason! Restarting...&quot;</span><span class="p">)</span>
+                        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">audio_interface</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s">&#39;rx&#39;</span><span class="p">:</span>
+                    <span class="n">link_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Waiting for transmitter capabilities...&quot;</span><span class="p">)</span>
+                    <span class="n">caps</span> <span class="o">=</span> <span class="n">link_config</span><span class="o">.</span><span class="n">blocking_get</span><span class="p">(</span><span class="s">&quot;caps&quot;</span><span class="p">)</span>
+                    <span class="n">link_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Got caps from transmitters - </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">caps</span><span class="p">)</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">link_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Starting up receiver&quot;</span><span class="p">)</span>
+                        <span class="n">receiver</span> <span class="o">=</span> <span class="n">RTPReceiver</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">node_name</span><span class="p">,</span> <span class="n">link_config</span><span class="p">,</span> <span class="n">audio_interface</span><span class="p">)</span>
+                        <span class="n">receiver</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+                        <span class="n">receiver</span><span class="o">.</span><span class="n">loop</span><span class="p">()</span>
+                    <span class="k">except</span> <span class="n">ElementNotFoundError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="n">link_logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s">&quot;GStreamer element missing: </span><span class="si">%s</span><span class="s"> - will now exit&quot;</span> <span class="o">%</span> <span class="n">e</span><span class="p">)</span>
+                        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="n">link_logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s">&quot;Receiver crashed for some reason! Restarting...&quot;</span><span class="p">)</span>
+                        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">link_logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s">&quot;Unknown audio interface mode (</span><span class="si">%s</span><span class="s">)!&quot;</span> <span class="o">%</span> <span class="n">audio_interface</span><span class="o">.</span><span class="n">mode</span><span class="p">)</span>
+                    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">link_logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s">&quot;Unknown exception thrown - please report this as a bug! </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">e</span><span class="p">)</span>
+                <span class="k">raise</span></div></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2014, James Harrison.
+      Last updated on Mar 09, 2014.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

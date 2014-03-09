@@ -59,3 +59,18 @@ You must have the following ports open between the transmitter and receiver:
 
 If you need to negotiate a firewall or Network Address Translation (NAT) gateway, you may wish to run OpenOB within a VPN tunnel; this can be done so long as the tunnel itself uses UDP (to allow for loss to occur without incurring retransmission delays).
 
+.. _delay-management:
+
+Delay Management
+----------------
+
+Any audio over IP system suffers from delay. Delays are incurred:
+
+* Converting analogue audio to digital audio
+* Converting digital audio to analogue audio
+* Sending IP data across the network
+* Reordering received packets into a consistent bitstream
+
+Delays can be mitigated by system configuration - for instance, using lower buffer sizes on sound card interfaces, or using a soft real time preemptive kernel optimized for real time audio usage. IP network reliability and consistency can have a huge impact on the required size of jitter buffers, and latency of the network of course defines the absolute minimum latency of a system.
+
+Documentation on optimization of Linux systems for real time usage is outside the scope of this document, but it is a well-trodden topic and many resources exist.

@@ -6,16 +6,15 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Configuring OpenOB &mdash; OpenOB 3.0 ALPHA documentation</title>
+    <title>Configuring OpenOB &mdash; OpenOB 3.0 alpha2 documentation</title>
     
     <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="_static/print.css" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.0 ALPHA',
+        VERSION:     '3.0 alpha2',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -24,14 +23,13 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="_static/theme_extras.js"></script>
-    <link rel="top" title="OpenOB 3.0 ALPHA documentation" href="index.html" />
+    <link rel="top" title="OpenOB 3.0 alpha2 documentation" href="index.html" />
     <link rel="next" title="Integrating OpenOB" href="integration.html" />
     <link rel="prev" title="Tutorial" href="tutorial.html" /> 
   </head>
   <body>
       <div class="header"><h1 class="heading"><a href="index.html">
-          <span>OpenOB 3.0 ALPHA documentation</span></a></h1>
+          <span>OpenOB 3.0 alpha2 documentation</span></a></h1>
         <h2 class="heading"><span>Configuring OpenOB</span></h2>
       </div>
       <div class="topnav">
@@ -136,6 +134,18 @@
 </ul>
 <p>If you need to negotiate a firewall or Network Address Translation (NAT) gateway, you may wish to run OpenOB within a VPN tunnel; this can be done so long as the tunnel itself uses UDP (to allow for loss to occur without incurring retransmission delays).</p>
 </div>
+<div class="section" id="delay-management">
+<span id="id3"></span><h2>Delay Management<a class="headerlink" href="#delay-management" title="Permalink to this headline">¶</a></h2>
+<p>Any audio over IP system suffers from delay. Delays are incurred:</p>
+<ul class="simple">
+<li>Converting analogue audio to digital audio</li>
+<li>Converting digital audio to analogue audio</li>
+<li>Sending IP data across the network</li>
+<li>Reordering received packets into a consistent bitstream</li>
+</ul>
+<p>Delays can be mitigated by system configuration - for instance, using lower buffer sizes on sound card interfaces, or using a soft real time preemptive kernel optimized for real time audio usage. IP network reliability and consistency can have a huge impact on the required size of jitter buffers, and latency of the network of course defines the absolute minimum latency of a system.</p>
+<p>Documentation on optimization of Linux systems for real time usage is outside the scope of this document, but it is a well-trodden topic and many resources exist.</p>
+</div>
 </div>
 
 
@@ -153,9 +163,9 @@
       </div>
 
     <div class="footer">
-        &copy; Copyright 2013, James Harrison.
-      Last updated on Aug 01, 2013.
-      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2b1.
+        &copy; Copyright 2014, James Harrison.
+      Last updated on Mar 09, 2014.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
     </div>
   </body>
 </html>
