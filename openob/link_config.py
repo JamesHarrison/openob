@@ -27,7 +27,7 @@ class LinkConfig(object):
             try:
                 self.redis = redis.StrictRedis(self.redis_host)
                 break
-            except Exception, e:
+            except Exception as e:
                 self.logger.error(
                     "Unable to connect to configuration host! Retrying. (%s)"
                     % e
@@ -55,7 +55,7 @@ class LinkConfig(object):
         scoped_key = self.scoped_key(key)
         value = self.redis.get(scoped_key)
         # Do some typecasting
-        if key == 'port' or key == 'jitter_buffer':
+        if key == 'port' or key == 'jitter_buffer' or key == 'opus_framesize':
             value = int(value)
         self.logger.debug("Fetched %s, got %s" % (scoped_key, value))
         return value

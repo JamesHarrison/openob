@@ -41,12 +41,10 @@ class AudioInterface(object):
             self.set("samplerate", opts.samplerate)
         elif opts.mode == "rx":
             self.set("type", opts.audio_output)
-
         if self.get("type") == "alsa":
             self.set("alsa_device", opts.alsa_device)
         elif self.get("type") == "jack":
-            if opts.jack_auto is not False:
-                self.set("jack_auto", opts.jack_auto)
+            self.set("jack_auto", opts.jack_auto)
             if opts.jack_name is not None:
                 self.set("jack_name", opts.jack_name)
             else:

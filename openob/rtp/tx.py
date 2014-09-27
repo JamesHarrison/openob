@@ -33,17 +33,20 @@ class RTPTransmitter(object):
                 self.source.set_property('connect', 'auto')
             else:
                 self.source.set_property('connect', 'none')
+            self.source.set_property('buffer-time', 50000)
             self.source.set_property('name', self.audio_interface.jack_name)
+            self.source.set_property('client-name', self.audio_interface.jack_name)
         # Audio conversion and resampling
         self.audioconvert = gst.element_factory_make("audioconvert")
         self.audioresample = gst.element_factory_make("audioresample")
-        self.audioresample.set_property('quality', 9)  # SRC
+        self.audioresample.set_property('quality', 6)  # SRC
         self.audiorate = gst.element_factory_make("audiorate")
 
         # Encoding and payloading
         if self.link_config.encoding == 'opus':
             self.encoder = gst.element_factory_make("opusenc", "encoder")
             self.encoder.set_property('bitrate', int(self.link_config.bitrate) * 1000)
+            self.encoder.set_property('tolerance', 80000000)
             self.encoder.set_property('frame-size', self.link_config.opus_framesize)
             self.encoder.set_property('complexity', int(self.link_config.opus_complexity))
             self.encoder.set_property('inband-fec', self.link_config.opus_fec)
@@ -58,8 +61,7 @@ class RTPTransmitter(object):
         # TODO: Add a tee here, and sort out creating multiple UDP sinks for multipath
         # Now the RTP bits
         # We'll send audio out on this
-        self.udpsink_rtpout = gst.element_factory_make(
-            "udpsink", "udpsink_rtp")
+        self.udpsink_rtpout = gst.element_factory_make("udpsink", "udpsink_rtp")
         self.udpsink_rtpout.set_property('host', self.link_config.receiver_host)
         self.udpsink_rtpout.set_property('port', self.link_config.port)
         if self.link_config.multicast:
@@ -67,7 +69,7 @@ class RTPTransmitter(object):
 
         # Our RTP manager
         self.rtpbin = gst.element_factory_make("gstrtpbin", "gstrtpbin")
-
+        self.rtpbin.set_property('latency', 0)
         # Our level monitor
         self.level = gst.element_factory_make("level")
         self.level.set_property('message', True)
@@ -88,29 +90,29 @@ class RTPTransmitter(object):
 
         # Decide which format to apply to the capsfilter (Jack uses float)
         if self.audio_interface.type == 'jack':
-            type = 'audio/x-raw-float'
+            data_type = 'audio/x-raw-float'
         else:
-            type = 'audio/x-raw-int'
+            data_type = 'audio/x-raw-int'
 
         # if audio_rate has been specified, then add that to the capsfilter
         if self.audio_interface.samplerate != 0:
             self.capsfilter.set_property(
-                "caps", gst.Caps('%s, channels=2, rate=%d' % (type, self.audio_interface.samplerate)))
+                "caps", gst.Caps('%s, channels=2, rate=%d' % (data_type, self.audio_interface.samplerate)))
         else:
             self.capsfilter.set_property(
-                "caps", gst.Caps('%s, channels=2' % type))
+                "caps", gst.Caps('%s, channels=2' % data_type))
 
         # Then continue linking the pipeline together
         gst.element_link_many(
-            self.source, self.capsfilter, self.level, self.audioresample,
-            self.audiorate, self.audioconvert)
+            self.source, self.capsfilter, self.level, self.audioconvert, self.audioresample,
+            self.audiorate)
 
         # Now we get to link this up to our encoder/payloader
         if self.link_config.encoding != 'pcm':
             gst.element_link_many(
-                self.audioconvert, self.encoder, self.payloader)
+                self.audiorate, self.encoder, self.payloader)
         else:
-            gst.element_link_many(self.audioconvert, self.payloader)
+            gst.element_link_many(self.audiorate, self.payloader)
 
         # And now the RTP bits
         self.payloader.link_pads('src', self.rtpbin, 'send_rtp_sink_0')
@@ -135,12 +137,13 @@ class RTPTransmitter(object):
                 self.caps = re.sub(r'(caps=.+ )', '', self.caps)
             time.sleep(0.1)
 
+
     def loop(self):
         try:
             self.loop = gobject.MainLoop()
             self.loop.run()
-        except Exception, e:
-            self.logger.exception("Encountered a problem in the MainLoop, tearing down the pipeline")
+        except Exception as e:
+            self.logger.exception("Encountered a problem in the MainLoop, tearing down the pipeline: %s" % e)
             self.pipeline.set_state(gst.STATE_NULL)
 
     def on_message(self, bus, message):
@@ -148,6 +151,8 @@ class RTPTransmitter(object):
             if message.structure.get_name() == 'level':
                 if self.started is False:
                     self.started = True
+                    #gst.DEBUG_BIN_TO_DOT_FILE(self.pipeline, gst.DEBUG_GRAPH_SHOW_ALL, 'tx-graph')
+                    self.logger.debug(self.source.get_property('actual-buffer-time'))
                     if len(message.structure['peak']) == 1:
                         self.logger.info("Started mono audio transmission")
                     else:

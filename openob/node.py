@@ -50,10 +50,10 @@ class Node(object):
                         link_logger.info("Got caps, setting config - %s" % caps)
                         link_config.set("caps", caps)
                         transmitter.loop()
-                    except ElementNotFoundError, e:
+                    except ElementNotFoundError as e:
                         link_logger.critical("GStreamer element missing: %s - will now exit" % e)
                         sys.exit(1)
-                    except Exception, e:
+                    except Exception as e:
                         link_logger.exception("Transmitter crashed for some reason! Restarting...")
                         time.sleep(0.5)
                 elif audio_interface.mode == 'rx':
@@ -65,15 +65,15 @@ class Node(object):
                         receiver = RTPReceiver(self.node_name, link_config, audio_interface)
                         receiver.run()
                         receiver.loop()
-                    except ElementNotFoundError, e:
+                    except ElementNotFoundError as e:
                         link_logger.critical("GStreamer element missing: %s - will now exit" % e)
                         sys.exit(1)
-                    except Exception, e:
+                    except Exception as e:
                         link_logger.exception("Receiver crashed for some reason! Restarting...")
                         time.sleep(0.1)
                 else:
                     link_logger.critical("Unknown audio interface mode (%s)!" % audio_interface.mode)
                     sys.exit(1)
-            except Exception, e:
+            except Exception as e:
                 link_logger.exception("Unknown exception thrown - please report this as a bug! %s" % e)
                 raise

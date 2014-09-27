@@ -32,10 +32,12 @@ class RTPReceiver(object):
             else:
                 self.sink.set_property('connect', 'none')
             self.sink.set_property('name', self.audio_interface.jack_name)
+            self.sink.set_property('client-name', self.audio_interface.jack_name)
+
         # Audio conversion and resampling
         self.audioconvert = gst.element_factory_make("audioconvert")
         self.audioresample = gst.element_factory_make("audioresample")
-        self.audioresample.set_property('quality', 9)
+        self.audioresample.set_property('quality', 6)
         self.audiorate = gst.element_factory_make("audiorate")
 
         # Decoding and depayloading
@@ -54,6 +56,7 @@ class RTPReceiver(object):
         self.rtpbin.set_property('latency', self.link_config.jitter_buffer)
         self.rtpbin.set_property('autoremove', True)
         self.rtpbin.set_property('do-lost', True)
+        #self.rtpbin.set_property('buffer-mode', 1)
         # Where audio comes in
         self.udpsrc_rtpin = gst.element_factory_make('udpsrc')
         self.udpsrc_rtpin.set_property('port', self.link_config.port)
@@ -81,12 +84,13 @@ class RTPReceiver(object):
         if self.link_config.encoding != 'pcm':
             self.pipeline.add(self.decoder)
             gst.element_link_many(
-                self.depayloader, self.decoder, self.audioconvert)
+                self.depayloader, self.decoder, self.audioresample)
         else:
-            gst.element_link_many(self.depayloader, self.audioconvert)
+            gst.element_link_many(self.depayloader, self.audioresample)
         gst.element_link_many(
-            self.audioconvert, self.audioresample, self.audiorate, self.level,
+            self.audioresample, self.audiorate, self.audioconvert, self.level,
             self.sink)
+        self.logger.debug(self.sink)
         # Now the RTP pads
         self.udpsrc_rtpin.link_pads('src', self.rtpbin, 'recv_rtp_sink_0')
 
@@ -107,6 +111,7 @@ class RTPReceiver(object):
             if message.structure.get_name() == 'level':
                 if self.started is False:
                     self.started = True
+                    #gst.DEBUG_BIN_TO_DOT_FILE(self.pipeline, gst.DEBUG_GRAPH_SHOW_ALL, 'rx-graph')
                     if len(message.structure['peak']) == 1:
                         self.logger.info("Receiving mono audio transmission")
                     else:
