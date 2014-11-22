@@ -2,7 +2,7 @@
 
 from setuptools import setup
 setup(name='OpenOB',
-      version='3.0.1',
+      version='3.0.2',
       description='Broadcast audio over IP codec built with PyGST',
       author='James Harrison',
       author_email='james@talkunafraid.co.uk',
