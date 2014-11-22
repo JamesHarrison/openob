@@ -152,7 +152,7 @@ class RTPTransmitter(object):
                 if self.started is False:
                     self.started = True
                     #gst.DEBUG_BIN_TO_DOT_FILE(self.pipeline, gst.DEBUG_GRAPH_SHOW_ALL, 'tx-graph')
-                    self.logger.debug(self.source.get_property('actual-buffer-time'))
+                    #self.logger.debug(self.source.get_property('actual-buffer-time'))
                     if len(message.structure['peak']) == 1:
                         self.logger.info("Started mono audio transmission")
                     else:
