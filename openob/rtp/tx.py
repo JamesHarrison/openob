@@ -40,7 +40,6 @@ class RTPTransmitter(object):
         self.audioconvert = gst.element_factory_make("audioconvert")
         self.audioresample = gst.element_factory_make("audioresample")
         self.audioresample.set_property('quality', 6)  # SRC
-        self.audiorate = gst.element_factory_make("audiorate")
 
         # Encoding and payloading
         if self.link_config.encoding == 'opus':
@@ -81,7 +80,7 @@ class RTPTransmitter(object):
         # Add to the pipeline
         self.pipeline.add(
             self.source, self.capsfilter, self.audioconvert, self.audioresample,
-            self.audiorate, self.payloader, self.udpsink_rtpout, self.rtpbin,
+            self.payloader, self.udpsink_rtpout, self.rtpbin,
             self.level)
 
         if self.link_config.encoding != 'pcm':
@@ -104,15 +103,14 @@ class RTPTransmitter(object):
 
         # Then continue linking the pipeline together
         gst.element_link_many(
-            self.source, self.capsfilter, self.level, self.audioconvert, self.audioresample,
-            self.audiorate)
+            self.source, self.capsfilter, self.level, self.audioconvert, self.audioresample)
 
         # Now we get to link this up to our encoder/payloader
         if self.link_config.encoding != 'pcm':
             gst.element_link_many(
-                self.audiorate, self.encoder, self.payloader)
+                self.audioresample, self.encoder, self.payloader)
         else:
-            gst.element_link_many(self.audiorate, self.payloader)
+            gst.element_link_many(self.audioresample, self.payloader)
 
         # And now the RTP bits
         self.payloader.link_pads('src', self.rtpbin, 'send_rtp_sink_0')

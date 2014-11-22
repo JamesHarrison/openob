@@ -38,7 +38,6 @@ class RTPReceiver(object):
         self.audioconvert = gst.element_factory_make("audioconvert")
         self.audioresample = gst.element_factory_make("audioresample")
         self.audioresample.set_property('quality', 6)
-        self.audiorate = gst.element_factory_make("audiorate")
 
         # Decoding and depayloading
         if self.link_config.encoding == 'opus':
@@ -79,7 +78,7 @@ class RTPReceiver(object):
 
         # And now we've got it all set up we need to add the elements
         self.pipeline.add(
-            self.audiorate, self.audioresample, self.audioconvert, self.sink,
+            self.audioresample, self.audioconvert, self.sink,
             self.level, self.depayloader, self.rtpbin, self.udpsrc_rtpin)
         if self.link_config.encoding != 'pcm':
             self.pipeline.add(self.decoder)
@@ -88,7 +87,7 @@ class RTPReceiver(object):
         else:
             gst.element_link_many(self.depayloader, self.audioresample)
         gst.element_link_many(
-            self.audioresample, self.audiorate, self.audioconvert, self.level,
+            self.audioresample, self.audioconvert, self.level,
             self.sink)
         self.logger.debug(self.sink)
         # Now the RTP pads
