@@ -1,6 +1,5 @@
 import logging
 
-
 class LoggerFactory(object):
     _isSetup = False
 

@@ -1,19 +1,24 @@
 #!/usr/bin/python
 import sys
 import argparse
+import logging
 # Thanks gst for messing with argv
 argv = sys.argv
 sys.argv = []
+from openob.logger import LoggerFactory
 from openob.node import Node
 from openob.link_config import LinkConfig
 from openob.audio_interface import AudioInterface
 sys.argv = argv
 
 parser = argparse.ArgumentParser(prog='openob', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('-v', '--verbose', action='store_const', help='Increase logging verbosity', const=logging.DEBUG, default=logging.INFO)
 parser.add_argument('config_host', type=str, help="The configuration server for this OpenOB Node")
 parser.add_argument('node_name', type=str, help="The node name for this end")
 parser.add_argument('link_name', type=str, help="The link name this OpenOB Manager is operating on; must be the same on both Nodes")
+
 subparsers = parser.add_subparsers(help="The link mode to operate in on this end")
+
 parser_tx = subparsers.add_parser('tx', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser_tx.add_argument('receiver_host', type=str, help="The receiver for this transmitter. The machine at this address must be running an rx-mode Manager for this link name")
 parser_tx.add_argument('-a', '--audio_input', type=str, choices=['auto', 'alsa', 'jack'], default='auto', help="The audio source type for this end of the link")
@@ -46,6 +51,8 @@ parser_rx_jack.add_argument('-aj', '--jack_auto', action='store_false', help="Di
 parser_rx.set_defaults(mode='rx')
 
 opts = parser.parse_args()
+
+logger_factory = LoggerFactory(level=opts.verbose)
 
 link_config = LinkConfig(opts.link_name, opts.config_host)
 link_config.set_from_argparse(opts)
