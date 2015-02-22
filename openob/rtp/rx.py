@@ -72,7 +72,6 @@ class RTPReceiver(object):
         udpsrc_caps = gst.caps_from_string(caps)
         self.udpsrc_rtpin.set_property('caps', udpsrc_caps)
         self.udpsrc_rtpin.set_property('timeout', 3000000)
-        self.logger.info('Listening for stream on %s:%i' % (self.link_config.receiver_host, self.link_config.port))
 
         # Our level monitor, also used for continuous audio
         self.level = gst.element_factory_make("level")
@@ -131,6 +130,7 @@ class RTPReceiver(object):
 
     def run(self):
         self.pipeline.set_state(gst.STATE_PLAYING)
+        self.logger.info('Listening for stream on %s:%i' % (self.link_config.receiver_host, self.link_config.port))
 
     def loop(self):
         self.loop = gobject.MainLoop()
