@@ -20,7 +20,7 @@ class RTPTransmitter(object):
         self.audio_interface = audio_interface
         self.logger_factory = LoggerFactory()
         self.logger = self.logger_factory.getLogger('node.%s.link.%s.%s' % (node_name, self.link_config.name, self.audio_interface.mode))
-        self.logger.info("Starting up RTP transmitter")
+        self.logger.info("Creating RTP transmission pipeline")
         # Audio input
         if self.audio_interface.type == 'auto':
             self.source = gst.element_factory_make('autoaudiosrc')
@@ -63,8 +63,10 @@ class RTPTransmitter(object):
         self.udpsink_rtpout = gst.element_factory_make("udpsink", "udpsink_rtp")
         self.udpsink_rtpout.set_property('host', self.link_config.receiver_host)
         self.udpsink_rtpout.set_property('port', self.link_config.port)
+        self.logger.info('Set receiver to %s:%i' % (self.link_config.receiver_host, self.link_config.port))
         if self.link_config.multicast:
             self.udpsink_rtpout.set_property('auto_multicast', True)
+            self.logger.info('Multicast mode enabled')
 
         # Our RTP manager
         self.rtpbin = gst.element_factory_make("gstrtpbin", "gstrtpbin")
@@ -125,7 +127,6 @@ class RTPTransmitter(object):
     def run(self):
         self.pipeline.set_state(gst.STATE_PLAYING)
         while self.caps == 'None':
-            self.logger.warn("Waiting for audio interface/caps")
             self.logger.debug(self.udpsink_rtpout.get_state())
             self.caps = str(
                 self.udpsink_rtpout.get_pad('sink').get_property('caps'))
@@ -133,6 +134,10 @@ class RTPTransmitter(object):
             # 50140388d2b62d32dd9d0c071e3051ebc5b4083b, bug 686547
             if self.link_config.encoding == 'opus':
                 self.caps = re.sub(r'(caps=.+ )', '', self.caps)
+
+            if self.caps == 'None':
+                self.logger.warn("Waiting for audio interface/caps")
+
             time.sleep(0.1)
 
 

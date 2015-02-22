@@ -18,6 +18,7 @@ class RTPReceiver(object):
         self.audio_interface = audio_interface
         self.logger_factory = LoggerFactory()
         self.logger = self.logger_factory.getLogger('node.%s.link.%s.%s' % (node_name, self.link_config.name, self.audio_interface.mode))
+        self.logger.info('Creating RTP reception pipeline')
         caps = self.link_config.get("caps")
         # Audio output
         if self.audio_interface.type == 'auto':
@@ -62,6 +63,7 @@ class RTPReceiver(object):
         if self.link_config.multicast:
             self.udpsrc_rtpin.set_property('auto_multicast', True)
             self.udpsrc_rtpin.set_property('multicast_group', self.link_config.receiver_host)
+            self.logger.info('Multicast mode enabled')
         caps = caps.replace('\\', '')
         # Fix for gstreamer bug in rtpopuspay fixed in GST-plugins-bad
         # 50140388d2b62d32dd9d0c071e3051ebc5b4083b, bug 686547
@@ -128,6 +130,7 @@ class RTPReceiver(object):
 
     def run(self):
         self.pipeline.set_state(gst.STATE_PLAYING)
+        self.logger.info('Listening for stream on %s:%i' % (self.link_config.receiver_host, self.link_config.port))
 
     def loop(self):
         self.loop = gobject.MainLoop()
