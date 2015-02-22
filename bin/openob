@@ -30,7 +30,7 @@ parser_tx_jack.add_argument('-aj', '--jack_auto', action='store_false', help="Di
 parser_tx.add_argument('-r', '--samplerate', type=int, default=0, help="Set the sample rate to request from the input (Hz)")
 parser_tx.add_argument('-e', '--encoding', type=str, choices=['pcm', 'opus'], default='opus', help="The audio encoding type for this link; PCM for linear audio (16-bit), or Opus for encoded audio")
 parser_tx.add_argument('-p', '--port', type=int, default=3000, help="The base port to use for audio transport. This port must be accessible on the receiving host")
-parser_tx.add_argument('-m', '--multicast', type=bool, default=False, help="Start this transmitter in multicast mode, enabling multiple clients to connect at once using the address specified in reciever_host (true/false, default false)", choices=[True, False])
+parser_tx.add_argument('-m', '--multicast', type=bool, default=False, help="Start this transmitter in multicast mode, enabling multiple clients to connect at once using the address specified in reciever_host", choices=[True, False])
 parser_tx.add_argument('-j', '--jitter_buffer', type=int, default=40, help="The size of the jitter buffer in milliseconds. Affects latency; may be reduced to 5-10ms on fast reliable networks, or increased for poor networks like 3G")
 parser_tx_opus = parser_tx.add_argument_group('opus', 'Opus encoder options')
 parser_tx_opus.add_argument('-b', '--bitrate', type=int, default=96, help="Bitrate if using CELT/Opus (in kbit/s)", choices=[16, 24, 32, 48, 64, 96, 128, 192, 256, 384])
