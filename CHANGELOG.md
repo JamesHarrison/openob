@@ -1,7 +1,15 @@
+## 3.1
 
-## 3.0.0a2
+* Improved command line interface (Jonty Sewell)
+* Bugfix for PCM mode operation (Jonty Sewell)
 
-* 
+## 3.0.3
+
+* Packaging bugfixes
+
+## 3.0.0
+
+* Released
 
 ## 3.0.0a1
 
