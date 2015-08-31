@@ -1,79 +1,83 @@
-import sys
+from kazoo.client import KazooClient, KazooState
+import logging
+import json
+import os
+import socket
+import psutil
 import time
-from openob.logger import LoggerFactory
-from openob.rtp.tx import RTPTransmitter
-from openob.rtp.rx import RTPReceiver
-from openob.link_config import LinkConfig
-from gst import ElementNotFoundError
 
 
 class Node(object):
+    """Node is the core class and entry point for an OpenOB daemon or program
 
+    A node wraps and manages all links associated with its configuration,
+    and ensures they stay running.
     """
-        OpenOB node instance.
+    def __init__(self, node_id, config_hosts, audio_interfaces, log_level):
+        """Set up the node"""
+        logging.basicConfig(level=log_level,
+                            format='%(asctime)s:%(levelname)s: %(message)s')
+        self.node_id = node_id
+        self.audio_interfaces = audio_interfaces
+        logging.info('Starting OpenOB node ID "%s"' % self.node_id)
+        self.zk = KazooClient(hosts=config_hosts)
+        self.zk_base = "/openob/nodes/%s" % self.node_id
 
-        Nodes run links. Each Node looks after its end of a link, ensuring
-        that it remains running and tries to recover from failures, as well as
-        responding to configuration changes.
+    def run(self):
+        """Run the node; this method blocks and will run until interrupted"""
+        self.zk.start()
+        self.zk.add_listener(self.zk_state_change_handler)
 
-        Nodes have a name; everything else is link specific.
+        self.zk.ensure_path(self.zk_base)
 
-        For instance, a node might be the 'studio' node, which would run a
-        'tx' end for the 'stl' link.
+        # Clean up any existing audio interface records
+        self.zk.delete("%s/audio_interfaces" % self.zk_base,
+                       recursive=True)
 
-        Nodes have a config host which is where they store their inter-Node
-        data and communicate with other Nodes.
-    """
+        # Ensure the root node exists
+        self.zk.ensure_path("%s/audio_interfaces" % self.zk_base)
+        for iid, config in self.audio_interfaces.items():
+            # Write out each available audio interface with its config in JSON
+            path = "%s/audio_interfaces/%s" % (self.zk_base, iid)
+            self.zk.create(path, json.dumps(dict(config)).encode('utf8'))
 
-    def __init__(self, node_name):
-        """Set up a new node."""
-        self.node_name = node_name
-        self.logger_factory = LoggerFactory()
-        self.logger = self.logger_factory.getLogger('node.%s' % self.node_name)
+        self.set_status_data()
+        # Now we've configured all the info about this node, it's time to
+        # look at what Links are configured and set up our connection ends
+        self.update_links()
 
-    def run_link(self, link_config, audio_interface):
-        """
-          Run a new TX or RX node.
-        """
-        # We're now entering the realm where we should desperately try and
-        # maintain a link under all circumstances forever.
-        self.logger.info("Link %s initial setup start on %s" % (link_config.name, self.node_name))
-        link_logger = self.logger_factory.getLogger('node.%s.link.%s' % (self.node_name, link_config.name))
-        while True:
-            try:
-                if audio_interface.mode == 'tx':
-                    try:
-                        link_logger.info("Starting up transmitter")
-                        transmitter = RTPTransmitter(self.node_name, link_config, audio_interface)
-                        transmitter.run()
-                        caps = transmitter.get_caps()
-                        link_logger.debug("Got caps from transmitter, setting config")
-                        link_config.set("caps", caps)
-                        transmitter.loop()
-                    except ElementNotFoundError as e:
-                        link_logger.critical("GStreamer element missing: %s - will now exit" % e)
-                        sys.exit(1)
-                    except Exception as e:
-                        link_logger.exception("Transmitter crashed for some reason! Restarting...")
-                        time.sleep(0.5)
-                elif audio_interface.mode == 'rx':
-                    link_logger.info("Waiting for transmitter capabilities...")
-                    caps = link_config.blocking_get("caps")
-                    link_logger.info("Got caps from transmitter")
-                    try:
-                        link_logger.info("Starting up receiver")
-                        receiver = RTPReceiver(self.node_name, link_config, audio_interface)
-                        receiver.run()
-                        receiver.loop()
-                    except ElementNotFoundError as e:
-                        link_logger.critical("GStreamer element missing: %s - will now exit" % e)
-                        sys.exit(1)
-                    except Exception as e:
-                        link_logger.exception("Receiver crashed for some reason! Restarting...")
-                        time.sleep(0.1)
-                else:
-                    link_logger.critical("Unknown audio interface mode (%s)!" % audio_interface.mode)
-                    sys.exit(1)
-            except Exception as e:
-                link_logger.exception("Unknown exception thrown - please report this as a bug! %s" % e)
-                raise
+    def update_links(self):
+        self.links = {}
+        # TODO: This probably isn't the way to go.
+        # /openob/nodes/:id/encoders/:eid/destinations/:did and same for rx
+        links = self.zk.get_children("/openob/links")
+        for link_path in links:
+            logging.debug("Inspecting %s for node involvement")
+            link_config_data = self.zk.get("link_path")
+            link_config = json.loads(str(link_config_data.decode('utf8')))
+
+    def set_status_data(self):
+        # thisproc = psutil.Process(os.getpid())
+        status = {
+            'pid': os.getpid(),
+            'hostname': socket.gethostname(),
+            'network_addrs': psutil.net_if_addrs(),
+            # 'host_cpu': psutil.cpu_percent(interval=1.0),
+            # 'self_cpu': thisproc.cpu_percent(interval=1.0),
+            'report_at': time.time(),
+            }
+        status_data = json.dumps(dict(status)).encode('utf8')
+        self.zk.ensure_path("%s/status" % self.zk_base)
+        self.zk.set("%s/status" % self.zk_base, status_data)
+
+    def shutdown(self):
+        """Shut down the node gracefully"""
+        self.zk.stop()
+
+    def zk_state_change_handler(self, state):
+        if state == KazooState.LOST:
+            logging.info('No connection to Zookeeper')
+        elif state == KazooState.SUSPENDED:
+            logging.warn('Connection to Zookeeper failed')
+        else:
+            logging.info('Connection established to Zookeeper')

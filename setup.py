@@ -1,16 +1,16 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from setuptools import setup
 setup(name='OpenOB',
-      version='3.1.0',
+      version='4.0.0',
       description='Broadcast audio over IP codec built with PyGST',
       author='James Harrison',
       author_email='james@talkunafraid.co.uk',
       url='http://jamesharrison.github.com/openob',
-      scripts=['bin/openob'],
-      packages=['openob', 'openob.rtp'],
-      requires=['pygst', 'redis'],
-      install_requires=['redis'],
+      scripts=['bin/openobd'],
+      packages=['openob'],
+      requires=['psutil'],
+      install_requires=['psutil'],
       classifiers=["Programming Language :: Python",
                    "Programming Language :: Python :: 3",
                    "Programming Language :: Python :: 2",
