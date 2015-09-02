@@ -29,10 +29,11 @@ for sec in config.sections():
         audio_interfaces[sec] = config[sec]
 
 
-node = Node(config.get('openob', 'node_id'),
-            config.get('zookeeper', 'config_hosts'),
-            audio_interfaces,
-            getattr(logging, config.get('logging', 'log_level').upper()))
+node = Node()
+node.setup(config.get('openob', 'node_id'),
+           config.get('zookeeper', 'config_hosts'),
+           audio_interfaces,
+           getattr(logging, config.get('logging', 'log_level').upper()))
 node.run()
 # FIXME: The daemon stuff isn't working for some reason.
 # context = daemon.DaemonContext(

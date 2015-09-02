@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+
+import configparser
+import os
+import argparse
+import logging
+from openob.node import Node
+
+parser = argparse.ArgumentParser(description='OpenOB Control utility')
+parser.add_argument("--config", help="Optional configuration file path")
+
+# Set up our node so we can bind functions
+
+node = Node()
+
+
+# Add subcommands
+subparsers = parser.add_subparsers()
+
+parser_addenc = subparsers.add_parser('addenc',
+                                      help='Add an encoder',
+                                      description='Add an encoder to a node',
+                                      epilog='CAUTION: Changes with this tool may disrupt audio',
+                                      aliases=['ae', 'a'])
+parser_addenc.add_argument("id")
+parser_addenc.add_argument("--destination",)
+parser_addenc.set_defaults(func=node.add_encoder)
+
+parser_delenc = subparsers.add_parser('delenc',
+                                      help='Delete an encoder',
+                                      description='Delete an encoder from a node',
+                                      epilog='CAUTION: Changes with this tool may disrupt audio',
+                                      aliases=['de', 'd'])
+parser_delenc.add_argument("id")
+parser_delenc.set_defaults(func=node.delete_encoder)
+
+args = parser.parse_args()
+
+config = configparser.ConfigParser()
+config.read(['/etc/openobd.conf', os.path.expanduser('~/.openobd.conf')])
+if args.config:
+    res = config.read(args.config)
+    if args.config not in res:
+        raise FileNotFoundError("Couldn't read config file", args.config)
+
+audio_interfaces = {}
+
+# Generate audio interface config from the config file
+for sec in config.sections():
+    if "interface:" in sec:
+        # This is an interface definition, parse it
+        audio_interfaces[sec] = config[sec]
+
+node.setup(config.get('openob', 'node_id'),
+           config.get('zookeeper', 'config_hosts'),
+           audio_interfaces,
+           getattr(logging, config.get('logging', 'log_level').upper()))
+
+args.func(args.id, args)
