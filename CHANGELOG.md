@@ -1,3 +1,9 @@
+## 4.0
+
+* Rewritten from scratch
+* Replaced Redis with Zookeeper
+
+
 ## 3.1
 
 * Improved command line interface (Jonty Sewell)

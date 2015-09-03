@@ -3,29 +3,42 @@
 
 *There is now a mailing list available for [OpenOB users](http://lists.talkunafraid.co.uk/listinfo/openob-users) to share experiences and discuss future development.*
 
-OpenOB (Open Outside Broadcast) is a simple Python/GStreamer based application which implements a highly configurable RTP-based audio link system.
+OpenOB is a Python/GStreamer daemon and associated tools to let you build audio over IP networks.
 
 It is primarily designed for broadcast applications including (but not limited to) contribution links, emission links, talkback, and intranet audio distribution systems.
 
+OpenOB is in daily use across the world, in student/community radio stations, commercial radio stations and radio/TV production use.
+
 ## Features
 
-* IETF standard Opus codec - variable bandwidth and bitrate, 16-384kbps
+* IETF standard high quality music/speech Opus codec - variable bandwidth and bitrate, 16-384kbps
 * Linear PCM mode for transparent audio transit over 1600kbps capable connections (LANs, fast wifi)
-* Trivial configuration and setup via command line
-* Transmitter-configured receivers for standalone receiver operation and control
-* Low latency performance (codec internal latency under 5ms PCM, under 25ms Opus) with variable jitter buffer (0-150ms)
-* System latency in low hundreds to tens of milliseconds for most applications; more over the internet/lossy links
-* Automatic link recovery in the event of failures
+* Low latency performance (~30ms internal to codec, ~100ms end to end easily achieved) with variable jitter buffer sizing
+* Centralized configuration capable of high availability and distributed operation for highly available OpenOB clusters
+* Complex topologies possible including point-to-point, point-to-multipoint, multicast, and redundant stream point-to-point
+* Configuration of any encoders/decoders from any node in the system, nodes automatically reconfigure to match configuration
+* Nodes automatically recover from network or encode/decode failures; daemon can be monitored/booted as a regular Linux service
+
+### Changes from 3.x and earlier
+
+* OpenOB 4's new configuration approach takes the old receiver-follows-transmitter model and extends it, enabling any node to configure any encoder, decoder, transmitter or receiver in the cluster remotely; the nodes involved will automatically adjust their configuration and restart components
+* More complex topologies are available for audio streaming, including redundant streams
+* Python 3 and GStreamer 1.0 are now targeted, enabling new codec features and improving reliability and quality
 
 ## Licensing and Credits
 
-OpenOB was developed by James Harrison, with chunks of example code used from Alexandre Bourget and various other GStreamer documentation sites such as the PyGST manual.
+OpenOB was originally developed by James Harrison, with chunks of example code used from Alexandre Bourget and various other GStreamer documentation sites such as the PyGST manual.
 
-Copyright (c) 2012, James Harrison
+[Others](https://github.com/JamesHarrison/openob/graphs/contributors) have helped since, notably Jonty Sewell and Chris Roberts.
+
+Copyright (c) 2015 James Harrison
 
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following  conditions are met:
+
+OpenOB is licensed under the BSD 3-clause license, as follows:
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
     * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
     * Neither the name of the OpenOB project nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.

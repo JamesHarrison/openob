@@ -10,7 +10,7 @@ import logging
 from openob.node import Node
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--config", help="Optional configuration file path")
+parser.add_argument('--config', help='Optional configuration file path')
 args = parser.parse_args()
 
 config = configparser.ConfigParser()
@@ -18,13 +18,13 @@ config.read(['/etc/openobd.conf', os.path.expanduser('~/.openobd.conf')])
 if args.config:
     res = config.read(args.config)
     if args.config not in res:
-        raise FileNotFoundError("Couldn't read config file", args.config)
+        raise FileNotFoundError('Could not read config file', args.config)
 
 audio_interfaces = {}
 
 # Generate audio interface config from the config file
 for sec in config.sections():
-    if "interface:" in sec:
+    if 'interface:' in sec:
         # This is an interface definition, parse it
         audio_interfaces[sec] = config[sec]
 
@@ -45,4 +45,4 @@ node.run()
 #     signal.SIGHUP: 'terminate',
 #     }
 # with context:
-#     print("Running")
+#     print('Running')

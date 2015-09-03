@@ -97,11 +97,31 @@ class Node(object):
     def update_decoders(self):
         pass
 
+    # FIXME: Lots of duplicated functionality here, and Node is getting crowded
+    # Maybe split out the config stuff to its own class?
     def add_encoder(self, eid, config):
         logging.warn("Adding encoder with ID %s and config %s" % (eid, str(config)))
 
     def delete_encoder(self, eid):
         logging.warn("Deleting encoder with ID %s" % eid)
+
+    def add_decoder(self, did, config):
+        logging.warn("Adding decoder with ID %s and config %s" % (did, str(config)))
+
+    def delete_decoder(self, did):
+        logging.warn("Deleting decoder with ID %s" % did)
+
+    def add_transmitter(self, tid, config):
+        logging.warn("Adding transmitter with ID %s and config %s" % (tid, str(config)))
+
+    def delete_transmitter(self, tid):
+        logging.warn("Deleting transmitter with ID %s" % tid)
+
+    def add_receiver(self, rid, config):
+        logging.warn("Adding receiver with ID %s and config %s" % (rid, str(config)))
+
+    def delete_receiver(self, rid):
+        logging.warn("Deleting receiver with ID %s" % rid)
 
     def set_status_data(self):
         # thisproc = psutil.Process(os.getpid())

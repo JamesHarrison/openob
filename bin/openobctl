@@ -7,7 +7,7 @@ import logging
 from openob.node import Node
 
 parser = argparse.ArgumentParser(description='OpenOB Control utility')
-parser.add_argument("--config", help="Optional configuration file path")
+parser.add_argument('--config', help='Optional configuration file path')
 
 # Set up our node so we can bind functions
 
@@ -17,22 +17,112 @@ node = Node()
 # Add subcommands
 subparsers = parser.add_subparsers()
 
+## Adding and removing encoders
+
 parser_addenc = subparsers.add_parser('addenc',
                                       help='Add an encoder',
                                       description='Add an encoder to a node',
                                       epilog='CAUTION: Changes with this tool may disrupt audio',
-                                      aliases=['ae', 'a'])
-parser_addenc.add_argument("id")
-parser_addenc.add_argument("--destination",)
+                                      aliases=['ae'])
+parser_addenc.add_argument('node_id',
+                           help='The ID of the node to modify')
+parser_addenc.add_argument('id')
+parser_addenc.add_argument('audio_interface')
+parser_addenc.add_argument('-e',
+                           '--encoding',
+                           type=str,
+                           choices=['pcm', 'opus'],
+                           default='opus',
+                           help='Coding type')
+parser_addenc.add_argument('-b',
+                           '--bitrate',
+                           type=int,
+                           default=192,
+                           help='Coding bitrate (ignored for PCM)')
+
 parser_addenc.set_defaults(func=node.add_encoder)
 
 parser_delenc = subparsers.add_parser('delenc',
                                       help='Delete an encoder',
                                       description='Delete an encoder from a node',
                                       epilog='CAUTION: Changes with this tool may disrupt audio',
-                                      aliases=['de', 'd'])
-parser_delenc.add_argument("id")
+                                      aliases=['de'])
+parser_delenc.add_argument('node_id',
+                           help='The ID of the node to modify')
+parser_delenc.add_argument('id')
 parser_delenc.set_defaults(func=node.delete_encoder)
+
+## Adding and removing decoders
+
+parser_adddec = subparsers.add_parser('adddec',
+                                      help='Add an decoder',
+                                      description='Add an decoder to a node',
+                                      epilog='CAUTION: Changes with this tool may disrupt audio',
+                                      aliases=['ad'])
+parser_adddec.add_argument('node_id',
+                           help='The ID of the node to modify')
+parser_adddec.add_argument('id')
+parser_adddec.add_argument('audio_interface')
+parser_adddec.add_argument('--jitterbuf')
+parser_adddec.set_defaults(func=node.add_decoder)
+
+parser_deldec = subparsers.add_parser('deldec',
+                                      help='Delete an decoder',
+                                      description='Delete an decoder from a node',
+                                      epilog='CAUTION: Changes with this tool may disrupt audio',
+                                      aliases=['dd'])
+parser_deldec.add_argument('node_id',
+                           help='The ID of the node to modify')
+parser_deldec.add_argument('id')
+parser_deldec.set_defaults(func=node.delete_decoder)
+
+## Adding and removing transmitters
+
+parser_addtx = subparsers.add_parser('addtx',
+                                      help='Add a transmitter',
+                                      description='Add a transmitter to an encoder',
+                                      epilog='CAUTION: Changes with this tool may disrupt audio',
+                                      aliases=['at'])
+parser_addtx.add_argument('node_id',
+                          help='The ID of the node to modify')
+parser_addtx.add_argument('encoder_id')
+parser_addtx.add_argument('id')
+parser_addtx.set_defaults(func=node.add_transmitter)
+
+parser_deltx = subparsers.add_parser('deltx',
+                                      help='Delete a transmitter',
+                                      description='Delete a transmitter from an encoder',
+                                      epilog='CAUTION: Changes with this tool may disrupt audio',
+                                      aliases=['dt'])
+parser_deltx.add_argument('node_id',
+                          help='The ID of the node to modify')
+parser_deltx.add_argument('encoder_id')
+parser_deltx.add_argument('id')
+parser_deltx.set_defaults(func=node.delete_transmitter)
+
+## Adding and removing receivers
+
+parser_addrx = subparsers.add_parser('addrx',
+                                      help='Add a receiver',
+                                      description='Add a receiver to an decoder',
+                                      epilog='CAUTION: Changes with this tool may disrupt audio',
+                                      aliases=['ar'])
+parser_addrx.add_argument('node_id',
+                          help='The ID of the node to modify')
+parser_addrx.add_argument('decoder_id')
+parser_addrx.add_argument('id')
+parser_addrx.set_defaults(func=node.add_receiver)
+
+parser_delrx = subparsers.add_parser('delrx',
+                                      help='Delete a receiver',
+                                      description='Delete a receiver from an decoder',
+                                      epilog='CAUTION: Changes with this tool may disrupt audio',
+                                      aliases=['dr'])
+parser_delrx.add_argument('node_id',
+                          help='The ID of the node to modify')
+parser_delrx.add_argument('decoder_id')
+parser_delrx.add_argument('id')
+parser_delrx.set_defaults(func=node.delete_receiver)
 
 args = parser.parse_args()
 
@@ -41,13 +131,13 @@ config.read(['/etc/openobd.conf', os.path.expanduser('~/.openobd.conf')])
 if args.config:
     res = config.read(args.config)
     if args.config not in res:
-        raise FileNotFoundError("Couldn't read config file", args.config)
+        raise FileNotFoundError('Could not read config file', args.config)
 
 audio_interfaces = {}
 
 # Generate audio interface config from the config file
 for sec in config.sections():
-    if "interface:" in sec:
+    if 'interface:' in sec:
         # This is an interface definition, parse it
         audio_interfaces[sec] = config[sec]
 
