@@ -17,6 +17,18 @@ node = Node()
 # Add subcommands
 subparsers = parser.add_subparsers()
 
+## Node information
+
+
+parser_audiointerfaces = subparsers.add_parser('audio_interfaces',
+                                      help='List audio interfaces',
+                                      description='List all audio interfaces on a node',
+                                      aliases=['lsai'])
+parser_audiointerfaces.add_argument('id',
+                           help='The ID of the node to modify')
+parser_audiointerfaces.set_defaults(func=node.get_audio_interfaces)
+
+
 ## Adding and removing encoders
 
 parser_addenc = subparsers.add_parser('addenc',
@@ -145,5 +157,6 @@ node.setup(config.get('openob', 'node_id'),
            config.get('zookeeper', 'config_hosts'),
            audio_interfaces,
            getattr(logging, config.get('logging', 'log_level').upper()))
+node.connect()
 
 args.func(args.id, args)
