@@ -18,7 +18,7 @@ class LinkConfig(object):
             configuration host.
         """
         self.int_properties = ['port', 'jitter_buffer', 'opus_framesize', 'opus_complexity', 'bitrate', 'opus_loss_expectation']
-        self.bool_properties = ['opus_dtx', 'opus_fec', 'multicast']
+        self.bool_properties = ['opus_dtx', 'opus_fec', 'multicast', 'highpass']
         self.link_name = link_name
         self.redis_host = redis_host
         self.logger_factory = LoggerFactory()
@@ -94,6 +94,7 @@ class LinkConfig(object):
             self.set("opus_fec", opts.fec)
             self.set("opus_loss_expectation", opts.loss)
             self.set("opus_dtx", opts.dtx)
+            self.set("highpass", opts.highpass)
 
     def commit_changes(self, restart=False):
         """

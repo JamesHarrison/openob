@@ -10,6 +10,7 @@ class AudioInterface(object):
     """
 
     def __init__(self, node_name, interface_name='default'):
+        self.int_properties = ['channels']
         self.interface_name = interface_name
         self.node_name = node_name
         self.logger_factory = LoggerFactory()
@@ -25,6 +26,8 @@ class AudioInterface(object):
     def get(self, key):
         """Get a config value"""
         value = self.config[key]
+        if key in self.int_properties:
+            value = int(value)
         self.logger.debug("Fetched %s, got %s" % (key, value))
         return value
 
@@ -35,7 +38,7 @@ class AudioInterface(object):
     def set_from_argparse(self, opts):
         """Set up the audio interface from argparse options"""
         self.set("mode", opts.mode)
-
+        self.set("channels", opts.channels)
         if opts.mode == "tx":
             self.set("type", opts.audio_input)
             self.set("samplerate", opts.samplerate)

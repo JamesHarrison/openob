@@ -40,6 +40,21 @@ class RTPTransmitter(object):
         self.audioresample = gst.element_factory_make("audioresample")
         self.audioconvert = gst.element_factory_make("audioconvert")
         self.audioresample.set_property('quality', 9)  # SRC
+        
+        # Audio filtering
+        
+        if self.link_config.highpass:
+            self.highpass_filter = gst.element_factory_make("audiocheblimit")
+            self.highpass_filter.set_property('mode', 'high-pass')
+            self.highpass_filter.set_property('cutoff', 175)
+        
+        if self.link_config.limiter:
+            self.limiter = gst.element_factory_make("audiodynamic")
+            self.limiter.set_property('mode', 'compressor')
+            self.limiter.set_property('characteristics', 'hard-knee')
+            self.limiter.set_property('ratio', 4.0)
+            self.limiter.set_property('threshold', 0.8)
+            
 
         # Encoding and payloading
         if self.link_config.encoding == 'opus':
@@ -90,6 +105,10 @@ class RTPTransmitter(object):
         if self.link_config.encoding != 'pcm':
             # Only add the encoder if we're not in PCM mode
             self.pipeline.add(self.encoder)
+        
+        if self.link_config.highpass:
+            # Only add the HPF if needed
+            self.pipeline.add(self.highpass_filter)
 
         # Decide which format to apply to the capsfilter (Jack uses float)
         if self.audio_interface.type == 'jack':
@@ -100,21 +119,41 @@ class RTPTransmitter(object):
         # if audio_rate has been specified, then add that to the capsfilter
         if self.audio_interface.samplerate != 0:
             self.capsfilter.set_property(
-                "caps", gst.Caps('%s, channels=2, rate=%d' % (data_type, self.audio_interface.samplerate)))
+                "caps", gst.Caps('%s, channels=%d, rate=%d' % (data_type, self.audio_interface.channels, self.audio_interface.samplerate)))
         else:
             self.capsfilter.set_property(
-                "caps", gst.Caps('%s, channels=2' % data_type))
-
+                "caps", gst.Caps('%s, channels=%d' % (data_type, self.audio_interface.channels)))
+        
+        # This identity block just acts as a neat way to join the audio
+        # pipeline to the coder
+        self.audio_identity_block = gst.element_factory_make('identity')
+        self.pipeline.add(self.audio_identity_block)
+        
         # Then continue linking the pipeline together
         gst.element_link_many(
             self.source, self.capsfilter, self.level, self.audioresample, self.audioconvert)
+            
+        # work on our filter chain
+        
+        last_linked = self.audioconvert
+        
+        # Insert the highpass filter if configured
+        if self.link_config.highpass:
+            gst.element_link_many(last_linked, self.highpass_filter)
+            last_linked = self.highpass_filter
+        
+        if self.link_config.limiter:
+            gst.element_link_many(last_linked, self.limiter)
+            last_linked = self.limiter
+        
+        gst.element_link_many(last_linked, self.audio_identity_block)
 
         # Now we get to link this up to our encoder/payloader
         if self.link_config.encoding != 'pcm':
             gst.element_link_many(
-                self.audioconvert, self.encoder, self.payloader)
+                self.audio_identity_block, self.encoder, self.payloader)
         else:
-            gst.element_link_many(self.audioconvert, self.payloader)
+            gst.element_link_many(self.audio_identity_block, self.payloader)
 
         # And now the RTP bits
         self.payloader.link_pads('src', self.rtpbin, 'send_rtp_sink_0')

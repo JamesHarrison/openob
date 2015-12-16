@@ -42,7 +42,12 @@ parser_tx_opus.add_argument('--fec', action='store_true', dest='fec', help="Enab
 parser_tx_opus.add_argument('--no-fec', action='store_false', dest='fec', help="Disable Opus Inband Forward Error Correction support")
 parser_tx_opus.add_argument('--complexity', type=int, default=9, help="Opus Computational Complexity, between 0 and 10 - reduce on CPU-constrained devices", choices=range(0,10))
 parser_tx_opus.add_argument('--framesize', type=int, default=20, help="Opus frame size (ms)", choices=[2, 5, 10, 20, 40, 60])
-parser_tx.set_defaults(mode='tx', fec=True, dtx=False, multicast=False)
+parser_tx_opus.add_argument('--highpass', action='store_true', dest='highpass', help="Enable high-pass audio filter (175Hz)")
+parser_tx_opus.add_argument('--no-highpass', action='store_false', dest='highpass', help="Disable high-pass audio filter (175Hz) (default)")
+parser_tx_opus.add_argument('--limiter', action='store_true', dest='limiter', help="Enable audio peak limiter")
+parser_tx_opus.add_argument('--no-limiter', action='store_false', dest='limiter', help="Disable audio peak limiter (default)")
+parser_tx_opus.add_argument('--channels', type=int, default=2, help="Number of audio channels to ask the interface for. Defaults to 2; use 1 for mono.")
+parser_tx.set_defaults(mode='tx', fec=True, dtx=False, multicast=False, highpass=False, limiter=False)
 
 parser_rx = subparsers.add_parser('rx', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser_rx.add_argument('-a', '--audio_output', type=str, choices=['auto', 'alsa', 'jack'], default='auto', help="The audio output type for this end of the link")
