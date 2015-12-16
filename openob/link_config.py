@@ -17,6 +17,8 @@ class LinkConfig(object):
             Set up a new LinkConfig instance - needs to know the link name and
             configuration host.
         """
+        self.int_properties = ['port', 'jitter_buffer', 'opus_framesize', 'opus_complexity', 'bitrate', 'opus_loss_expectation']
+        self.bool_properties = ['opus_dtx', 'opus_fec', 'multicast']
         self.link_name = link_name
         self.redis_host = redis_host
         self.logger_factory = LoggerFactory()
@@ -54,9 +56,12 @@ class LinkConfig(object):
         """Get a value from the config store"""
         scoped_key = self.scoped_key(key)
         value = self.redis.get(scoped_key)
+        
         # Do some typecasting
-        if key == 'port' or key == 'jitter_buffer' or key == 'opus_framesize':
+        if key in self.int_properties:
             value = int(value)
+        if key in self.bool_properties:
+            value = (value == 'True')
         self.logger.debug("Fetched %s, got %s" % (scoped_key, value))
         return value
 

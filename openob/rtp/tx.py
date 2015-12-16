@@ -39,7 +39,7 @@ class RTPTransmitter(object):
         # Audio resampling and conversion
         self.audioresample = gst.element_factory_make("audioresample")
         self.audioconvert = gst.element_factory_make("audioconvert")
-        self.audioresample.set_property('quality', 6)  # SRC
+        self.audioresample.set_property('quality', 9)  # SRC
 
         # Encoding and payloading
         if self.link_config.encoding == 'opus':
@@ -51,6 +51,7 @@ class RTPTransmitter(object):
             self.encoder.set_property('inband-fec', self.link_config.opus_fec)
             self.encoder.set_property('packet-loss-percentage', int(self.link_config.opus_loss_expectation))
             self.encoder.set_property('dtx', self.link_config.opus_dtx)
+            print(self.encoder.get_properties('bitrate', 'dtx', 'inband-fec'))
             self.payloader = gst.element_factory_make("rtpopuspay", "payloader")
         elif self.link_config.encoding == 'pcm':
             # we have no encoder for PCM operation
@@ -64,6 +65,7 @@ class RTPTransmitter(object):
         self.udpsink_rtpout.set_property('host', self.link_config.receiver_host)
         self.udpsink_rtpout.set_property('port', self.link_config.port)
         self.logger.info('Set receiver to %s:%i' % (self.link_config.receiver_host, self.link_config.port))
+
         if self.link_config.multicast:
             self.udpsink_rtpout.set_property('auto_multicast', True)
             self.logger.info('Multicast mode enabled')

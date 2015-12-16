@@ -21,7 +21,7 @@ On Debian you can install the prerequisites with the following command:
 
 .. code-block:: bash
 
-  sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-ffmpeg gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa python-argparse
+  sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa python-argparse python-redis
 
 This should also work on Ubuntu. Your GStreamer implementation must be recent enough to support Opus; this is supported in Ubuntu 13.04 and Debian Wheezy or newer. In order to ensure compatibility, it is recommended that both ends of the link use the same version of GStreamer, which is most easily achieved by running the same operating system version on each end and installing the distribution's packages as detailed above.
 
