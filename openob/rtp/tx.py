@@ -1,7 +1,5 @@
-import gobject
-import pygst
-pygst.require("0.10")
-import gst
+
+
 import time
 import re
 from openob.logger import LoggerFactory

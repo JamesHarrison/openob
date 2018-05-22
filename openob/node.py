@@ -4,8 +4,6 @@ from openob.logger import LoggerFactory
 from openob.rtp.tx import RTPTransmitter
 from openob.rtp.rx import RTPReceiver
 from openob.link_config import LinkConfig
-from gst import ElementNotFoundError
-
 
 class Node(object):
 
