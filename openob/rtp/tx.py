@@ -48,7 +48,6 @@ class RTPTransmitter(object):
         self.caps = 'None'
 
         bus = self.pipeline.get_bus()
-        bus.connect('message', self.on_message)
 
         self.source = self.build_audio_interface()
         self.encoder = self.build_encoder()
