@@ -1,14 +1,10 @@
 import gi
 gi.require_version('Gst', '1.0')
-from gi.repository import Gst, GLib, GObject
-GObject.threads_init()
+from gi.repository import Gst, GLib
 Gst.init(None)
 
 import time
-import re
-import sys
 from openob.logger import LoggerFactory
-
 
 class RTPTransmitter(object):
 
