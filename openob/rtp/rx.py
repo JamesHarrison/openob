@@ -21,8 +21,6 @@ class RTPReceiver(object):
 
     def run(self):
         self.pipeline.set_state(Gst.State.PLAYING)
-        Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, 'rx-graph')
-        
         self.logger.info('Listening for stream on %s:%i' % (self.link_config.receiver_host, self.link_config.port))
 
     def loop(self):
@@ -128,10 +126,15 @@ class RTPReceiver(object):
     def build_transport(self):
         self.logger.debug('Building RTP transport bin')
         bin = Gst.Bin('transport')
+
+        caps = self.link_config.get('caps').replace('\\', '')
+        udpsrc_caps = Gst.Caps.from_string(caps)
         
         # Where audio comes in
         udpsrc = Gst.ElementFactory.make('udpsrc', 'udpsrc')
         udpsrc.set_property('port', self.link_config.port)
+        udpsrc.set_property('caps', udpsrc_caps)
+        udpsrc.set_property('timeout', 3000000000)
         if self.link_config.multicast:
             udpsrc.set_property('auto_multicast', True)
             udpsrc.set_property('multicast_group', self.link_config.receiver_host)
@@ -144,15 +147,12 @@ class RTPReceiver(object):
         rtpbin.set_property('do-lost', True)
         bin.add(rtpbin)
 
-        caps = self.link_config.get('caps').replace('\\', '')
-        udpsrc_caps = Gst.Caps.from_string(caps)
-
-        udpsrc.set_property('caps', udpsrc_caps)
-        udpsrc.set_property('timeout', 3000000)
-
         udpsrc.link_pads('src', rtpbin, 'recv_rtp_sink_0')
 
-        bin.add_pad(Gst.GhostPad.new_no_target('src', Gst.PadDirection.SRC))
+        valve = Gst.ElementFactory.make('valve', 'valve')
+        bin.add(valve)
+        
+        bin.add_pad(Gst.GhostPad.new('src', valve.get_static_pad('src')))
         # Attach callbacks for dynamic pads (RTP output) and busses
         rtpbin.connect('pad-added', self.rtpbin_pad_added)
 
@@ -161,11 +161,13 @@ class RTPReceiver(object):
     # Our RTPbin won't give us an audio pad till it receives, so we need to
     # attach it here
     def rtpbin_pad_added(self, obj, pad):
-        ghost_pad = self.transport.get_static_pad('src')
+        valve = self.transport.get_by_name('valve')
+        rtpbin = self.transport.get_by_name('rtpbin')
+
         # Unlink first.
-        pad.unlink(ghost_pad)
+        rtpbin.unlink(valve)
         # Relink
-        pad.link(ghost_pad)
+        rtpbin.link(valve)
 
     def on_message(self, bus, message):
         if message.type == Gst.MessageType.ELEMENT:
@@ -178,8 +180,14 @@ class RTPReceiver(object):
                             self.logger.info('Receiving mono audio transmission')
                         else:
                             self.logger.info('Receiving stereo audio transmission')
+                    else:
+                        if len(struct['peak']) == 1:
+                            self.logger.debug('Level: %d', struct['peak'][0])
+                        else:
+                            self.logger.debug('Levels: L %d R %d' % struct['peak'][1])
 
                 if struct.get_name() == 'GstUDPSrcTimeout':
+                    Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, 'rx-graph')                    
                     # Only UDP source configured to emit timeouts is the audio input
                     self.logger.critical('No data received for 3 seconds!')
                     if self.started:
