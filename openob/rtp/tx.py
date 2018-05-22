@@ -1,6 +1,7 @@
 import gi
 gi.require_version('Gst', '1.0')
-from gi.repository import Gst
+from gi.repository import Gst, GLib, GObject
+GObject.threads_init()
 Gst.init(None)
 
 import time
@@ -25,9 +26,11 @@ class RTPTransmitter(object):
 
     def run(self):
         self.pipeline.set_state(Gst.State.PLAYING)
+        # Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, 'tx-graph')
+        
         while self.caps == 'None':
             self.caps = str(
-                self.transport.get_static_pad('sink').get_property('caps'))
+                self.transport.get_by_name('udpsink').get_static_pad('sink').get_property('caps'))
 
             if self.caps == 'None':
                 self.logger.warn('Waiting for audio interface/caps')
@@ -36,8 +39,8 @@ class RTPTransmitter(object):
 
     def loop(self):
         try:
-            self.loop = gobject.MainLoop()
-            self.loop.run()
+            loop = GLib.MainLoop()
+            loop.run()
         except Exception as e:
             self.logger.exception('Encountered a problem in the MainLoop, tearing down the pipeline: %s' % e)
             self.pipeline.set_state(Gst.State.NULL)
@@ -98,19 +101,13 @@ class RTPTransmitter(object):
         # Add a capsfilter to allow specification of input sample rate
         capsfilter = Gst.ElementFactory.make('capsfilter')
 
-        # Decide which format to apply to the capsfilter (Jack uses float)
-        if self.audio_interface.type == 'jack':
-            data_type = 'audio/x-raw-float'
-        else:
-            data_type = 'audio/x-raw-int'
+        caps = source.get_static_pad('src').get_property('caps')
 
         # if audio_rate has been specified, then add that to the capsfilter
         if self.audio_interface.samplerate != 0:
-            capsfilter.set_property(
-                'caps', Gst.Caps('%s, channels=2, rate=%d' % (data_type, self.audio_interface.samplerate)))
-        else:
-            capsfilter.set_property(
-                'caps', Gst.Caps('%s, channels=2' % data_type))
+            caps.set_value('rate', self.audio_interface.samplerate)
+        
+        capsfilter.set_property('caps', caps)
         bin.add(capsfilter)
 
         # Our level monitor
@@ -168,12 +165,12 @@ class RTPTransmitter(object):
         bin = Gst.Bin('transport')
 
         # Our RTP manager
-        rtpbin = Gst.ElementFactory.make('rtpbin')
+        rtpbin = Gst.ElementFactory.make('rtpbin', 'rtpbin')
         rtpbin.set_property('latency', 0)
         bin.add(rtpbin)
 
         # TODO: Add a tee here, and sort out creating multiple UDP sinks for multipath
-        udpsink = Gst.ElementFactory.make('udpsink')
+        udpsink = Gst.ElementFactory.make('udpsink', 'udpsink')
         udpsink.set_property('host', self.link_config.receiver_host)
         udpsink.set_property('port', self.link_config.port)
         self.logger.info('Set receiver to %s:%i' % (self.link_config.receiver_host, self.link_config.port))
@@ -182,24 +179,29 @@ class RTPTransmitter(object):
             udpsink.set_property('auto_multicast', True)
             self.logger.info('Multicast mode enabled')
         bin.add(udpsink)
-        rtpbin.link_pads('send_rtp_src_0', udpsink, 'sink')
 
         bin.add_pad(Gst.GhostPad.new('sink', rtpbin.get_request_pad('send_rtp_sink_0')))
-        bin.add_pad(Gst.GhostPad.new('capspad', udpsink.get_static_pad('sink')))
+
+        rtpbin.link_pads('send_rtp_src_0', udpsink, 'sink')
 
         return bin
 
     def on_message(self, bus, message):
-        if message.type == Gst.Message.ELEMENT:
-            if message.structure.get_name() == 'level':
-                if self.started is False:
-                    self.started = True
-                    #Gst.DEBUG_BIN_TO_DOT_FILE(self.pipeline, Gst.DEBUG_GRAPH_SHOW_ALL, 'tx-graph')
-                    #self.logger.debug(source.get_property('actual-buffer-time'))
-                    if len(message.structure['peak']) == 1:
-                        self.logger.info('Started mono audio transmission')
+        if message.type == Gst.MessageType.ELEMENT:
+            struct = message.get_structure()
+            if struct != None:
+                if struct.get_name() == 'level':
+                    if self.started is False:
+                        self.started = True
+                        if len(struct['peak']) == 1:
+                            self.logger.info('Started mono audio transmission')
+                        else:
+                            self.logger.info('Started stereo audio transmission')
                     else:
-                        self.logger.info('Started stereo audio transmission')
+                        if len(struct['peak']) == 1:
+                            self.logger.debug('Level: %d', struct['peak'][0])
+                        else:
+                            self.logger.debug('Levels: L %d R %d' % struct['peak'][1])
         return True
 
     def get_caps(self):
