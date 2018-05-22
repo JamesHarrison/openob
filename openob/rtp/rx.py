@@ -119,7 +119,7 @@ class RTPReceiver(object):
             depayloader.link(decoder)
             bin.add_pad(Gst.GhostPad.new('src', decoder.get_static_pad('src')))
         else:
-            bin.add_pad(Gst.GhostPad.new('src', decoder.get_static_pad('src')))
+            bin.add_pad(Gst.GhostPad.new('src', depayloader.get_static_pad('src')))
 
         return bin
 

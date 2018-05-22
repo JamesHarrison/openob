@@ -22,7 +22,7 @@ class RTPTransmitter(object):
 
     def run(self):
         self.pipeline.set_state(Gst.State.PLAYING)
-        # Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, 'tx-graph')
+        Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, 'tx-graph')
         
         while self.caps == 'None':
             self.caps = str(
@@ -85,6 +85,12 @@ class RTPTransmitter(object):
 
         bin.add(source)
 
+        # Our level monitor
+        level = Gst.ElementFactory.make('level')
+        level.set_property('message', True)
+        level.set_property('interval', 1000000000)
+        bin.add(level)
+
         # Audio resampling and conversion
         resample = Gst.ElementFactory.make('audioresample')
         resample.set_property('quality', 9)  # SRC
@@ -96,27 +102,22 @@ class RTPTransmitter(object):
         # Add a capsfilter to allow specification of input sample rate
         capsfilter = Gst.ElementFactory.make('capsfilter')
 
-        caps = source.get_static_pad('src').get_property('caps')
+        caps = Gst.Caps.new_empty_simple('audio/x-raw')
 
         # if audio_rate has been specified, then add that to the capsfilter
         if self.audio_interface.samplerate != 0:
             caps.set_value('rate', self.audio_interface.samplerate)
         
+        self.logger.debug(caps.to_string())
         capsfilter.set_property('caps', caps)
         bin.add(capsfilter)
 
-        # Our level monitor
-        level = Gst.ElementFactory.make('level')
-        level.set_property('message', True)
-        level.set_property('interval', 1000000000)
-        bin.add(level)
-
-        source.link(resample)
+        source.link(level)
+        level.link(resample)
         resample.link(convert)
         convert.link(capsfilter)
-        capsfilter.link(level)
 
-        bin.add_pad(Gst.GhostPad.new('src', level.get_static_pad('src')))
+        bin.add_pad(Gst.GhostPad.new('src', capsfilter.get_static_pad('src')))
 
         return bin
 
