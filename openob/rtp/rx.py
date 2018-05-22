@@ -32,7 +32,7 @@ class RTPReceiver(object):
             self.pipeline.set_state(Gst.State.NULL)
 
     def build_pipeline(self):
-        self.pipeline = Gst.Pipeline('rx')
+        self.pipeline = Gst.Pipeline.new('rx')
         
         self.started = False
         bus = self.pipeline.get_bus()
@@ -41,7 +41,9 @@ class RTPReceiver(object):
         self.decoder = self.build_decoder()
         self.output = self.build_audio_interface()
 
-        self.pipeline.add(self.transport, self.decoder, self.output)
+        self.pipeline.add(self.transport)
+        self.pipeline.add(self.decoder)
+        self.pipeline.add(self.output)
         self.transport.link(self.decoder)
         self.decoder.link(self.output)
 
@@ -50,7 +52,7 @@ class RTPReceiver(object):
 
     def build_audio_interface(self):
         self.logger.debug('Building audio output bin')
-        bin = Gst.Bin('audio')
+        bin = Gst.Bin.new('audio')
 
         # Audio output
         if self.audio_interface.type == 'auto':
@@ -95,7 +97,7 @@ class RTPReceiver(object):
 
     def build_decoder(self):
         self.logger.debug('Building decoder bin')
-        bin = Gst.Bin('decoder')
+        bin = Gst.Bin.new('decoder')
 
         # Decoding and depayloading
         if self.link_config.encoding == 'opus':
@@ -125,7 +127,7 @@ class RTPReceiver(object):
 
     def build_transport(self):
         self.logger.debug('Building RTP transport bin')
-        bin = Gst.Bin('transport')
+        bin = Gst.Bin.new('transport')
 
         caps = self.link_config.get('caps').replace('\\', '')
         udpsrc_caps = Gst.Caps.from_string(caps)
@@ -176,15 +178,15 @@ class RTPReceiver(object):
                 if struct.get_name() == 'level':
                     if self.started is False:
                         self.started = True
-                        if len(struct['peak']) == 1:
+                        if len(struct.get_value('peak')) == 1:
                             self.logger.info('Receiving mono audio transmission')
                         else:
                             self.logger.info('Receiving stereo audio transmission')
                     else:
-                        if len(struct['peak']) == 1:
-                            self.logger.debug('Level: %.2f', struct['peak'][0])
+                        if len(struct.get_value('peak')) == 1:
+                            self.logger.debug('Level: %.2f', struct.get_value('peak')[0])
                         else:
-                            self.logger.debug('Levels: L %.2f R %.2f' % (struct['peak'][0], struct['peak'][1]))
+                            self.logger.debug('Levels: L %.2f R %.2f' % (struct.get_value('peak')[0], struct.get_value('peak')[1]))
 
                 if struct.get_name() == 'GstUDPSrcTimeout':
                     # Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, 'rx-graph')                    

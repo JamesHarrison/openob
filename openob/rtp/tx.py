@@ -24,14 +24,14 @@ class RTPTransmitter(object):
         self.pipeline.set_state(Gst.State.PLAYING)
         # Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, 'tx-graph')
         
-        while self.caps == 'None':
-            self.caps = str(
-                self.transport.get_by_name('udpsink').get_static_pad('sink').get_property('caps'))
+        while self.caps == None:
+            caps = self.transport.get_by_name('udpsink').get_static_pad('sink').get_property('caps')
 
-            if self.caps == 'None':
+            if caps == None:
                 self.logger.warn('Waiting for audio interface/caps')
-
-            time.sleep(0.1)
+                time.sleep(0.1)
+            else:
+                self.caps = caps.to_string()
 
     def loop(self):
         try:
@@ -45,7 +45,7 @@ class RTPTransmitter(object):
         self.pipeline = Gst.Pipeline.new('tx')
 
         self.started = False
-        self.caps = 'None'
+        self.caps = None
 
         bus = self.pipeline.get_bus()
 
@@ -53,7 +53,9 @@ class RTPTransmitter(object):
         self.encoder = self.build_encoder()
         self.transport = self.build_transport()
         
-        self.pipeline.add(self.source, self.encoder, self.transport)
+        self.pipeline.add(self.source)
+        self.pipeline.add(self.encoder)
+        self.pipeline.add(self.transport)
         self.source.link(self.encoder)
         self.encoder.link(self.transport)
 
@@ -63,7 +65,7 @@ class RTPTransmitter(object):
 
     def build_audio_interface(self):
         self.logger.debug('Building audio input bin')
-        bin = Gst.Bin('audio')
+        bin = Gst.Bin.new('audio')
 
         # Audio input
         if self.audio_interface.type == 'auto':
@@ -123,7 +125,7 @@ class RTPTransmitter(object):
 
     def build_encoder(self):
         self.logger.debug('Building encoder bin')
-        bin = Gst.Bin('encoder')
+        bin = Gst.Bin.new('encoder')
 
         # Encoding and payloading
         if self.link_config.encoding == 'opus':
@@ -158,7 +160,7 @@ class RTPTransmitter(object):
 
     def build_transport(self):
         self.logger.debug('Building RTP transport bin')
-        bin = Gst.Bin('transport')
+        bin = Gst.Bin.new('transport')
 
         # Our RTP manager
         rtpbin = Gst.ElementFactory.make('rtpbin', 'rtpbin')
@@ -189,15 +191,15 @@ class RTPTransmitter(object):
                 if struct.get_name() == 'level':
                     if self.started is False:
                         self.started = True
-                        if len(struct['peak']) == 1:
+                        if len(struct.get_value('peak')) == 1:
                             self.logger.info('Started mono audio transmission')
                         else:
                             self.logger.info('Started stereo audio transmission')
                     else:
-                        if len(struct['peak']) == 1:
-                            self.logger.debug('Level: %.2f', struct['peak'][0])
+                        if len(struct.get_value('peak')) == 1:
+                            self.logger.debug('Level: %.2f', struct.get_value('peak')[0])
                         else:
-                            self.logger.debug('Levels: L %.2f R %.2f' % (struct['peak'][0], struct['peak'][1]))
+                            self.logger.debug('Levels: L %.2f R %.2f' % (struct.get_value('peak')[0], struct.get_value('peak')[1]))
         return True
 
     def get_caps(self):
