@@ -187,7 +187,7 @@ class RTPReceiver(object):
                             self.logger.debug('Levels: L %.2f R %.2f' % (struct['peak'][0], struct['peak'][1]))
 
                 if struct.get_name() == 'GstUDPSrcTimeout':
-                    Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, 'rx-graph')                    
+                    # Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, 'rx-graph')                    
                     # Only UDP source configured to emit timeouts is the audio input
                     self.logger.critical('No data received for 3 seconds!')
                     if self.started:

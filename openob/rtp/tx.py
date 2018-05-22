@@ -22,7 +22,7 @@ class RTPTransmitter(object):
 
     def run(self):
         self.pipeline.set_state(Gst.State.PLAYING)
-        Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, 'tx-graph')
+        # Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, 'tx-graph')
         
         while self.caps == 'None':
             self.caps = str(
