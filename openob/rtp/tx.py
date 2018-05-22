@@ -194,9 +194,9 @@ class RTPTransmitter(object):
                             self.logger.info('Started stereo audio transmission')
                     else:
                         if len(struct['peak']) == 1:
-                            self.logger.debug('Level: %d', struct['peak'][0])
+                            self.logger.debug('Level: %.2f', struct['peak'][0])
                         else:
-                            self.logger.debug('Levels: L %d R %d' % struct['peak'][1])
+                            self.logger.debug('Levels: L %.2f R %.2f' % (struct['peak'][0], struct['peak'][1]))
         return True
 
     def get_caps(self):

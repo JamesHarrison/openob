@@ -182,9 +182,9 @@ class RTPReceiver(object):
                             self.logger.info('Receiving stereo audio transmission')
                     else:
                         if len(struct['peak']) == 1:
-                            self.logger.debug('Level: %d', struct['peak'][0])
+                            self.logger.debug('Level: %.2f', struct['peak'][0])
                         else:
-                            self.logger.debug('Levels: L %d R %d' % struct['peak'][1])
+                            self.logger.debug('Levels: L %.2f R %.2f' % (struct['peak'][0], struct['peak'][1]))
 
                 if struct.get_name() == 'GstUDPSrcTimeout':
                     Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, 'rx-graph')                    
