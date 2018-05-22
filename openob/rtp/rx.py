@@ -25,8 +25,8 @@ class RTPReceiver(object):
 
     def loop(self):
         try:
-            self.loop = GLib.MainLoop()
-            self.loop.run()
+            self.main_loop = GLib.MainLoop()
+            self.main_loop.run()
         except Exception as e:
             self.logger.exception('Encountered a problem in the MainLoop, tearing down the pipeline: %s' % e)
             self.pipeline.set_state(Gst.State.NULL)
@@ -193,7 +193,7 @@ class RTPReceiver(object):
                     if self.started:
                         self.logger.critical('Shutting down receiver for restart')
                         self.pipeline.set_state(Gst.State.NULL)
-                        self.loop.quit()
+                        self.main_loop.quit()
         return True
 
 
