@@ -1,0 +1,31 @@
+sudo: false
+
+language: python
+
+addons:
+  apt:
+    packages:
+      - python-gst-1.0 
+      - gstreamer1.0-plugins-base
+      - gstreamer1.0-plugins-good
+      - python-gobject
+      - python-redis
+      - python-gi
+
+services:
+  - redis-server
+
+python:
+  - 2.7
+  - 3.6
+
+install:
+  - python setup.py install
+
+script:
+  - (openob 127.0.0.1 -v travis_1 travis tx 127.0.0.1 -a test 2>&1 | tee tx_log) &
+  - (tail -f -n0 tx_log &) | grep -q "Started mono audio transmission"
+  - (openob 127.0.0.1 -v travis_2 travis rx -a test 2>&1 | tee rx_log) &
+  - (tail -f -n0 tx_log &) | grep -q "Recieving mono audio transmission"
+  - sleep 10
+  - pkill openob
