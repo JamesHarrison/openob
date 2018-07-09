@@ -6,8 +6,7 @@ addons:
   apt:
     packages:
       - python-gst-1.0 
-      - gstreamer1.0-plugins-base
-      - gstreamer1.0-plugins-good
+      - gstreamer1.0
       - python-gobject
       - python-redis
       - python-gi
@@ -17,7 +16,10 @@ services:
 
 python:
   - 2.7
-  - 3.6
+  - 3.4
+
+virtualenv:
+  system_site_packages: true
 
 install:
   - python setup.py install
