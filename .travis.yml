@@ -5,8 +5,11 @@ language: python
 addons:
   apt:
     packages:
+      - gstreamer1.0-plugins-base # Latest gstreamer has Opus in base
+      - gstreamer1.0-plugins-good # RTP/UDP/audio plugins reside in good
+      - gstreamer1.0-plugins-bad # The version of gstreamer in Trusty still has Opus in bad
+      - gir1.2-gstreamer-1.0
       - python-gst-1.0 
-      - gstreamer1.0
       - python-gobject
       - python-redis
       - python-gi
@@ -19,7 +22,7 @@ python:
   - 3.4
 
 virtualenv:
-  system_site_packages: true
+  system_site_packages: true # Required as Travis runs python in a virtualenv, thus denying access to system GLib
 
 install:
   - python setup.py install
@@ -28,6 +31,6 @@ script:
   - (openob 127.0.0.1 -v travis_1 travis tx 127.0.0.1 -a test 2>&1 | tee tx_log) &
   - (tail -f -n0 tx_log &) | grep -q "Started mono audio transmission"
   - (openob 127.0.0.1 -v travis_2 travis rx -a test 2>&1 | tee rx_log) &
-  - (tail -f -n0 tx_log &) | grep -q "Recieving mono audio transmission"
+  - (tail -f -n0 rx_log &) | grep -q "Receiving mono audio transmission"
   - sleep 10
   - pkill openob
