@@ -10,7 +10,7 @@ Architecture
 
 OpenOB is a peer to peer audio streaming system with a central configuration server.
 
-The program itself is a set of Python classes wrapping the PyGST bindings for the GStreamer media framework, which itself performs the audio encoding/decoding and transmission.
+The program itself is a set of Python classes wrapping the Python GObject bindings for the GStreamer media framework, which itself performs the audio encoding/decoding and transmission.
 
 An OpenOB *link* is comprised of a receiver and transmitter pair.
 
@@ -51,7 +51,7 @@ The following is a recommended set of specifications that are known to run OpenO
 - Dual-core Intel Atom, i3 or better @ 1.2GHz or better
 - 512MB RAM (2GB if you want a desktop environment)
 - 100Mbps NIC
-- Debian Wheezy (7.0)
+- Debian Jessie (8.0)
 
 OpenOB has been known to run on systems with significantly lower specifications.
 
