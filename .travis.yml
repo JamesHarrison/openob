@@ -9,9 +9,11 @@ addons:
       - gstreamer1.0-plugins-base
       - gstreamer1.0-plugins-good
       - gir1.2-gstreamer-1.0
-      - python-gst-1.0 
-      - python-gobject
+      - python-gst-1.0
+      - python3-gst-1.0
       - python-redis
+      - python3-redis
+      - python-gobject
       - python-gi
 
 services:

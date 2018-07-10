@@ -21,8 +21,9 @@ On Debian Stretch / Ubuntu Xenial you can install the prerequisites with the fol
 
 .. code-block:: bash
 
-  sudo apt install gstreamer1.0-plugins-base gstreamer1.0-plugins-good gir1.2-gstreamer-1.0 python-gst-1.0 python-gobject python-redis python-gi python-setuptools
+  sudo apt install gstreamer1.0-plugins-base gstreamer1.0-plugins-good gir1.2-gstreamer-1.0 python-gst-1.0 python-redis python-gi python-setuptools
 
+If you wish to use Python 3, you must install `python3-redis`, `python3-gst-1.0` and `python3-setuptools` instead of the Python 2 equivalents.
 The GStreamer Opus plugin has graduated from the 'bad' plugins repository to the 'base' repository as of 2015.  Older distributions may require the `gstreamer1.0-plugins-bad` package installed.
 In order to ensure compatibility, it is recommended that both ends of the link use the same version of GStreamer, which is most easily achieved by running the same operating system version on each end and installing the distribution's packages as detailed above.
 
