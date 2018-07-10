@@ -1,0 +1,38 @@
+sudo: required
+dist: xenial
+
+language: python
+
+addons:
+  apt:
+    packages:
+      - gstreamer1.0-plugins-base
+      - gstreamer1.0-plugins-good
+      - gir1.2-gstreamer-1.0
+      - python-gst-1.0
+      - python3-gst-1.0
+      - python-redis
+      - python3-redis
+      - python-gobject
+      - python-gi
+
+services:
+  - redis-server
+
+python:
+  - 2.7
+  - 3.5
+
+virtualenv:
+  system_site_packages: true # Required as Travis runs python in a virtualenv, thus denying access to system GLib
+
+install:
+  - python setup.py install
+
+script:
+  - (openob 127.0.0.1 -v travis_1 travis tx 127.0.0.1 -a test 2>&1 | tee tx_log) &
+  - (tail -f -n0 tx_log &) | grep -q "Started mono audio transmission"
+  - (openob 127.0.0.1 -v travis_2 travis rx -a test 2>&1 | tee rx_log) &
+  - (tail -f -n0 rx_log &) | grep -q "Receiving mono audio transmission"
+  - sleep 10
+  - pkill openob

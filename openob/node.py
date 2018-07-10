@@ -4,8 +4,6 @@ from openob.logger import LoggerFactory
 from openob.rtp.tx import RTPTransmitter
 from openob.rtp.rx import RTPReceiver
 from openob.link_config import LinkConfig
-from gst import ElementNotFoundError
-
 
 class Node(object):
 
@@ -50,9 +48,6 @@ class Node(object):
                         link_logger.debug("Got caps from transmitter, setting config")
                         link_config.set("caps", caps)
                         transmitter.loop()
-                    except ElementNotFoundError as e:
-                        link_logger.critical("GStreamer element missing: %s - will now exit" % e)
-                        sys.exit(1)
                     except Exception as e:
                         link_logger.exception("Transmitter crashed for some reason! Restarting...")
                         time.sleep(0.5)
@@ -65,9 +60,6 @@ class Node(object):
                         receiver = RTPReceiver(self.node_name, link_config, audio_interface)
                         receiver.run()
                         receiver.loop()
-                    except ElementNotFoundError as e:
-                        link_logger.critical("GStreamer element missing: %s - will now exit" % e)
-                        sys.exit(1)
                     except Exception as e:
                         link_logger.exception("Receiver crashed for some reason! Restarting...")
                         time.sleep(0.1)

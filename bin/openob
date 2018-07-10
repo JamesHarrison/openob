@@ -1,15 +1,13 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+
 import sys
 import argparse
 import logging
-# Thanks gst for messing with argv
-argv = sys.argv
-sys.argv = []
+
 from openob.logger import LoggerFactory
 from openob.node import Node
 from openob.link_config import LinkConfig
 from openob.audio_interface import AudioInterface
-sys.argv = argv
 
 parser = argparse.ArgumentParser(prog='openob', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-v', '--verbose', action='store_const', help='Increase logging verbosity', const=logging.DEBUG, default=logging.INFO)
@@ -21,7 +19,7 @@ subparsers = parser.add_subparsers(help="The link mode to operate in on this end
 
 parser_tx = subparsers.add_parser('tx', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser_tx.add_argument('receiver_host', type=str, help="The receiver for this transmitter. The machine at this address must be running an rx-mode Manager for this link name")
-parser_tx.add_argument('-a', '--audio_input', type=str, choices=['auto', 'alsa', 'jack'], default='auto', help="The audio source type for this end of the link")
+parser_tx.add_argument('-a', '--audio_input', type=str, choices=['auto', 'alsa', 'jack', 'test'], default='auto', help="The audio source type for this end of the link")
 parser_tx_alsa = parser_tx.add_argument_group('alsa', 'Options when using ALSA source type')
 parser_tx_alsa.add_argument('-d', '--alsa_device', type=str, default='hw:0', help="The ALSA device to connect to for input")
 parser_tx_jack = parser_tx.add_argument_group('jack', 'Options when using JACK source type')
@@ -45,7 +43,7 @@ parser_tx_opus.add_argument('--framesize', type=int, default=20, help="Opus fram
 parser_tx.set_defaults(mode='tx', fec=True, dtx=False, multicast=False)
 
 parser_rx = subparsers.add_parser('rx', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser_rx.add_argument('-a', '--audio_output', type=str, choices=['auto', 'alsa', 'jack'], default='auto', help="The audio output type for this end of the link")
+parser_rx.add_argument('-a', '--audio_output', type=str, choices=['auto', 'alsa', 'jack', 'test'], default='auto', help="The audio output type for this end of the link")
 parser_rx_alsa = parser_rx.add_argument_group('alsa', 'Options when using ALSA output type')
 parser_rx_alsa.add_argument('-d', '--alsa_device', type=str, default='hw:0', help="The ALSA device to connect to for input")
 parser_rx_jack = parser_rx.add_argument_group('jack', 'Options when using JACK output type')

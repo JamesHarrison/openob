@@ -14,10 +14,6 @@ OpenOB can be used for:
 
 It can be used on a variety of network connections (including over the internet and mobile links such as 3G), with operating bitrates as low as 16kbps in compressed mode, and support for fully lossless operation in linear PCM mode.
 
-.. WARNING::
-  This is the documentation for the currently-unreleased/unstable OpenOB 3 refactoring. If you are using the 2.3 version from PyPi some documentation may be incorrect or misleading.
-
-
 Documentation Index
 ===================
 
