@@ -1,13 +1,13 @@
-sudo: false
+sudo: required
+dist: xenial
 
 language: python
 
 addons:
   apt:
     packages:
-      - gstreamer1.0-plugins-base # Latest gstreamer has Opus in base
-      - gstreamer1.0-plugins-good # RTP/UDP/audio plugins reside in good
-      - gstreamer1.0-plugins-bad # The version of gstreamer in Trusty still has Opus in bad
+      - gstreamer1.0-plugins-base
+      - gstreamer1.0-plugins-good
       - gir1.2-gstreamer-1.0
       - python-gst-1.0 
       - python-gobject
