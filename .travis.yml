@@ -19,7 +19,7 @@ services:
 
 python:
   - 2.7
-  - 3.4
+  - 3.5
 
 virtualenv:
   system_site_packages: true # Required as Travis runs python in a virtualenv, thus denying access to system GLib
