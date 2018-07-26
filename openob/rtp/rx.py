@@ -68,6 +68,8 @@ class RTPReceiver(object):
                 sink.set_property('connect', 'none')
             sink.set_property('name', self.audio_interface.jack_name)
             sink.set_property('client-name', self.audio_interface.jack_name)
+            if self.audio_interface.jack_port_pattern:
+                sink.set_property('port-pattern', self.audio_interface.jack_port_pattern)
         elif self.audio_interface.type == 'test':
             sink = Gst.ElementFactory.make('fakesink')
 

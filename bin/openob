@@ -44,6 +44,7 @@ parser_tx_alsa.add_argument('-d', '--alsa_device', type=str, default='hw:0', hel
 parser_tx_jack = parser_tx.add_argument_group('jack', 'Options when using JACK source type')
 parser_tx_jack.add_argument('-jn', '--jack_name', type=str, default='openob', help="JACK port name root")
 parser_tx_jack.add_argument('-aj', '--jack_auto', action='store_false', help="Disable auto connection for JACK inputs")
+parser_tx_jack.add_argument('-jp', '--jack_port_pattern', type=str, default=None, help="JACK port pattern")
 parser_tx.add_argument('-r', '--samplerate', type=int, default=0, help="Set the sample rate to request from the input (Hz)")
 parser_tx.add_argument('-e', '--encoding', type=str, choices=['pcm', 'opus'], default='opus', help="The audio encoding type for this link; PCM for linear audio (16-bit), or Opus for encoded audio")
 parser_tx.add_argument('-p', '--port', type=int, default=3000, help="The base port to use for audio transport. This port must be accessible on the receiving host")
@@ -68,6 +69,8 @@ parser_rx_alsa.add_argument('-d', '--alsa_device', type=str, default='hw:0', hel
 parser_rx_jack = parser_rx.add_argument_group('jack', 'Options when using JACK output type')
 parser_rx_jack.add_argument('-jn', '--jack_name', type=str, default='openob', help="JACK port name root")
 parser_rx_jack.add_argument('-aj', '--jack_auto', action='store_false', help="Disable auto connection for JACK inputs")
+parser_rx_jack.add_argument('-jp', '--jack_port_pattern', type=str, default=None, help="JACK port pattern")
+
 parser_rx.set_defaults(mode='rx')
 
 
