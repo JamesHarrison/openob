@@ -9,8 +9,27 @@ from openob.node import Node
 from openob.link_config import LinkConfig
 from openob.audio_interface import AudioInterface
 
-parser = argparse.ArgumentParser(prog='openob', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+class _HelpAction(argparse._HelpAction):
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        parser.print_help()
+
+        subparsers_actions = [
+            action for action in parser._actions
+            if isinstance(action, argparse._SubParsersAction)]
+        for subparsers_action in subparsers_actions:
+            for choice, subparser in subparsers_action.choices.items():
+                print("Subparser '{}'".format(choice))
+                print(subparser.format_help())
+
+        parser.exit()
+
+
+parser = argparse.ArgumentParser(prog='openob', formatter_class=argparse.ArgumentDefaultsHelpFormatter, add_help=False)
+
 parser.add_argument('-v', '--verbose', action='store_const', help='Increase logging verbosity', const=logging.DEBUG, default=logging.INFO)
+parser.add_argument('-h', '--help', action=_HelpAction, help='Show help') 
+
 parser.add_argument('config_host', type=str, help="The configuration server for this OpenOB Node")
 parser.add_argument('node_name', type=str, help="The node name for this end")
 parser.add_argument('link_name', type=str, help="The link name this OpenOB Manager is operating on; must be the same on both Nodes")
@@ -51,8 +70,8 @@ parser_rx_jack.add_argument('-jn', '--jack_name', type=str, default='openob', he
 parser_rx_jack.add_argument('-aj', '--jack_auto', action='store_false', help="Disable auto connection for JACK inputs")
 parser_rx.set_defaults(mode='rx')
 
-opts = parser.parse_args()
 
+opts = parser.parse_args()
 logger_factory = LoggerFactory(level=opts.verbose)
 
 link_config = LinkConfig(opts.link_name, opts.config_host)
