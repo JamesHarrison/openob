@@ -83,7 +83,7 @@ class RTPTransmitter(object):
             source.set_property('name', self.audio_interface.jack_name)
             source.set_property('client-name', self.audio_interface.jack_name)
             if self.audio_interface.jack_port_pattern:
-                sink.set_property('port-pattern', self.audio_interface.jack_port_pattern)
+                source.set_property('port-pattern', self.audio_interface.jack_port_pattern)
 
         elif self.audio_interface.type == 'test':
             source = Gst.ElementFactory.make('audiotestsrc')
