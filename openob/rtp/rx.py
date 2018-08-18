@@ -1,137 +1,201 @@
-import gobject
-import pygst
-pygst.require("0.10")
-import gst
-import re
-from openob.logger import LoggerFactory
+import gi
+gi.require_version('Gst', '1.0')
+from gi.repository import Gst, GLib
+Gst.init(None)
 
+from openob.logger import LoggerFactory
 
 class RTPReceiver(object):
 
     def __init__(self, node_name, link_config, audio_interface):
         """Sets up a new RTP receiver"""
-        self.started = False
-        self.pipeline = gst.Pipeline("rx")
-        self.bus = self.pipeline.get_bus()
-        self.bus.connect("message", self.on_message)
+    
         self.link_config = link_config
         self.audio_interface = audio_interface
+
         self.logger_factory = LoggerFactory()
         self.logger = self.logger_factory.getLogger('node.%s.link.%s.%s' % (node_name, self.link_config.name, self.audio_interface.mode))
-        self.logger.info('Creating RTP reception pipeline')
-        caps = self.link_config.get("caps")
+        self.logger.info('Creating reception pipeline')
+
+        self.build_pipeline()
+
+    def run(self):
+        self.pipeline.set_state(Gst.State.PLAYING)
+        self.logger.info('Listening for stream on %s:%i' % (self.link_config.receiver_host, self.link_config.port))
+
+    def loop(self):
+        try:
+            self.main_loop = GLib.MainLoop()
+            self.main_loop.run()
+        except Exception as e:
+            self.logger.exception('Encountered a problem in the MainLoop, tearing down the pipeline: %s' % e)
+            self.pipeline.set_state(Gst.State.NULL)
+
+    def build_pipeline(self):
+        self.pipeline = Gst.Pipeline.new('rx')
+        
+        self.started = False
+        bus = self.pipeline.get_bus()
+        
+        self.transport = self.build_transport()
+        self.decoder = self.build_decoder()
+        self.output = self.build_audio_interface()
+
+        self.pipeline.add(self.transport)
+        self.pipeline.add(self.decoder)
+        self.pipeline.add(self.output)
+        self.transport.link(self.decoder)
+        self.decoder.link(self.output)
+
+        bus.add_signal_watch()
+        bus.connect('message', self.on_message)
+
+    def build_audio_interface(self):
+        self.logger.debug('Building audio output bin')
+        bin = Gst.Bin.new('audio')
+
         # Audio output
         if self.audio_interface.type == 'auto':
-            self.sink = gst.element_factory_make("autoaudiosink")
+            sink = Gst.ElementFactory.make('autoaudiosink')
         elif self.audio_interface.type == 'alsa':
-            self.sink = gst.element_factory_make("alsasink")
-            self.sink.set_property('device', self.audio_interface.alsa_device)
+            sink = Gst.ElementFactory.make('alsasink')
+            sink.set_property('device', self.audio_interface.alsa_device)
         elif self.audio_interface.type == 'jack':
-            self.sink = gst.element_factory_make("jackaudiosink")
+            sink = Gst.ElementFactory.make('jackaudiosink')
             if self.audio_interface.jack_auto:
-                self.sink.set_property('connect', 'auto')
+                sink.set_property('connect', 'auto')
             else:
-                self.sink.set_property('connect', 'none')
-            self.sink.set_property('name', self.audio_interface.jack_name)
-            self.sink.set_property('client-name', self.audio_interface.jack_name)
+                sink.set_property('connect', 'none')
+            sink.set_property('name', self.audio_interface.jack_name)
+            sink.set_property('client-name', self.audio_interface.jack_name)
+        elif self.audio_interface.type == 'test':
+            sink = Gst.ElementFactory.make('fakesink')
 
+        bin.add(sink)
+        
         # Audio resampling and conversion
-        self.audioresample = gst.element_factory_make("audioresample")
-        self.audioconvert = gst.element_factory_make("audioconvert")
-        self.audioresample.set_property('quality', 6)
+        resample = Gst.ElementFactory.make('audioresample')
+        resample.set_property('quality', 9)
+        bin.add(resample)
+
+        convert = Gst.ElementFactory.make('audioconvert')
+        bin.add(convert)
+
+        # Our level monitor, also used for continuous audio
+        level = Gst.ElementFactory.make('level')
+        level.set_property('message', True)
+        level.set_property('interval', 1000000000)
+        bin.add(level)
+
+        resample.link(convert)
+        convert.link(level)
+        level.link(sink)
+
+        bin.add_pad(Gst.GhostPad.new('sink', resample.get_static_pad('sink')))
+
+        return bin
+
+    def build_decoder(self):
+        self.logger.debug('Building decoder bin')
+        bin = Gst.Bin.new('decoder')
 
         # Decoding and depayloading
         if self.link_config.encoding == 'opus':
-            self.decoder = gst.element_factory_make("opusdec", "decoder")
-            self.decoder.set_property('use-inband-fec', True)  # FEC
-            self.decoder.set_property('plc', True)  # Packet loss concealment
-            self.depayloader = gst.element_factory_make(
-                "rtpopusdepay", "depayloader")
+            decoder = Gst.ElementFactory.make('opusdec', 'decoder')
+            decoder.set_property('use-inband-fec', True)  # FEC
+            decoder.set_property('plc', True)  # Packet loss concealment
+            depayloader = Gst.ElementFactory.make(
+                'rtpopusdepay', 'depayloader')
         elif self.link_config.encoding == 'pcm':
-            self.depayloader = gst.element_factory_make(
-                "rtpL16depay", "depayloader")
-
-        # RTP stuff
-        self.rtpbin = gst.element_factory_make('gstrtpbin')
-        self.rtpbin.set_property('latency', self.link_config.jitter_buffer)
-        self.rtpbin.set_property('autoremove', True)
-        self.rtpbin.set_property('do-lost', True)
-        #self.rtpbin.set_property('buffer-mode', 1)
-        # Where audio comes in
-        self.udpsrc_rtpin = gst.element_factory_make('udpsrc')
-        self.udpsrc_rtpin.set_property('port', self.link_config.port)
-        if self.link_config.multicast:
-            self.udpsrc_rtpin.set_property('auto_multicast', True)
-            self.udpsrc_rtpin.set_property('multicast_group', self.link_config.receiver_host)
-            self.logger.info('Multicast mode enabled')
-        caps = caps.replace('\\', '')
-        # Fix for gstreamer bug in rtpopuspay fixed in GST-plugins-bad
-        # 50140388d2b62d32dd9d0c071e3051ebc5b4083b, bug 686547
-        if self.link_config.encoding == 'opus':
-            caps = re.sub(r'(caps=.+ )', '', caps)
-        udpsrc_caps = gst.caps_from_string(caps)
-        self.udpsrc_rtpin.set_property('caps', udpsrc_caps)
-        self.udpsrc_rtpin.set_property('timeout', 3000000)
-
-        # Our level monitor, also used for continuous audio
-        self.level = gst.element_factory_make("level")
-        self.level.set_property('message', True)
-        self.level.set_property('interval', 1000000000)
-
-        # And now we've got it all set up we need to add the elements
-        self.pipeline.add(
-            self.audioconvert, self.audioresample, self.sink,
-            self.level, self.depayloader, self.rtpbin, self.udpsrc_rtpin)
-        if self.link_config.encoding != 'pcm':
-            self.pipeline.add(self.decoder)
-            gst.element_link_many(
-                self.depayloader, self.decoder, self.audioconvert)
+            depayloader = Gst.ElementFactory.make(
+                'rtpL16depay', 'depayloader')
         else:
-            gst.element_link_many(self.depayloader, self.audioconvert)
-        gst.element_link_many(
-            self.audioconvert, self.audioresample, self.level,
-            self.sink)
-        self.logger.debug(self.sink)
-        # Now the RTP pads
-        self.udpsrc_rtpin.link_pads('src', self.rtpbin, 'recv_rtp_sink_0')
+            self.logger.critical('Unknown encoding type %s' % self.link_config.encoding)
+        
+        bin.add(depayloader)
 
+        bin.add_pad(Gst.GhostPad.new('sink', depayloader.get_static_pad('sink')))
+
+        if 'decoder' in locals():
+            bin.add(decoder)
+            depayloader.link(decoder)
+            bin.add_pad(Gst.GhostPad.new('src', decoder.get_static_pad('src')))
+        else:
+            bin.add_pad(Gst.GhostPad.new('src', depayloader.get_static_pad('src')))
+
+        return bin
+
+    def build_transport(self):
+        self.logger.debug('Building RTP transport bin')
+        bin = Gst.Bin.new('transport')
+
+        caps = self.link_config.get('caps').replace('\\', '')
+        udpsrc_caps = Gst.Caps.from_string(caps)
+        
+        # Where audio comes in
+        udpsrc = Gst.ElementFactory.make('udpsrc', 'udpsrc')
+        udpsrc.set_property('port', self.link_config.port)
+        udpsrc.set_property('caps', udpsrc_caps)
+        udpsrc.set_property('timeout', 3000000000)
+        if self.link_config.multicast:
+            udpsrc.set_property('auto_multicast', True)
+            udpsrc.set_property('multicast_group', self.link_config.receiver_host)
+            self.logger.info('Multicast mode enabled')
+        bin.add(udpsrc)
+
+        rtpbin = Gst.ElementFactory.make('rtpbin', 'rtpbin')
+        rtpbin.set_property('latency', self.link_config.jitter_buffer)
+        rtpbin.set_property('autoremove', True)
+        rtpbin.set_property('do-lost', True)
+        bin.add(rtpbin)
+
+        udpsrc.link_pads('src', rtpbin, 'recv_rtp_sink_0')
+
+        valve = Gst.ElementFactory.make('valve', 'valve')
+        bin.add(valve)
+        
+        bin.add_pad(Gst.GhostPad.new('src', valve.get_static_pad('src')))
         # Attach callbacks for dynamic pads (RTP output) and busses
-        self.rtpbin.connect('pad-added', self.rtpbin_pad_added)
-        self.bus.add_signal_watch()
+        rtpbin.connect('pad-added', self.rtpbin_pad_added)
+
+        return bin
 
     # Our RTPbin won't give us an audio pad till it receives, so we need to
     # attach it here
     def rtpbin_pad_added(self, obj, pad):
+        valve = self.transport.get_by_name('valve')
+        rtpbin = self.transport.get_by_name('rtpbin')
+
         # Unlink first.
-        self.rtpbin.unlink(self.depayloader)
+        rtpbin.unlink(valve)
         # Relink
-        self.rtpbin.link(self.depayloader)
+        rtpbin.link(valve)
 
     def on_message(self, bus, message):
-        if message.type == gst.MESSAGE_ELEMENT:
-            if message.structure.get_name() == 'level':
-                if self.started is False:
-                    self.started = True
-                    #gst.DEBUG_BIN_TO_DOT_FILE(self.pipeline, gst.DEBUG_GRAPH_SHOW_ALL, 'rx-graph')
-                    if len(message.structure['peak']) == 1:
-                        self.logger.info("Receiving mono audio transmission")
+        if message.type == Gst.MessageType.ELEMENT:
+            struct = message.get_structure()
+            if struct != None:
+                if struct.get_name() == 'level':
+                    if self.started is False:
+                        self.started = True
+                        if len(struct.get_value('peak')) == 1:
+                            self.logger.info('Receiving mono audio transmission')
+                        else:
+                            self.logger.info('Receiving stereo audio transmission')
                     else:
-                        self.logger.info("Receiving stereo audio transmission")
+                        if len(struct.get_value('peak')) == 1:
+                            self.logger.debug('Level: %.2f', struct.get_value('peak')[0])
+                        else:
+                            self.logger.debug('Levels: L %.2f R %.2f' % (struct.get_value('peak')[0], struct.get_value('peak')[1]))
 
-            if message.structure.get_name() == 'GstUDPSrcTimeout':
-                # Only UDP source configured to emit timeouts is the audio
-                # input
-                self.logger.critical("No data received for 3 seconds!")
-                if self.started:
-                    self.logger.critical("Shutting down receiver for restart")
-                    self.pipeline.set_state(gst.STATE_NULL)
-                    self.loop.quit()
+                if struct.get_name() == 'GstUDPSrcTimeout':
+                    # Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, 'rx-graph')                    
+                    # Only UDP source configured to emit timeouts is the audio input
+                    self.logger.critical('No data received for 3 seconds!')
+                    if self.started:
+                        self.logger.critical('Shutting down receiver for restart')
+                        self.pipeline.set_state(Gst.State.NULL)
+                        self.main_loop.quit()
         return True
 
-    def run(self):
-        self.pipeline.set_state(gst.STATE_PLAYING)
-        self.logger.info('Listening for stream on %s:%i' % (self.link_config.receiver_host, self.link_config.port))
 
-    def loop(self):
-        self.loop = gobject.MainLoop()
-        self.loop.run()

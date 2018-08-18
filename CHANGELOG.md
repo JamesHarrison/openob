@@ -1,3 +1,8 @@
+## 4.0.0-dev
+
+* Upgraded GStreamer libraries to ^1.0
+* Added Python 3 compatability
+
 ## 3.1
 
 * Improved command line interface (Jonty Sewell)

@@ -17,25 +17,27 @@ OpenOB relies on the GStreamer media framework for the underlying audio transpor
 
 Additionally, OpenOB needs some Python extensions, and on the configuration server, we must also install the Redis server used for configuration management.
 
-On Debian you can install the prerequisites with the following command:
+On Debian Stretch / Ubuntu Xenial you can install the prerequisites with the following command:
 
 .. code-block:: bash
 
-  sudo apt-get install python-gst0.10 python-setuptools gstreamer0.10-plugins-base gstreamer0.10-plugins-bad gstreamer0.10-plugins-good gstreamer0.10-plugins-ugly gstreamer0.10-tools python-gobject python-gobject-2 gstreamer0.10-alsa python-argparse python-redis
+  sudo apt install gstreamer1.0-plugins-base gstreamer1.0-plugins-good gir1.2-gstreamer-1.0 python-gst-1.0 python-redis python-gi python-setuptools
 
-This should also work on Ubuntu. Your GStreamer implementation must be recent enough to support Opus; this is supported in Ubuntu 13.04 and Debian Wheezy or newer. In order to ensure compatibility, it is recommended that both ends of the link use the same version of GStreamer, which is most easily achieved by running the same operating system version on each end and installing the distribution's packages as detailed above.
+If you wish to use Python 3, you must install `python3-redis`, `python3-gst-1.0` and `python3-setuptools` instead of the Python 2 equivalents.
+The GStreamer Opus plugin has graduated from the 'bad' plugins repository to the 'base' repository as of 2015.  Older distributions may require the `gstreamer1.0-plugins-bad` package installed.
+In order to ensure compatibility, it is recommended that both ends of the link use the same version of GStreamer, which is most easily achieved by running the same operating system version on each end and installing the distribution's packages as detailed above.
 
 On one machine, which for this tutorial we'll assume is also our receiver, we'll install Redis:
 
 .. code-block:: bash
 
-  [user@rx-host] $ sudo apt-get install redis-server
+  [user@rx-host] $ sudo apt install redis-server
 
 We also need to make sure Redis binds itself to be accessible to remote machines, not just localhost. You can edit ``/etc/redis/redis.conf`` yourself or run the following to instantly make this adjustment
 
 .. code-block:: bash
 
-  [user@rx-host] $ sudo sed -i.bak ‘s/bind 127.*/bind 0.0.0.0/’ /etc/redis/redis.conf && sudo service redis restart
+  [user@rx-host] $ sudo sed -i.bak ‘s/bind 127.*/bind 0.0.0.0/’ /etc/redis/redis.conf && sudo service redis-server restart
 
 Installing OpenOB
 -----------------
@@ -44,7 +46,7 @@ Now we can install OpenOB itself. You can install from git for the bleeding edge
 
 .. code-block:: bash
 
-  sudo easy_install OpenOB
+  sudo pip install OpenOB
 
 Networking
 ----------
