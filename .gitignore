@@ -10,3 +10,4 @@ dist
 .pypirc
 venv/
 *.swp
+.eggs/
