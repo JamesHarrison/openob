@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 
 from setuptools import setup
+long_description = ''
+with open('README.md', 'r') as f:
+    long_description = f.read()
 setup(name='OpenOB',
       version='4.0.1',
+      long_description=long_description,
+      long_description_content_type='text/markdown',
       description='Broadcast audio over IP codec built with PyGST',
       author='James Harrison',
       author_email='james@talkunafraid.co.uk',
@@ -13,7 +18,7 @@ setup(name='OpenOB',
       classifiers=["Programming Language :: Python",
                    "Programming Language :: Python :: 3",
                    "Programming Language :: Python :: 2",
-                   "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+                   "License :: OSI Approved :: BSD License",
                    "Natural Language :: English",
                    "Operating System :: POSIX :: Linux",
                    "Topic :: Communications",
