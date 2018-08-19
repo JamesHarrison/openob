@@ -49,3 +49,5 @@ class AudioInterface(object):
                 self.set("jack_name", opts.jack_name)
             else:
                 self.set("jack_name", "openob")
+            if opts.jack_port_pattern is not None:
+                self.set("jack_port_pattern", opts.jack_port_pattern)

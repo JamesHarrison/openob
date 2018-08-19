@@ -9,3 +9,4 @@ dist/*
 dist
 .pypirc
 venv/
+*.swp
