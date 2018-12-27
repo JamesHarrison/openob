@@ -29,6 +29,7 @@ Or, if you would prefer to use Python 3 (or it is the default in your distributi
 
   sudo apt install gstreamer1.0-plugins-base gstreamer1.0-plugins-good gir1.2-gstreamer-1.0 python3-gst-1.0 python3-redis python3-gi python3-setuptools
 
+To use an ALSA source, ensure the `gstreamer1.0-alsa` package is also installed.
 The GStreamer Opus plugin has graduated from the 'bad' plugins repository to the 'base' repository as of 2015.  Older distributions may require the `gstreamer1.0-plugins-bad` package installed.
 In order to ensure compatibility, it is recommended that both ends of the link use the same version of GStreamer, which is most easily achieved by running the same operating system version on each end and installing the distribution's packages as detailed above.
 
