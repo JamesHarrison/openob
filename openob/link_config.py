@@ -48,6 +48,10 @@ class LinkConfig(object):
     def set(self, key, value):
         """Set a value in the config store"""
         scoped_key = self.scoped_key(key)
+
+        if key in self.bool_properties:
+            value = int(value)
+        
         self.redis.set(scoped_key, value)
         self.logger.debug("Set %s to %s" % (scoped_key, value))
         return value
