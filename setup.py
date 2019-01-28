@@ -5,7 +5,7 @@ long_description = ''
 with open('README.md', 'r') as f:
     long_description = f.read()
 setup(name='OpenOB',
-      version='4.0.2',
+      version='4.0.3',
       long_description=long_description,
       long_description_content_type='text/markdown',
       description='Broadcast audio over IP codec built with PyGST',
