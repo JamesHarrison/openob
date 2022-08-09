@@ -7,6 +7,15 @@ OpenOB (Open Outside Broadcast) is a simple Python/GStreamer based application w
 
 It is primarily designed for broadcast applications including (but not limited to) contribution links, emission links, talkback, and intranet audio distribution systems.
 
+## NOTICE
+
+**The openob project is not being actively maintained or developed. Use at your own risk.**
+
+Due to time constraints and focus elsewhere I'm simply not able to do the major refactoring required to update OpenOB for modern GStreamer/Python, let alone the tidying up and improvements that it could really use under the hood.
+
+It's open source - if you'd like to take it on, fork away!
+
+
 ## Features
 
 * IETF standard Opus codec - variable bandwidth and bitrate, 16-384kbps
