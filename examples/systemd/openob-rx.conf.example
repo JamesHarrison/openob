@@ -1,0 +1,20 @@
+# OpenOB instance config — RX (receiver) end.
+#
+# Copy to /etc/openob/<instance-name>.conf and adapt the values below.
+# Then enable the link with:
+#     sudo systemctl enable --now openob@<instance-name>
+#
+# The receiver typically also runs the Redis configuration server — the
+# openob@.service unit declares After=redis-server.service for that case.
+# If your Redis is hosted elsewhere, both ends just need to reach it.
+
+OPENOB_ARGS="127.0.0.1 studio-rx studio-stl rx -a alsa -d hw:0"
+
+# Reference (run `openob -h` for the full list):
+#   1st positional   redis host (or host:port; bracket form for IPv6)
+#   2nd positional   node name (free-form, identifies *this* end)
+#   3rd positional   link name (must match the TX end)
+#   4th positional   mode: rx
+#   -a / --audio_output   auto | alsa | jack | test | wav
+#   -d / --alsa_device    e.g. hw:0
+#   --wav_file PATH       capture decoded audio to a WAV (test/debug)

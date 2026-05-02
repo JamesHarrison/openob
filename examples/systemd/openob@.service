@@ -1,0 +1,61 @@
+[Unit]
+Description=OpenOB %i broadcast audio link
+Documentation=https://github.com/JamesHarrison/openob
+
+# Wait for the network and (if Redis is local) the Redis server. If your
+# Redis lives on a remote host, drop the redis-server dependencies — only
+# the network-online target matters for an outbound connection.
+After=network-online.target sound.target redis-server.service
+Wants=network-online.target redis-server.service
+
+# Bail out if the service crashes too quickly too often. systemd 230+ moved
+# these keys from [Service] into [Unit].
+StartLimitIntervalSec=60s
+StartLimitBurst=5
+
+[Service]
+Type=simple
+
+# Each instance reads its CLI args from an env file, so a single template
+# unit handles many links. Create /etc/openob/<instance>.conf with a single
+# OPENOB_ARGS=... line — see openob-tx.conf.example / openob-rx.conf.example.
+EnvironmentFile=/etc/openob/%i.conf
+
+# The path here assumes a system-wide install (`pip install OpenOB`). For a
+# venv install (`pip install -e .` inside e.g. /opt/openob), swap to
+# /opt/openob/bin/openob and adjust User= if the venv lives in a home dir.
+ExecStart=/usr/local/bin/openob $OPENOB_ARGS
+
+# Restart on crash. openob's internal supervisor recovers from pipeline
+# failures on its own, so a non-zero exit means something genuinely
+# unrecoverable (config error, missing GStreamer plugin, redis unreachable
+# for an extended period). A clean SIGTERM exits 0 — systemctl stop will
+# NOT trigger a restart.
+Restart=on-failure
+RestartSec=2s
+
+# Run unprivileged. The 'openob' user must be in the 'audio' group to reach
+# ALSA / JACK devices on most distros — see README.md for the create-user
+# snippet. JACK 2 users may also need access to /dev/shm; if your link uses
+# JACK, add `SupplementaryGroups=audio jackuser` (or whatever your distro
+# names that group) here.
+User=openob
+Group=openob
+SupplementaryGroups=audio
+
+# Hardening that doesn't conflict with audio I/O. ProtectSystem=strict
+# makes /usr and /etc read-only for the service. ReadWritePaths is empty
+# because openob doesn't write anywhere by default — add e.g. /var/log/openob
+# if you redirect logs to a file via standard shell tooling.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictRealtime=false
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

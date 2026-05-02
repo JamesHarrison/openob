@@ -1,4 +1,9 @@
-FROM python:3.12-slim-bookworm
+# Debian Bookworm directly (not python:3.12-slim) so apt's python3-gi /
+# python3-gst-1.0, which target Debian's system Python 3.11, are usable from
+# the venv. The python:3.X-slim images ship their own Python under
+# /usr/local, leaving apt's `gi` installed for a different interpreter and
+# unreachable via --system-site-packages.
+FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -8,10 +13,13 @@ ENV DEBIAN_FRONTEND=noninteractive \
     VIRTUAL_ENV=/opt/venv \
     PATH=/opt/venv/bin:$PATH
 
-# GStreamer 1.22 (Debian 12 / Bookworm) + the GI bindings + redis-server.
-# python3-gi has no wheel, so we install it via apt and build a venv with
-# --system-site-packages so it's visible to our pip-installed package.
+# GStreamer 1.22 (Bookworm) + GI bindings + redis-server. python3-gi has no
+# wheel, so we install it via apt and build the venv with
+# --system-site-packages so it's importable inside the venv.
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3 \
+        python3-venv \
+        python3-pip \
         gstreamer1.0-tools \
         gstreamer1.0-plugins-base \
         gstreamer1.0-plugins-good \
@@ -28,8 +36,8 @@ RUN python3 -m venv --system-site-packages "$VIRTUAL_ENV" \
 
 WORKDIR /app
 
-# Install the package + test deps. Copy only the metadata first so this layer
-# caches across source-only changes.
+# Install the package + test deps. Copy metadata first so this layer caches
+# across source-only changes.
 COPY pyproject.toml README.md ./
 COPY openob ./openob
 COPY tests ./tests

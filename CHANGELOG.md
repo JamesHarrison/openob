@@ -1,3 +1,10 @@
+## 5.0.1
+
+* Lowered the Python floor to 3.9 so OpenOB runs on pre-Bookworm distros (Debian 11 Bullseye = Python 3.9, GStreamer 1.18). All `X | Y` annotations are already gated by `from __future__ import annotations` so the change is metadata-only on the source side.
+* Added a tiny GStreamer-version-compat shim: `request_pad_simple` (1.20+) falls back to `get_request_pad` (1.18 and earlier) so `rtpbin` pad-request works across the full 1.18 → current range.
+* Verified end-to-end on both Debian 12 / GStreamer 1.22 / Python 3.11 *and* Debian 11 / GStreamer 1.18 / Python 3.9.
+* Widened the `redis` dependency to `>=3` (no upper bound) so OS-supplied installs (Debian 11 ships redis-py 3.5.x) coexist with the latest releases.
+
 ## 5.0.0
 
 * Revival release: codebase modernised for current Python and GStreamer

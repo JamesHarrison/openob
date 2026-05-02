@@ -18,7 +18,7 @@ Or, equivalently:
 ./scripts/local_ci.sh
 ```
 
-This builds the test image (Debian 12 + GStreamer 1.22 + Python 3.12) and runs
+This builds the test image (Debian 12 + GStreamer 1.22 + Python 3.11) and runs
 `pytest`. Any args you pass are forwarded to pytest, e.g.:
 
 ```sh

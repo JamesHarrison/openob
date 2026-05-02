@@ -31,6 +31,21 @@ _PLUGIN_PACKAGE_HINT: dict[str, str] = {
 }
 
 
+def request_pad(element, name: str):
+    """
+    Request a named pad from an element across GStreamer versions.
+
+    GStreamer 1.20 added :py:meth:`request_pad_simple` as the new, preferred
+    spelling and deprecated :py:meth:`get_request_pad`. We support both 1.18
+    (Debian Bullseye) and 1.20+ (Bookworm onwards) by trying the new name
+    first and falling back to the legacy one.
+    """
+    fn = getattr(element, 'request_pad_simple', None)
+    if fn is not None:
+        return fn(name)
+    return element.get_request_pad(name)
+
+
 def make_element(factory: str, name: str | None = None):
     """
     Create a GStreamer element or raise a useful error.

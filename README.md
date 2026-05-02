@@ -19,6 +19,45 @@ OpenOB 5.0 is a revival of the previously-unmaintained codebase, modernised for 
 * System latency in low hundreds to tens of milliseconds for most applications; more over the internet/lossy links
 * Automatic link recovery in the event of failures
 
+## Getting started
+
+Linux is **highly** recommended as the OS of choice for OpenOB operation, though Windows and OSX will work if you can satisfy the dependencies. Debian and derivatives are the primary distro for tests.
+
+OpenOB is a single Python package with minimal dependencies. You'll need to install Python and GStreamer, for example:
+
+```bash
+apt-get install -y --no-install-recommends \
+        gstreamer1.0-tools \
+        gstreamer1.0-plugins-base \
+        gstreamer1.0-plugins-good \
+        gstreamer1.0-libav \
+        gir1.2-gstreamer-1.0 \
+        python3-gi \
+        python3-gst-1.0
+```
+
+You also need a Redis server running, which only one end requires - this is usually whichever end doesn't move so much. It doesn't need to be installed on the same host as the audio source or target. This is the `redis-server` package on most distros.
+
+Since most distros now don't permit global package installation, it's recommended to set up a virtual environment to install OpenOB, such as:
+
+```bash
+python3 -m venv openob-venv
+source openob-venv/bin/activate
+pip install openob
+openob --help
+```
+
+You can run this binary from the global scope by addressing the full path of the binary, which is useful for systemd init scripts:
+
+```bash
+$ which openob
+/home/james/openob-venv/bin/openob
+```
+
+## Running on boot
+
+A templated systemd unit and example per-link config files live in [`examples/systemd/`](examples/systemd/) — one unit handles many TX/RX links, restarts on crash, and routes logs through `journalctl`. See the README in that directory for setup.
+
 ## Running tests / development
 
 End-to-end tests live in `tests/` and exercise real network and audio flow against private redis-server and GStreamer pipelines. The simplest path is Docker:

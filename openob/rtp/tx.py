@@ -15,6 +15,7 @@ from openob.rtp._gst_helpers import (  # noqa: E402
     channels_from_pad,
     format_peaks,
     make_element,
+    request_pad,
 )
 
 if TYPE_CHECKING:
@@ -237,7 +238,7 @@ class RTPTransmitter:
             self.logger.info('Multicast mode enabled')
         bin.add(udpsink)
 
-        bin.add_pad(Gst.GhostPad.new('sink', rtpbin.request_pad_simple('send_rtp_sink_0')))
+        bin.add_pad(Gst.GhostPad.new('sink', request_pad(rtpbin, 'send_rtp_sink_0')))
 
         rtpbin.link_pads('send_rtp_src_0', udpsink, 'sink')
 
