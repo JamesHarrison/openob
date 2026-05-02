@@ -1,0 +1,86 @@
+"""Internal GStreamer helpers shared by the tx and rx pipelines."""
+from __future__ import annotations
+
+import gi
+gi.require_version('Gst', '1.0')
+from gi.repository import Gst  # noqa: E402
+
+# Idempotent — safe to call when Gst is already initialised by tx.py/rx.py.
+Gst.init(None)
+
+
+# Hint at the Debian/Ubuntu package most likely missing for a given element.
+# Not exhaustive — a best-effort nudge for the common cases.
+_PLUGIN_PACKAGE_HINT: dict[str, str] = {
+    'opusenc': 'gstreamer1.0-plugins-base',
+    'opusdec': 'gstreamer1.0-plugins-base',
+    'rtpopuspay': 'gstreamer1.0-plugins-good',
+    'rtpopusdepay': 'gstreamer1.0-plugins-good',
+    'rtpL16pay': 'gstreamer1.0-plugins-good',
+    'rtpL16depay': 'gstreamer1.0-plugins-good',
+    'rtpbin': 'gstreamer1.0-plugins-good',
+    'udpsink': 'gstreamer1.0-plugins-good',
+    'udpsrc': 'gstreamer1.0-plugins-good',
+    'level': 'gstreamer1.0-plugins-good',
+    'wavenc': 'gstreamer1.0-plugins-good',
+    'audiotestsrc': 'gstreamer1.0-plugins-base',
+    'jackaudiosrc': 'gstreamer1.0-plugins-good',
+    'jackaudiosink': 'gstreamer1.0-plugins-good',
+    'alsasrc': 'gstreamer1.0-plugins-base',
+    'alsasink': 'gstreamer1.0-plugins-base',
+}
+
+
+def make_element(factory: str, name: str | None = None):
+    """
+    Create a GStreamer element or raise a useful error.
+
+    ``Gst.ElementFactory.make`` returns ``None`` (and emits a `g_warning`
+    nobody reads) when the plugin is missing. Wrapping it lets us turn that
+    silent failure into a `RuntimeError` with a hint about which apt package
+    to install.
+    """
+    elem = Gst.ElementFactory.make(factory, name)
+    if elem is None:
+        hint = _PLUGIN_PACKAGE_HINT.get(factory)
+        suffix = f" (try installing {hint})" if hint else ""
+        raise RuntimeError(
+            f"GStreamer element {factory!r} is not available — the plugin "
+            f"providing it is missing or failed to load{suffix}."
+        )
+    return elem
+
+
+def channel_descriptor(n: int) -> str:
+    """Render a channel count as 'mono', 'stereo', or 'N-channel'."""
+    return {1: 'mono', 2: 'stereo'}.get(n, f'{n}-channel')
+
+
+def channels_from_pad(pad) -> tuple[str | None, int | None]:
+    """
+    Read negotiated caps from a pad and return ``(caps_str, n_channels)``.
+
+    Returns ``(None, None)`` if the pad has no current caps yet (e.g. the
+    pipeline hasn't reached PAUSED/PLAYING). ``n_channels`` is ``None`` when
+    caps are present but the structure has no `channels` field.
+    """
+    if pad is None:
+        return None, None
+    caps = pad.get_current_caps()
+    if caps is None or caps.get_size() == 0:
+        return None, None
+    struct = caps.get_structure(0)
+    ok, n = struct.get_int('channels')
+    return caps.to_string(), (n if ok else None)
+
+
+def format_peaks(peaks) -> str:
+    """
+    Render a level-element ``peak`` array for debug logging. Handles 1
+    (Level), 2 (Levels: L … R …), and N>2 (Levels: 0:… 1:… …) channel cases.
+    """
+    if len(peaks) == 1:
+        return f'{peaks[0]:.2f}'
+    if len(peaks) == 2:
+        return f'L {peaks[0]:.2f} R {peaks[1]:.2f}'
+    return ' '.join(f'{i}:{p:.2f}' for i, p in enumerate(peaks))

@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import logging
 
-class LoggerFactory(object):
-    _isSetup = False
 
-    def __init__(self, level=logging.DEBUG):
+class LoggerFactory:
+    _isSetup: bool = False
+
+    def __init__(self, level: int = logging.DEBUG) -> None:
         # Set up the top level logger ONCE
         if LoggerFactory._isSetup is False:
             logger = logging.getLogger("openob")
@@ -15,7 +18,7 @@ class LoggerFactory(object):
             logger.addHandler(ch)
             LoggerFactory._isSetup = True
 
-    def getLogger(self, name, level=logging.DEBUG):
+    def getLogger(self, name: str, level: int = logging.DEBUG) -> logging.Logger:
         logger = logging.getLogger("openob.%s" % name)
         logger.setLevel(level)
         return logger

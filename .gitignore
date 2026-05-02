@@ -9,5 +9,9 @@ dist/*
 dist
 .pypirc
 venv/
+.venv/
 *.swp
 .eggs/
+__pycache__/
+.pytest_cache/
+.idea/

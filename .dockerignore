@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.venv
+venv
+**/__pycache__
+**/*.pyc
+**/*.egg-info
+build
+dist
+doc
+.travis.yml
+CHANGELOG.md
+CLAUDE.md

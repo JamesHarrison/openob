@@ -1,0 +1,16 @@
+services:
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openob-tests:latest
+    # Volume-mount the source so iterating doesn't require a rebuild. The
+    # `pip install -e .` from the Dockerfile already wired the package up
+    # against /app, so source edits are picked up live.
+    volumes:
+      - ./openob:/app/openob
+      - ./tests:/app/tests
+      - ./pyproject.toml:/app/pyproject.toml:ro
+    # Default command runs the full suite. Override on the CLI for ad-hoc:
+    #   docker compose run --rm tests pytest tests/test_endtoend.py::test_... -v
+    command: ["pytest", "tests/", "-v", "--timeout=60"]

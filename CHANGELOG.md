@@ -1,3 +1,17 @@
+## 5.0.0
+
+* Revival release: codebase modernised for current Python and GStreamer
+* Python 3.10+ required (Python 2 support dropped); type hints added across the project
+* GStreamer 1.22+ required: replaced deprecated `get_request_pad` with `request_pad_simple`, switched to canonical hyphenated property names (`auto-multicast`, `multicast-group`, `post-messages`)
+* redis-py 5.x compatible: switched from `StrictRedis` to `Redis`, dropped removed `charset` kwarg, fixed boolean type-coercion bug in `LinkConfig.get`
+* Fixed Python 2 tuple-style `raise` in `LinkConfig.commit_changes`
+* Configuration host now accepts `host:port` form for non-default Redis ports
+* New `--test_wave` flag on `openob tx -a test` to select audiotestsrc waveform (sine, pink-noise, white-noise, etc.)
+* New `wav` audio output mode on `openob rx` (`-a wav --wav_file PATH`) for capturing the decoded stream to a WAV file — used by the test harness
+* Switched packaging from `setup.py` to `pyproject.toml` (PEP 621)
+* New end-to-end test harness in `tests/` covering pink-noise round-trip over both PCM and Opus, asserting captured WAV is non-silent
+* Replaced Travis CI with GitHub Actions running tests in a Docker Compose container; same `docker compose run --rm tests` works locally on any platform
+
 ## 4.0.0-dev
 
 * Upgraded GStreamer libraries to ^1.0

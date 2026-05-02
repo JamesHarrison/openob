@@ -1,53 +1,68 @@
-from openob.logger import LoggerFactory
+from __future__ import annotations
+
+import argparse
+from dataclasses import dataclass
+from typing import Literal
 
 
-class AudioInterface(object):
-
+@dataclass(frozen=True)
+class AudioInterface:
     """
-        The AudioInterface class describes an audio interface on a Node.
-        The configuration is not shared across the network. The type property of
-        an AudioInterface should define the mode of link operation.
+    Per-node audio I/O configuration. Not shared across the network — each
+    node picks its input (TX) or output (RX) type independently.
+
+    Construct via :meth:`from_argparse` from the openob.cli ``Namespace``.
+    Mode-specific fields default to ``None`` when not applicable: e.g. an RX
+    interface has ``test_wave=None``, a TX interface has ``wav_file=None``.
     """
 
-    def __init__(self, node_name, interface_name='default'):
-        self.interface_name = interface_name
-        self.node_name = node_name
-        self.logger_factory = LoggerFactory()
-        self.logger = self.logger_factory.getLogger('node.%s.audio_interface.%s' 
-                                                    % (self.node_name, self.interface_name))
-        self.config = dict()
+    node_name: str
+    mode: Literal["tx", "rx"]
+    type: str
 
-    def set(self, key, value):
-        """Set a config value"""
-        self.logger.debug("Set %s to %s" % (key, value))
-        self.config[key] = value
+    # TX-only
+    samplerate: int = 0
+    channels: int = 0  # 0 = let the source/audioconvert negotiate; pin via --channels
+    test_wave: str | None = None
 
-    def get(self, key):
-        """Get a config value"""
-        value = self.config[key]
-        self.logger.debug("Fetched %s, got %s" % (key, value))
-        return value
+    # ALSA (TX or RX)
+    alsa_device: str | None = None
 
-    def __getattr__(self, key):
-        """Convenience method to access get"""
-        return self.get(key)
+    # JACK (TX or RX)
+    jack_auto: bool | None = None
+    jack_name: str | None = None
+    jack_port_pattern: str | None = None
 
-    def set_from_argparse(self, opts):
-        """Set up the audio interface from argparse options"""
-        self.set("mode", opts.mode)
+    # RX-only
+    wav_file: str | None = None
 
+    @classmethod
+    def from_argparse(cls, opts: argparse.Namespace) -> AudioInterface:
+        """Build an :class:`AudioInterface` from a parsed CLI Namespace."""
         if opts.mode == "tx":
-            self.set("type", opts.audio_input)
-            self.set("samplerate", opts.samplerate)
-        elif opts.mode == "rx":
-            self.set("type", opts.audio_output)
-        if self.get("type") == "alsa":
-            self.set("alsa_device", opts.alsa_device)
-        elif self.get("type") == "jack":
-            self.set("jack_auto", opts.jack_auto)
-            if opts.jack_name is not None:
-                self.set("jack_name", opts.jack_name)
-            else:
-                self.set("jack_name", "openob")
-            if opts.jack_port_pattern is not None:
-                self.set("jack_port_pattern", opts.jack_port_pattern)
+            kind = opts.audio_input
+            return cls(
+                node_name=opts.node_name,
+                mode="tx",
+                type=kind,
+                samplerate=opts.samplerate,
+                channels=opts.channels,
+                test_wave=opts.test_wave if kind == "test" else None,
+                alsa_device=opts.alsa_device if kind == "alsa" else None,
+                jack_auto=opts.jack_auto if kind == "jack" else None,
+                jack_name=opts.jack_name if kind == "jack" else None,
+                jack_port_pattern=opts.jack_port_pattern if kind == "jack" else None,
+            )
+        if opts.mode == "rx":
+            kind = opts.audio_output
+            return cls(
+                node_name=opts.node_name,
+                mode="rx",
+                type=kind,
+                wav_file=opts.wav_file if kind == "wav" else None,
+                alsa_device=opts.alsa_device if kind == "alsa" else None,
+                jack_auto=opts.jack_auto if kind == "jack" else None,
+                jack_name=opts.jack_name if kind == "jack" else None,
+                jack_port_pattern=opts.jack_port_pattern if kind == "jack" else None,
+            )
+        raise ValueError("Unknown mode %r" % opts.mode)
