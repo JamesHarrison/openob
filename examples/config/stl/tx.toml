@@ -1,0 +1,31 @@
+# Studio-transmitter link — TX side.
+#
+# Fixed-line WAN (fibre, leased line, MPLS, even decent cable). Loss is
+# rare, jitter is low, both endpoints have static or stable IPs. Goal is
+# transparent-quality audio with end-to-end latency low enough for
+# headphone monitoring at the far end.
+
+encoding      = "opus"
+bitrate       = 192            # transparent for music; 128 is fine for speech
+samplerate    = 48000
+channels      = 2
+port          = 3000
+receiver_host = "studio.example.com"
+
+# 40 ms is the default; bump to 60-80 ms if you see occasional underruns
+# in the RX log. Fixed-line WAN typically doesn't need more.
+jitter_buffer = 40
+
+# Belt-and-braces: when the rare packet does go missing, RTX recovers it
+# without an audible glitch. 200 ms of buffer is more than enough at
+# fixed-line RTTs (typically <50 ms). 0 disables.
+retransmission_time_limit = 200
+
+# SRTP with a per-link PSK. Comment the security line out and remove psk
+# for cleartext. The PSK is loaded from an envvar so it doesn't sit in
+# /etc/openob/links/ readable by anyone with file-system access.
+security = "psk"
+psk      = "${OPENOB_PSK_STL}"
+
+audio_input = "alsa"
+alsa_device = "hw:0"

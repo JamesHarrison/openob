@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,7 @@ import pytest
 from openob.link_config import (
     ConfigError,
     LinkConfig,
+    TxPath,
     load_link_config,
     sanitize_caps_for_wire,
 )
@@ -387,6 +389,55 @@ def test_retransmission_time_limit_via_cli_override(tmp_path):
     assert cfg.tx_host == '10.0.0.5'
 
 
+def test_rx_rtx_without_auth_or_tx_host_rejected(tmp_path):
+    """RX with security=none + RTX must require an explicit tx_host —
+    otherwise a spoofed caps signal would steer the NACK back-channel."""
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        retransmission_time_limit = 200
+    ''')
+    with pytest.raises(ConfigError, match='tx_host'):
+        load_link_config('mylink', 'rx', config_dir=tmp_path)
+
+
+def test_rx_rtx_with_psk_does_not_require_tx_host(tmp_path):
+    """PSK authenticates the caps signal source, so no tx_host needed."""
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        retransmission_time_limit = 200
+        security = "psk"
+        psk = "shared-secret"
+    ''')
+    cfg = load_link_config('mylink', 'rx', config_dir=tmp_path)
+    assert cfg.retransmission_time_limit == 200
+    assert cfg.tx_host is None
+
+
+def test_rx_rtx_with_explicit_tx_host_allowed(tmp_path):
+    """security=none + RTX + tx_host explicitly set — operator has pinned
+    the back-channel target so spoofing the caps source is harmless."""
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        retransmission_time_limit = 200
+        tx_host = "10.0.0.5"
+    ''')
+    cfg = load_link_config('mylink', 'rx', config_dir=tmp_path)
+    assert cfg.retransmission_time_limit == 200
+    assert cfg.tx_host == '10.0.0.5'
+
+
+def test_tx_rtx_without_auth_still_allowed(tmp_path):
+    """The validation only fires on RX — TX doesn't have a back-channel
+    direction-of-travel issue."""
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+        retransmission_time_limit = 200
+    ''')
+    cfg = load_link_config('mylink', 'tx', config_dir=tmp_path)
+    assert cfg.retransmission_time_limit == 200
+
+
 # --- sanitize_caps_for_wire ----------------------------------------------
 
 
@@ -406,3 +457,150 @@ def test_sanitize_strips_srtp_key():
 def test_sanitize_passes_through_plain_rtp():
     raw = 'application/x-rtp,media=(string)audio,clock-rate=(int)48000'
     assert sanitize_caps_for_wire(raw) == raw
+
+
+# --- multipath / tx_paths -----------------------------------------------
+
+
+def test_tx_paths_empty_by_default(tmp_path):
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+    ''')
+    cfg = load_link_config('mylink', 'tx', config_dir=tmp_path)
+    assert cfg.tx_paths == ()
+
+
+def test_tx_paths_loaded_from_array_of_tables(tmp_path):
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+
+        [[tx_paths]]
+        label = "modem_a"
+        host = "203.0.113.10"
+        port = 3000
+        bind = "10.0.5.2"
+
+        [[tx_paths]]
+        label = "modem_b"
+        host = "203.0.113.10"
+        port = 3001
+        bind = "10.0.6.2"
+    ''')
+    cfg = load_link_config('mylink', 'tx', config_dir=tmp_path)
+    assert isinstance(cfg.tx_paths, tuple)
+    assert len(cfg.tx_paths) == 2
+    a, b = cfg.tx_paths
+    assert isinstance(a, TxPath)
+    assert a.label == 'modem_a'
+    assert a.host == '203.0.113.10'
+    assert a.port == 3000
+    assert a.bind == '10.0.5.2'
+    assert b.label == 'modem_b'
+    assert b.bind == '10.0.6.2'
+
+
+def test_tx_paths_unknown_key_rejected(tmp_path):
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+
+        [[tx_paths]]
+        host = "1.2.3.4"
+        nonsense = "wat"
+    ''')
+    with pytest.raises(ConfigError, match='unknown tx_paths'):
+        load_link_config('mylink', 'tx', config_dir=tmp_path)
+
+
+def test_tx_paths_missing_host_rejected(tmp_path):
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+
+        [[tx_paths]]
+        label = "no-host"
+    ''')
+    with pytest.raises(ConfigError, match='tx_paths'):
+        load_link_config('mylink', 'tx', config_dir=tmp_path)
+
+
+def test_tx_paths_iface_rejected_on_non_linux(tmp_path, monkeypatch):
+    """iface= uses IP_UNICAST_IF which is Linux-only."""
+    monkeypatch.setattr(sys, 'platform', 'darwin')
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+
+        [[tx_paths]]
+        label = "wwan"
+        host = "1.2.3.4"
+        iface = "wwan0"
+    ''')
+    with pytest.raises(ConfigError, match='iface.*Linux-only'):
+        load_link_config('mylink', 'tx', config_dir=tmp_path)
+
+
+def test_tx_paths_iface_accepted_on_linux(tmp_path, monkeypatch):
+    monkeypatch.setattr(sys, 'platform', 'linux')
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+
+        [[tx_paths]]
+        label = "wwan"
+        host = "1.2.3.4"
+        iface = "wwan0"
+    ''')
+    cfg = load_link_config('mylink', 'tx', config_dir=tmp_path)
+    assert cfg.tx_paths[0].iface == 'wwan0'
+
+
+def test_tx_paths_multicast_mutually_exclusive(tmp_path):
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "239.0.0.1"
+        multicast = true
+
+        [[tx_paths]]
+        label = "a"
+        host = "1.2.3.4"
+    ''')
+    with pytest.raises(ConfigError, match='multicast and tx_paths'):
+        load_link_config('mylink', 'tx', config_dir=tmp_path)
+
+
+def test_tx_paths_duplicate_labels_rejected(tmp_path):
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+
+        [[tx_paths]]
+        label = "dupe"
+        host = "1.2.3.4"
+
+        [[tx_paths]]
+        label = "dupe"
+        host = "1.2.3.5"
+    ''')
+    with pytest.raises(ConfigError, match='labels must be unique'):
+        load_link_config('mylink', 'tx', config_dir=tmp_path)
+
+
+def test_tx_paths_via_cli_override_with_txpath_objects(tmp_path):
+    """CLI side can pass already-constructed TxPath instances; they're
+    accepted as-is by the coercer."""
+    cfg = load_link_config(
+        'adhoc', 'tx',
+        config_dir=tmp_path,
+        cli_overrides={
+            'port': 5000,
+            'receiver_host': '127.0.0.1',
+            'tx_paths': [
+                TxPath(host='127.0.0.1', port=5000, label='one'),
+            ],
+        },
+    )
+    assert len(cfg.tx_paths) == 1
+    assert cfg.tx_paths[0].label == 'one'

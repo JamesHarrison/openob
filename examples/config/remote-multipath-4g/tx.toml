@@ -1,0 +1,50 @@
+# Remote contributor with two 4G/5G modems for seamless protection — TX.
+#
+# Identical SRTP/RTP packets fan out both paths; rtpjitterbuffer at the
+# RX deduplicates by sequence number. When one modem stalls or the cell
+# handover drops a burst, the other path carries the audio through with
+# zero audible glitch. Same idea as SMPTE ST 2022-7 in pro broadcast.
+#
+# Read examples/config/remote-multipath-4g/README.md before deploying —
+# the OS-level routing setup matters as much as this TOML.
+
+encoding      = "opus"
+bitrate       = 96
+samplerate    = 48000
+channels      = 2
+port          = 3000
+
+# receiver_host is still required (it's the default destination if a
+# tx_paths stanza omits its own host). All paths target the same
+# RX host:port in this scope (single RX ingress).
+receiver_host = "studio.example.com"
+
+opus_fec              = true
+opus_loss_expectation = 10
+
+# RTX still helps for the rarer event of both paths losing the same
+# packet. NACKs come back on the primary path (the first tx_paths entry).
+retransmission_time_limit = 300
+
+security = "psk"
+psk      = "${OPENOB_PSK_REMOTE_MP}"
+
+audio_input = "alsa"
+alsa_device = "hw:0"
+
+# Each [[tx_paths]] entry is one egress. iface= pins the path to a
+# named network interface — Linux IP_UNICAST_IF, no CAP_NET_RAW
+# required, and the kernel re-picks the source IP every send so a
+# 4G IP rebind is transparent. The first entry is the "primary":
+# RTCP NACKs return on it. If the primary modem dies mid-stream, RTX
+# stops working but audio keeps flowing on the other path.
+
+[[tx_paths]]
+label = "modem_a"
+iface = "wwan0"
+host  = "studio.example.com"
+
+[[tx_paths]]
+label = "modem_b"
+iface = "wwan1"
+host  = "studio.example.com"

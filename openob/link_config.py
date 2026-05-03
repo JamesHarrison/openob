@@ -52,12 +52,33 @@ DEFAULT_CONFIG_DIR = Path.home() / '.openob'
 DEFAULT_LINKS_SUBDIR = 'links'
 DEFAULT_SECRETS_FILENAME = 'secrets.toml'
 
-_ENV_SUBSTITUTABLE_FIELDS = ('psk', 'root_psk')
+_ENV_SUBSTITUTABLE_FIELDS = (
+    'psk', 'root_psk',
+    # Telemetry: OTLP auth tokens belong in env, never in the file.
+    'telemetry_otlp_endpoint', 'telemetry_otlp_headers',
+)
 _ENV_PATTERN = re.compile(r'^\$\{([A-Z_][A-Z0-9_]*)\}$')
 
 
 class ConfigError(ValueError):
     """Raised when link configuration is missing, inconsistent, or unreadable."""
+
+
+@dataclass(frozen=True)
+class TxPath:
+    """One TX egress path for SMPTE 2022-7-style seamless protection.
+
+    A TX with two or more ``TxPath`` entries fans an identical SRTP/RTP
+    stream out every path; rtpjitterbuffer on RX drops the duplicates by
+    sequence number. ``iface`` (Linux) survives 4G IP rebinds because the
+    kernel re-picks the source IP each send; ``bind`` is portable but
+    static. Both can be set together.
+    """
+    host: str
+    port: int | None = None       # defaults to link.port
+    iface: str | None = None      # Linux only — IP_UNICAST_IF, no caps required
+    bind: str | None = None       # source IP bind (portable)
+    label: str | None = None      # for stats logging ("modem_a")
 
 
 @dataclass(frozen=True)
@@ -118,6 +139,29 @@ class LinkConfig:
     # when there's no in-band caps signal to learn the peer address from.
     # Ignored on the standard in-band path (peer is sniffed from recvfrom).
     tx_host: str | None = None
+
+    # --- multipath (v6.2+) ---
+    # When non-empty, TX fans the same RTP/SRTP stream out every path and RX
+    # deduplicates via the existing rtpjitterbuffer (no RX changes needed).
+    # Empty tuple → today's single-egress behaviour. Path 0 is the "primary":
+    # it carries RTCP NACKs for RTX and the OPOB caps signal; paths 1..N are
+    # write-only audio + write-only caps (caps go on every path so bootstrap
+    # works regardless of which path is up first).
+    tx_paths: tuple[TxPath, ...] = ()
+
+    # --- telemetry (v6.2+) ---
+    # All fields default to off. The base install never imports OpenTelemetry;
+    # only when telemetry_enabled=True AND telemetry_otlp_endpoint is set
+    # does openob.telemetry build a real MeterProvider. See docs/telemetry.md
+    # for the recipes (Prometheus 2.47+ OTLP receiver, OTel collector, Alloy).
+    telemetry_enabled: bool = False
+    telemetry_otlp_endpoint: str | None = None
+    telemetry_otlp_headers: str | None = None
+    telemetry_otlp_interval_seconds: int = 30
+    telemetry_otlp_timeout_seconds: int = 10
+    telemetry_otlp_compression: Literal['none', 'gzip'] = 'gzip'
+    telemetry_log_format: Literal['text', 'json'] = 'text'
+    telemetry_log_level: Literal['debug', 'info', 'warning', 'error'] | None = None
 
     def derived_rtp_caps(self) -> str:
         """Build a deterministic caps string from the codec parameters.
@@ -344,6 +388,52 @@ def load_link_config(
     return link_config_from_resolved(link_name, mode, merged)
 
 
+def _coerce_tx_paths(raw: Any, link_name: str) -> tuple[TxPath, ...]:
+    """Convert a TOML-loaded ``tx_paths`` value into ``tuple[TxPath, ...]``.
+
+    The TOML form is an array of tables (``[[tx_paths]]``), which loads as
+    a list of dicts. We validate per-stanza fields, build :class:`TxPath`
+    instances, and enforce that ``iface`` is only used on Linux (the
+    ``IP_UNICAST_IF`` socket option is Linux-specific).
+    """
+    if not isinstance(raw, (list, tuple)):
+        raise ConfigError(
+            f'{link_name!r}: tx_paths must be an array of tables '
+            f'([[tx_paths]] in TOML), got {type(raw).__name__}'
+        )
+    valid_path_fields = {f.name for f in fields(TxPath)}
+    out: list[TxPath] = []
+    for i, item in enumerate(raw):
+        if isinstance(item, TxPath):
+            out.append(item)
+            continue
+        if not isinstance(item, Mapping):
+            raise ConfigError(
+                f'{link_name!r}: tx_paths[{i}] must be a table, got '
+                f'{type(item).__name__}'
+            )
+        unknown = set(item) - valid_path_fields
+        if unknown:
+            raise ConfigError(
+                f'{link_name!r}: unknown tx_paths[{i}] keys: '
+                f'{sorted(unknown)}. Valid: {sorted(valid_path_fields)}'
+            )
+        try:
+            path = TxPath(**item)
+        except TypeError as exc:
+            raise ConfigError(
+                f'{link_name!r}: failed to build tx_paths[{i}]: {exc}'
+            ) from exc
+        if path.iface is not None and sys.platform != 'linux':
+            raise ConfigError(
+                f'{link_name!r}: tx_paths[{i}].iface is Linux-only '
+                f'(uses IP_UNICAST_IF). On {sys.platform}, use bind= '
+                f'with the current source IP instead.'
+            )
+        out.append(path)
+    return tuple(out)
+
+
 def link_config_from_resolved(
     link_name: str,
     mode: Literal['tx', 'rx'],
@@ -367,6 +457,10 @@ def link_config_from_resolved(
             f'unknown link-config keys for {link_name!r}: {sorted(unknown)}. '
             f'Valid keys: {sorted(valid_fields | _AUDIO_INTERFACE_FIELDS)}'
         )
+
+    # tx_paths arrives from TOML as list-of-dicts; convert to tuple[TxPath].
+    if 'tx_paths' in link_only:
+        link_only['tx_paths'] = _coerce_tx_paths(link_only['tx_paths'], link_name)
 
     try:
         cfg = LinkConfig(name=link_name, mode=mode, **link_only)
@@ -425,4 +519,67 @@ def _validate(cfg: LinkConfig) -> None:
         raise ConfigError(
             f"retransmission_time_limit must be >= 0 (ms), "
             f"got {cfg.retransmission_time_limit}"
+        )
+    if (
+        cfg.mode == 'rx'
+        and cfg.security == 'none'
+        and cfg.retransmission_time_limit > 0
+        and not cfg.tx_host
+    ):
+        # Without AEAD on the caps signal, the source IP of the OPOB packet
+        # is attacker-controllable (UDP source spoofing) — and that source
+        # IP becomes the destination of every RTCP NACK we send. A spoofed
+        # caps packet would steer the back-channel at an arbitrary host
+        # (small amplifier, breaks RTX). Force the operator to either
+        # authenticate (security='psk') or fix the peer (tx_host=...).
+        raise ConfigError(
+            "security='none' + retransmission_time_limit > 0 on RX requires "
+            "an explicit tx_host. Without authentication on the caps signal, "
+            "the NACK back-channel target would be inferred from the caps "
+            "source address, which is spoofable. Set security='psk' (preferred) "
+            "or set tx_host to the known TX address."
+        )
+    if cfg.tx_paths and cfg.multicast:
+        # Multicast is its own redundancy story (one packet, many subscribers).
+        # Multipath duplicates the stream onto N unicast egresses; combining
+        # the two would double-send to every multicast subscriber.
+        raise ConfigError(
+            "multicast and tx_paths are mutually exclusive — multicast is its "
+            "own redundancy mechanism"
+        )
+    if cfg.tx_paths:
+        labels = [p.label for p in cfg.tx_paths if p.label]
+        if len(set(labels)) != len(labels):
+            raise ConfigError(
+                f"tx_paths labels must be unique, got duplicates in "
+                f"{labels!r}"
+            )
+    # Telemetry: out-and-out errors only. The "enabled but no endpoint"
+    # case is a *warning* surfaced by openob.telemetry.from_link at
+    # runtime, not a hard error — operators iterating on a config can
+    # legitimately set enabled=true before they've stood up the receiver.
+    if cfg.telemetry_otlp_interval_seconds < 5:
+        raise ConfigError(
+            f"telemetry_otlp_interval_seconds must be >= 5 "
+            f"(got {cfg.telemetry_otlp_interval_seconds}); "
+            "shorter intervals waste CPU on Pi hardware and rarely "
+            "improve operator visibility"
+        )
+    if cfg.telemetry_otlp_compression not in ('none', 'gzip'):
+        raise ConfigError(
+            f"telemetry_otlp_compression must be 'none' or 'gzip', "
+            f"got {cfg.telemetry_otlp_compression!r}"
+        )
+    if cfg.telemetry_log_format not in ('text', 'json'):
+        raise ConfigError(
+            f"telemetry_log_format must be 'text' or 'json', "
+            f"got {cfg.telemetry_log_format!r}"
+        )
+    if (
+        cfg.telemetry_log_level is not None
+        and cfg.telemetry_log_level not in ('debug', 'info', 'warning', 'error')
+    ):
+        raise ConfigError(
+            f"telemetry_log_level must be one of debug/info/warning/error, "
+            f"got {cfg.telemetry_log_level!r}"
         )

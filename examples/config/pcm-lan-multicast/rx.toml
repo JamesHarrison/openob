@@ -1,0 +1,19 @@
+# PCM stereo over IP multicast — RX side.
+#
+# Drop this file onto every receiver that should join the group. There
+# is no "registration" step on TX — IGMP joins happen at the kernel
+# level when the RX subscribes.
+
+port          = 5004
+receiver_host = "239.255.0.42"
+multicast     = true
+
+jitter_buffer = 20
+
+security = "none"
+
+# RX learns encoding/samplerate/channels from the in-band caps signal,
+# but multicast caps signals reach every joiner — fine, identical caps.
+
+audio_output = "alsa"
+alsa_device  = "hw:0"

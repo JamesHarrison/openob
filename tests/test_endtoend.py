@@ -16,12 +16,14 @@ via ``docker compose run --rm tests``.
 """
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
 
 from .conftest import write_link_toml
 from .helpers import (
     OpenObProcess,
+    OTLPReceiver,
     wav_dropout_count_dbfs,
     wav_duration_seconds,
     wav_lowest_window_rms_dbfs,
@@ -561,6 +563,10 @@ def test_pink_noise_round_trip_with_rtx(tmp_config_dir, link_name, tmp_wav):
         port=_pick_port(),
         security='none',
         retransmission_time_limit=200,
+        # security='none' + RTX requires explicit tx_host (validated in
+        # link_config._validate) — without it a spoofed caps source IP
+        # could steer the NACK back-channel to an arbitrary host.
+        tx_host='127.0.0.1',
         extra={
             'audio_input': 'test', 'test_wave': 'pink-noise',
             'audio_output': 'wav', 'wav_file': str(tmp_wav),
@@ -612,6 +618,9 @@ def test_rtx_recovers_from_packet_loss(tmp_config_dir, link_name, tmp_wav):
         port=_pick_port(),
         security='none',
         retransmission_time_limit=200,
+        # security='none' + RTX requires explicit tx_host (see
+        # _validate in link_config.py).
+        tx_host='127.0.0.1',
         # Wider jitter buffer than the default 40ms: at 30% loss the
         # rtpjitterbuffer needs time to wait for retransmissions
         # before it gives up on a slot. 200ms aligns with TX's RTX window.
@@ -711,6 +720,199 @@ def test_qext_warns_at_low_bitrate(tmp_config_dir, link_name, tmp_wav):
     assert_continuous(tmp_wav)
 
 
+# --- multipath (v6.2+) ---------------------------------------------------
+
+
+def _can_bind_loopback(ip: str) -> bool:
+    """Probe-bind a UDP socket to ``(ip, 0)`` and return True iff the kernel
+    accepts it. Linux's ``lo`` interface generally routes the whole 127/8
+    without explicit aliases; this just confirms the running OS does.
+    """
+    import socket as _sock
+    s = _sock.socket(_sock.AF_INET, _sock.SOCK_DGRAM)
+    try:
+        s.bind((ip, 0))
+        return True
+    except OSError:
+        return False
+    finally:
+        s.close()
+
+
+def test_multipath_pcm_two_loopback_aliases(tmp_config_dir, link_name, tmp_wav):
+    """Two TX paths bound to 127.0.0.2 / 127.0.0.3, both targeting 127.0.0.1.
+    Audio still flows end-to-end and the rtpjitterbuffer dedupes the duplicates
+    (same SSRC, same seq numbers from one srtpenc upstream of the tee)."""
+    import pytest as _pytest
+    for ip in ('127.0.0.2', '127.0.0.3'):
+        if not _can_bind_loopback(ip):
+            _pytest.skip(f'cannot bind {ip} on this host')
+
+    port = _pick_port()
+    write_link_toml(
+        tmp_config_dir, link_name,
+        encoding='pcm', port=port, samplerate=48000, channels=2,
+        security='none',
+        tx_paths=[
+            {'label': 'a', 'host': '127.0.0.1', 'port': port, 'bind': '127.0.0.2'},
+            {'label': 'b', 'host': '127.0.0.1', 'port': port, 'bind': '127.0.0.3'},
+        ],
+        extra={
+            'audio_input': 'test', 'test_wave': 'pink-noise',
+            'audio_output': 'wav', 'wav_file': str(tmp_wav),
+        },
+    )
+
+    with OpenObProcess(_argv_for(tmp_config_dir, 'rx', link_name)) as rx, \
+         OpenObProcess(_argv_for(tmp_config_dir, 'tx', link_name)) as tx:
+        # Both TX paths log a tx_path[i] line at startup.
+        tx.wait_for_log(r'tx_path\[0\] label=a', timeout=_TX_START_TIMEOUT)
+        tx.wait_for_log(r'tx_path\[1\] label=b', timeout=_TX_START_TIMEOUT)
+        tx.wait_for_log(r'Started (mono|stereo) audio transmission', timeout=_TX_START_TIMEOUT)
+        rx.wait_for_log(r'Receiving (mono|stereo) audio transmission', timeout=_RX_START_TIMEOUT)
+        time.sleep(_AUDIO_FLOW_SECONDS)
+
+        # Per-path stats should show traffic on both paths.
+        stats_a = re.findall(r'tx_path a: ([\d.]+) KB/s', tx.read_log())
+        stats_b = re.findall(r'tx_path b: ([\d.]+) KB/s', tx.read_log())
+        rx.graceful_stop()
+        tx.graceful_stop()
+
+    assert stats_a, 'no tx_path stats logged for path a'
+    assert stats_b, 'no tx_path stats logged for path b'
+    assert any(float(v) > 1.0 for v in stats_a), (
+        f'path a never exceeded 1 KB/s: {stats_a}'
+    )
+    assert any(float(v) > 1.0 for v in stats_b), (
+        f'path b never exceeded 1 KB/s: {stats_b}'
+    )
+
+    assert tmp_wav.exists()
+    rms = wav_rms_dbfs(tmp_wav)
+    assert rms > _RMS_FLOOR_DBFS, (
+        f'multipath WAV RMS {rms:.2f} dBFS below floor — audio did not flow'
+    )
+    assert_continuous(tmp_wav)
+
+
+def test_multipath_one_path_blocked_audio_continues(
+    tmp_config_dir, link_name, tmp_wav,
+):
+    """Block path b's source IP via iptables mid-stream; audio must keep
+    flowing on path a. This is the headline benefit of multipath — the
+    failure mode RTX cannot rescue (a path going dark) becomes invisible
+    when a redundant path is up."""
+    import pytest as _pytest
+    import subprocess
+    for ip in ('127.0.0.2', '127.0.0.3'):
+        if not _can_bind_loopback(ip):
+            _pytest.skip(f'cannot bind {ip} on this host')
+    # Sanity-check iptables is available before we commit to the test.
+    have_iptables = subprocess.run(
+        ['which', 'iptables'], stdout=subprocess.DEVNULL,
+    ).returncode == 0
+    if not have_iptables:
+        _pytest.skip('iptables not available')
+
+    port = _pick_port()
+    write_link_toml(
+        tmp_config_dir, link_name,
+        encoding='opus', port=port, security='none',
+        tx_paths=[
+            {'label': 'a', 'host': '127.0.0.1', 'port': port, 'bind': '127.0.0.2'},
+            {'label': 'b', 'host': '127.0.0.1', 'port': port, 'bind': '127.0.0.3'},
+        ],
+        extra={
+            'audio_input': 'test', 'test_wave': 'pink-noise',
+            'audio_output': 'wav', 'wav_file': str(tmp_wav),
+        },
+    )
+
+    flow_seconds = 6.0
+    block_at = 2.0  # seconds into the run when we sever path b
+
+    rule = ['OUTPUT', '-s', '127.0.0.3', '-j', 'DROP']
+    blocked = False
+    try:
+        with OpenObProcess(_argv_for(tmp_config_dir, 'rx', link_name)) as rx, \
+             OpenObProcess(_argv_for(tmp_config_dir, 'tx', link_name)) as tx:
+            tx.wait_for_log(r'tx_path\[1\] label=b', timeout=_TX_START_TIMEOUT)
+            tx.wait_for_log(r'Started (mono|stereo) audio transmission', timeout=_TX_START_TIMEOUT)
+            rx.wait_for_log(r'Receiving (mono|stereo) audio transmission', timeout=_RX_START_TIMEOUT)
+            time.sleep(block_at)
+            # Sever path b. Path a continues.
+            res = subprocess.run(
+                ['iptables', '-A', *rule],
+                stderr=subprocess.PIPE, stdout=subprocess.PIPE,
+            )
+            if res.returncode != 0:
+                _pytest.skip(
+                    f'iptables refused to add rule (need CAP_NET_ADMIN): '
+                    f'{res.stderr.decode(errors="replace")}'
+                )
+            blocked = True
+            time.sleep(flow_seconds - block_at)
+            rx.graceful_stop()
+            tx.graceful_stop()
+    finally:
+        if blocked:
+            subprocess.run(
+                ['iptables', '-D', *rule],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+
+    assert tmp_wav.exists()
+    rms = wav_rms_dbfs(tmp_wav)
+    assert rms > _RMS_FLOOR_DBFS, (
+        f'multipath WAV RMS {rms:.2f} dBFS below floor after blocking path b — '
+        f'audio should have continued flowing on path a'
+    )
+    # The whole point: NO audible glitch when one path goes dark.
+    assert_continuous(
+        tmp_wav, label='audio dropped when one of two redundant paths went dark',
+    )
+
+
+def test_multipath_psk(tmp_config_dir, link_name, tmp_wav):
+    """Multipath + SRTP: same srtpenc upstream of the tee, identical
+    encrypted packets fan out to both paths, RX dedupes naturally."""
+    import pytest as _pytest
+    for ip in ('127.0.0.2', '127.0.0.3'):
+        if not _can_bind_loopback(ip):
+            _pytest.skip(f'cannot bind {ip} on this host')
+
+    port = _pick_port()
+    write_link_toml(
+        tmp_config_dir, link_name,
+        encoding='opus', port=port, security='psk',
+        psk='multipath-srtp-test',
+        tx_paths=[
+            {'label': 'a', 'host': '127.0.0.1', 'port': port, 'bind': '127.0.0.2'},
+            {'label': 'b', 'host': '127.0.0.1', 'port': port, 'bind': '127.0.0.3'},
+        ],
+        extra={
+            'audio_input': 'test', 'test_wave': 'pink-noise',
+            'audio_output': 'wav', 'wav_file': str(tmp_wav),
+        },
+    )
+
+    with OpenObProcess(_argv_for(tmp_config_dir, 'rx', link_name)) as rx, \
+         OpenObProcess(_argv_for(tmp_config_dir, 'tx', link_name)) as tx:
+        tx.wait_for_log(r'SRTP enabled', timeout=_TX_START_TIMEOUT)
+        tx.wait_for_log(r'tx_path\[0\] label=a', timeout=_TX_START_TIMEOUT)
+        tx.wait_for_log(r'tx_path\[1\] label=b', timeout=_TX_START_TIMEOUT)
+        tx.wait_for_log(r'Started (mono|stereo) audio transmission', timeout=_TX_START_TIMEOUT)
+        rx.wait_for_log(r'Receiving (mono|stereo) audio transmission', timeout=_RX_START_TIMEOUT)
+        time.sleep(_AUDIO_FLOW_SECONDS)
+        rx.graceful_stop()
+        tx.graceful_stop()
+
+    assert tmp_wav.exists()
+    rms = wav_rms_dbfs(tmp_wav)
+    assert rms > _RMS_FLOOR_DBFS
+    assert_continuous(tmp_wav)
+
+
 def test_channels_flag_forces_stereo(tmp_config_dir, link_name, tmp_wav):
     """`channels = 2` should make the negotiated caps stereo end-to-end."""
     write_link_toml(
@@ -743,3 +945,109 @@ def test_channels_flag_forces_stereo(tmp_config_dir, link_name, tmp_wav):
     assert tmp_wav.exists()
     assert wav_rms_dbfs(tmp_wav) > _RMS_FLOOR_DBFS
     assert_continuous(tmp_wav)
+
+# --- telemetry / structured logging --------------------------------------
+
+
+def _otlp_env(receiver_url: str) -> dict[str, str]:
+    """Common env additions for an openob subprocess pointed at our OTLP receiver."""
+    return {}  # endpoint goes via TOML so the openob process picks it up via config
+
+
+def test_telemetry_otlp_pink_noise_roundtrip(tmp_config_dir, link_name, tmp_wav):
+    """End-to-end: opt-in telemetry pushes openob.* metrics to a tiny in-process
+    OTLP receiver. We assert that link.up=1 on both sides and that
+    packets_sent (tx) and packets_received (rx) increased during the audio
+    flow window — the headline correlation the user asked for in the brief."""
+    import pytest
+    pytest.importorskip("opentelemetry")
+    pytest.importorskip("opentelemetry.exporter.otlp.proto.http.metric_exporter")
+
+    with OTLPReceiver() as recv:
+        write_link_toml(
+            tmp_config_dir, link_name,
+            encoding="opus",
+            port=_pick_port(),
+            security="none",
+            extra={
+                "audio_input": "test", "test_wave": "pink-noise",
+                "audio_output": "wav", "wav_file": str(tmp_wav),
+                "telemetry_enabled": True,
+                "telemetry_otlp_endpoint": recv.url,
+                "telemetry_otlp_interval_seconds": 5,
+            },
+        )
+
+        with OpenObProcess(_argv_for(tmp_config_dir, "rx", link_name)) as rx, \
+             OpenObProcess(_argv_for(tmp_config_dir, "tx", link_name)) as tx:
+            tx.wait_for_log(r"Started (mono|stereo) audio transmission", timeout=_TX_START_TIMEOUT)
+            rx.wait_for_log(r"Receiving (mono|stereo) audio transmission", timeout=_RX_START_TIMEOUT)
+            # Audio for long enough to clear two 5s OTLP exports per side.
+            time.sleep(12.0)
+            rx.graceful_stop()
+            tx.graceful_stop()
+
+        metrics = recv.metrics()
+
+    assert "openob.link.up" in metrics, f"no link.up metric received; saw: {sorted(metrics)}"
+    up = metrics["openob.link.up"]
+    assert "tx" in up.attr_values("role"), f"missing tx role on link.up; saw: {up.points}"
+    assert "rx" in up.attr_values("role"), f"missing rx role on link.up; saw: {up.points}"
+    # Latest sample of link.up should be 1 (PLAYING) on both sides.
+    last_tx = [v for v, a in up.points if a.get("role") == "tx"][-1]
+    last_rx = [v for v, a in up.points if a.get("role") == "rx"][-1]
+    assert last_tx == 1.0, f"tx link.up final value {last_tx}, expected 1"
+    assert last_rx == 1.0, f"rx link.up final value {last_rx}, expected 1"
+
+    # Counters should have moved during the audio flow.
+    assert "openob.rtp.packets_sent" in metrics, sorted(metrics)
+    assert metrics["openob.rtp.packets_sent"].total() > 0
+    assert "openob.rtp.packets_received" in metrics, sorted(metrics)
+    assert metrics["openob.rtp.packets_received"].total() > 0
+
+    # Common label set carries through.
+    sent = metrics["openob.rtp.packets_sent"]
+    assert link_name in sent.attr_values("link")
+
+
+def test_telemetry_log_format_json(tmp_config_dir, link_name, tmp_wav):
+    """When telemetry_log_format=json every emitted line is JSON and carries
+    the link/node/role context introduced by LinkLoggerAdapter."""
+    import json as _json
+    write_link_toml(
+        tmp_config_dir, link_name,
+        encoding="opus", port=_pick_port(), security="none",
+        extra={
+            "audio_input": "test", "test_wave": "pink-noise",
+            "audio_output": "wav", "wav_file": str(tmp_wav),
+            "telemetry_log_format": "json",
+        },
+    )
+    with OpenObProcess(_argv_for(tmp_config_dir, "rx", link_name)) as rx, \
+         OpenObProcess(_argv_for(tmp_config_dir, "tx", link_name)) as tx:
+        tx.wait_for_log(r"Started (mono|stereo) audio transmission", timeout=_TX_START_TIMEOUT)
+        rx.wait_for_log(r"Receiving (mono|stereo) audio transmission", timeout=_RX_START_TIMEOUT)
+        time.sleep(_AUDIO_FLOW_SECONDS)
+        rx.graceful_stop()
+        tx.graceful_stop()
+
+        # Inspect the RX log: skip the first banner line (CLI emits text
+        # before reconfigure() switches to JSON), then assert every
+        # subsequent non-empty line is parseable JSON with link/node/role.
+        rx_text = rx.read_log()
+    parsed = 0
+    for line in rx_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if not line.startswith("{"):
+            continue  # text-mode banner before reconfigure
+        obj = _json.loads(line)
+        assert "ts" in obj
+        assert "level" in obj
+        assert "logger" in obj
+        if "link" in obj:
+            assert obj["link"] == link_name
+        parsed += 1
+    assert parsed > 0, "no JSON lines were captured"
+

@@ -1,0 +1,37 @@
+# Remote contributor on a single 4G/5G modem — TX side.
+#
+# The TX is a Pi (or similar) at a remote location running on one
+# mobile-network modem. The RX is in a studio/datacentre on a
+# well-connected fixed-line link.
+#
+# Mobile networks bring: variable bandwidth, RTTs of 30-150 ms,
+# occasional 200-1500 ms loss bursts during cell handovers, dynamic
+# public IPs, and CGNAT. We tune for survivability over absolute
+# audio quality.
+
+encoding      = "opus"
+bitrate       = 96             # ~120 kbps on the wire incl. RTP/UDP/IP overhead
+samplerate    = 48000
+channels      = 2
+port          = 3000
+receiver_host = "studio.example.com"
+
+# Opus inband FEC: TX includes a low-bitrate copy of each frame in the
+# next packet. opus_loss_expectation tells the encoder how aggressively
+# to spend bits on FEC redundancy. 10 % is a reasonable default for 4G;
+# bump to 20 % on a known-bad link.
+opus_fec              = true
+opus_loss_expectation = 10
+
+# RTX recovers what FEC and the jitter buffer can't. 300 ms gives 4G's
+# typical retransmission RTT enough room (NACK out, packet back). The
+# jitter buffer must be >= retransmission_time_limit, otherwise the
+# replay from a NACK arrives after the slot has already played out.
+retransmission_time_limit = 300
+
+# Set the pre-shared key via the OPENOB_PSK_REMOTE environment variable
+security = "psk"
+psk      = "${OPENOB_PSK_REMOTE}"
+
+audio_input = "alsa"
+alsa_device = "hw:0"

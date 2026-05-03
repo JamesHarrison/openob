@@ -1,0 +1,16 @@
+# Remote contributor on a single 4G/5G modem — RX side (studio end).
+
+port = 3000
+
+# Set the pre-shared key via the OPENOB_PSK_REMOTE environment variable
+security = "psk"
+psk      = "${OPENOB_PSK_REMOTE}"
+
+# Wide jitter buffer is the headline tuning here. It must be at least
+# as large as TX's retransmission_time_limit (300 ms), otherwise NACK
+# replays arrive after their slot has played and get discarded by the
+# jitterbuffer as too-late.
+jitter_buffer = 300
+
+audio_output = "alsa"
+alsa_device  = "hw:0"

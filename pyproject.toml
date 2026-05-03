@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "OpenOB"
-version = "6.1.0"
+version = "6.2.0"
 description = "Broadcast audio over IP codec built with PyGObject + GStreamer"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -50,6 +50,17 @@ test = [
 # openob.migrate so the runtime never touches it.
 migrate = [
     "redis>=3",
+]
+# Optional OTLP metrics + structured logging. Lazy-imported in
+# openob.telemetry so the base install (and the audio path) never touches
+# OTel. HTTP/protobuf exporter only — gRPC has armv6 wheel pain on Pi Zero
+# and brings the protobuf-version-conflict mess that's tracked in OTel
+# issue #4563. Pi 3+ is supported; Pi Zero is best-effort and may need a
+# piwheels source build for `protobuf`.
+telemetry = [
+    "opentelemetry-api>=1.28",
+    "opentelemetry-sdk>=1.28",
+    "opentelemetry-exporter-otlp-proto-http>=1.28",
 ]
 
 [project.scripts]

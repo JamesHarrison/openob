@@ -1,0 +1,19 @@
+# Studio-transmitter link — RX side.
+#
+# Truly minimal: codec, bitrate, samplerate, and channel count are all
+# learned from TX's in-band caps signal. Just port + security + audio out.
+
+port = 3000
+
+# Match TX. Same envvar name on both ends; only the value needs to be
+# the same secret on both machines.
+security = "psk"
+psk      = "${OPENOB_PSK_STL}"
+
+# Match TX's jitter_buffer (or set higher if your RX is on a noisier
+# link than the TX assumes). RTX picks itself up from the in-band caps
+# automatically — no RX config needed for it.
+jitter_buffer = 40
+
+audio_output = "alsa"
+alsa_device  = "hw:0"

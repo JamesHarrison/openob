@@ -7,9 +7,15 @@ It's designed for broadcast applications including (but not limited to) contribu
 
 ## Status
 
-**OpenOB 6.x** is a major release that drops the Redis dependency and adds optional SRTP encryption, along with other features for improved reliability.
+**OpenOB 6.0** is a major release that drops the Redis dependency and adds optional SRTP encryption, along with other features for improved reliability. 
+
+6.1 introduced retransmission support; 6.2 introduced security and monitoring improvements along with support for multipath seamless redundancy.
+
+All users are encouraged to upgrade, and to raise GitHub issues for any problems found.
 
 If you're upgrading from v5, see the [migration notes](#upgrading-from-v5) below. v5 stays available on PyPI for users not ready to move.
+
+OpenOB was unmaintained between ~2016 and ~2026, but has been picked back up to ensure continued operation for community radio stations relying on the software. It is maintained "best effort".
 
 ## Features
 
@@ -21,7 +27,9 @@ If you're upgrading from v5, see the [migration notes](#upgrading-from-v5) below
 * Single inbound UDP port (RTP+RTCP muxed per RFC 5761) — easy to get your firewall configured for
 * Both 1:1 (STL) and N:1 (central + many remote contributor kits, so long as only 1 is active at a time) topologies
 * Low latency (codec internal under 5 ms PCM, under 25 ms w/ Opus)
+* Multipath support for redundant transmission (e.g. using multiple 4/5G dongles) and automatic recombination (SMTPE ST 2022-7-ish)
 * Automatic link recovery on failure
+* OpenTelemetry metrics for monitoring, including audio levels and link quality indicators
 
 # Getting started
 

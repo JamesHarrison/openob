@@ -6,8 +6,10 @@ import re
 import signal
 import subprocess
 import sys
+import threading
 import time
 import wave
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import IO
@@ -255,3 +257,179 @@ def wav_dropout_count_dbfs(
     series = _wav_window_rms_dbfs_series(path, window_ms=window_ms, trim_ms=trim_ms)
     dropouts = sum(1 for db in series if db < threshold_dbfs)
     return dropouts, len(series)
+
+
+# --- OTLP receiver fixture for telemetry e2e -------------------------------
+
+
+class CapturedOTLPMetric:
+    """Lightweight projection of a single OTLP metric across all exports.
+
+    Attributes are aggregated across every export request the receiver has
+    accepted, so callers can write ``metric_for('openob.rtp.packets_sent')``
+    and not worry about which export window contained the latest sample.
+    """
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        # (value, attrs_dict) tuples in the order they were observed.
+        self.points: list[tuple[float, dict[str, str]]] = []
+
+    def attr_values(self, attr_name: str) -> set[str]:
+        return {a.get(attr_name, '') for _, a in self.points}
+
+    def latest(self) -> float | None:
+        return self.points[-1][0] if self.points else None
+
+    def total(self) -> float:
+        return sum(v for v, _ in self.points)
+
+    def points_with(self, **expected: str) -> list[tuple[float, dict[str, str]]]:
+        out = []
+        for v, a in self.points:
+            if all(a.get(k) == val for k, val in expected.items()):
+                out.append((v, a))
+        return out
+
+
+class OTLPReceiver:
+    """Tiny HTTP server that decodes OTLP metric exports for tests.
+
+    Avoids opentelemetry-collector — the receiver is the only thing the
+    e2e suite needs from the OTLP wire. Decodes via the protobuf module
+    that ships with ``opentelemetry-proto`` (a transitive dep of the
+    OTLP HTTP exporter).
+
+    Usage::
+
+        with OTLPReceiver() as r:
+            ... run pipeline pointed at r.url ...
+            metrics = r.metrics()
+            assert metrics['openob.rtp.packets_sent'].latest() > 0
+    """
+
+    def __init__(self) -> None:
+        self._server: HTTPServer | None = None
+        self._thread: threading.Thread | None = None
+        self._raw_bodies: list[bytes] = []
+
+    def __enter__(self) -> 'OTLPReceiver':
+        bodies = self._raw_bodies
+
+        class _Handler(BaseHTTPRequestHandler):
+            def do_POST(self) -> None:  # type: ignore[override]
+                length = int(self.headers.get('Content-Length', '0'))
+                body = self.rfile.read(length) if length else b''
+                bodies.append(body)
+                # OTLP HTTP responds with an empty ExportMetricsServiceResponse;
+                # 200 + zero bytes is acceptable to the OTLP HTTP exporter.
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/x-protobuf')
+                self.send_header('Content-Length', '0')
+                self.end_headers()
+
+            def log_message(self, format, *args) -> None:  # noqa: A002,ARG002
+                # Silence the per-request stderr spam — tests get loud enough.
+                pass
+
+        self._server = HTTPServer(('127.0.0.1', 0), _Handler)
+        self._thread = threading.Thread(
+            target=self._server.serve_forever,
+            daemon=True,
+            name='otlp-receiver',
+        )
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        server = self._server
+        if server is not None:
+            server.shutdown()
+            server.server_close()
+
+    @property
+    def host(self) -> str:
+        assert self._server is not None
+        host_part = self._server.server_address[0]
+        return host_part if isinstance(host_part, str) else host_part.decode()
+
+    @property
+    def port(self) -> int:
+        assert self._server is not None
+        port_part = self._server.server_address[1]
+        return int(port_part) if isinstance(port_part, (int, str)) else 0
+
+    @property
+    def url(self) -> str:
+        return f'http://{self.host}:{self.port}/v1/metrics'
+
+    def export_count(self) -> int:
+        return len(self._raw_bodies)
+
+    def metrics(self) -> dict[str, CapturedOTLPMetric]:
+        """Decode all received OTLP exports into ``{name: CapturedOTLPMetric}``.
+
+        Decoding happens on demand (rather than per-request) so test
+        assertions can compute the snapshot once after the audio flow has
+        finished. Returns an empty dict if no bodies have arrived yet.
+        """
+        try:
+            from opentelemetry.proto.collector.metrics.v1 import (  # noqa: PLC0415
+                metrics_service_pb2,
+            )
+        except ImportError as exc:
+            import pytest  # noqa: PLC0415
+            pytest.skip(f'opentelemetry-proto not installed: {exc}')
+            return {}  # unreachable; pytest.skip raises
+
+        out: dict[str, CapturedOTLPMetric] = {}
+        for body in list(self._raw_bodies):
+            req = metrics_service_pb2.ExportMetricsServiceRequest()
+            try:
+                req.ParseFromString(body)
+            except Exception:
+                continue
+            for rm in req.resource_metrics:
+                for sm in rm.scope_metrics:
+                    for metric in sm.metrics:
+                        cap = out.setdefault(
+                            metric.name, CapturedOTLPMetric(metric.name),
+                        )
+                        _consume_data_points(metric, cap)
+        return out
+
+
+def _consume_data_points(metric, cap: CapturedOTLPMetric) -> None:
+    """Walk the per-instrument data-point lists and append to ``cap``.
+
+    Counters live under ``sum.data_points``, gauges under ``gauge.data_points``;
+    histograms exist but OpenOB doesn't emit any. Supports both as_int and
+    as_double point values which the OTel SDK can pick between.
+    """
+    if metric.HasField('sum'):
+        for dp in metric.sum.data_points:
+            cap.points.append(_point_tuple(dp))
+    if metric.HasField('gauge'):
+        for dp in metric.gauge.data_points:
+            cap.points.append(_point_tuple(dp))
+
+
+def _point_tuple(dp) -> tuple[float, dict[str, str]]:
+    if dp.HasField('as_int'):
+        value = float(dp.as_int)
+    elif dp.HasField('as_double'):
+        value = dp.as_double
+    else:
+        value = 0.0
+    attrs: dict[str, str] = {}
+    for kv in dp.attributes:
+        v = kv.value
+        if v.HasField('string_value'):
+            attrs[kv.key] = v.string_value
+        elif v.HasField('int_value'):
+            attrs[kv.key] = str(v.int_value)
+        elif v.HasField('double_value'):
+            attrs[kv.key] = str(v.double_value)
+        elif v.HasField('bool_value'):
+            attrs[kv.key] = 'true' if v.bool_value else 'false'
+    return value, attrs

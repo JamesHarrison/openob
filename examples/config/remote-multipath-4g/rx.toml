@@ -1,0 +1,20 @@
+# Remote contributor with two 4G modems — RX side.
+#
+# RX has no idea multipath is in play: both copies of each RTP packet
+# arrive on the same UDP port and the existing rtpjitterbuffer drops
+# the duplicate by sequence number. No multipath-specific RX config.
+
+port = 3000
+
+security = "psk"
+psk      = "${OPENOB_PSK_REMOTE_MP}"
+
+# Match TX's retransmission_time_limit and add headroom for the latency
+# *difference* between the two paths. If modem A's RTT is 50 ms and
+# modem B's is 200 ms, the jitter buffer must be ≥ (path_latency_max -
+# path_latency_min) + jitter + RTX window. 400 ms is a comfortable
+# value for two same-continent 4G modems.
+jitter_buffer = 400
+
+audio_output = "alsa"
+alsa_device  = "hw:0"

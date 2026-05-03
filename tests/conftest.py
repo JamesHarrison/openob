@@ -68,6 +68,7 @@ def write_link_toml(
     caps_from_config: bool = False,
     retransmission_time_limit: int | None = None,
     tx_host: str | None = None,
+    tx_paths: list[dict] | None = None,
     extra: dict | None = None,
 ) -> Path:
     """Helper for tests: render a v6 (flat) link TOML at the canonical path
@@ -76,6 +77,9 @@ def write_link_toml(
     All settings live at the top level; ``extra`` is a dict of additional
     flat keys (e.g. ``audio_input``, ``audio_output``, ``alsa_device``,
     ``test_wave``, ``wav_file``, ``jack_*``) that get appended.
+
+    ``tx_paths`` (when set) is a list of ``{host, port, iface, bind, label}``
+    dicts emitted as ``[[tx_paths]]`` array-of-tables for multipath tests.
     """
     path = config_dir / "links" / f"{link_name}.toml"
     fields: dict[str, Any] = {
@@ -111,6 +115,21 @@ def write_link_toml(
             lines.append(f'{k} = {v}')
         else:
             lines.append(f'{k} = "{v}"')
+
+    if tx_paths:
+        for entry in tx_paths:
+            lines.append('')
+            lines.append('[[tx_paths]]')
+            for k, v in entry.items():
+                if v is None:
+                    continue
+                if isinstance(v, bool):
+                    lines.append(f'{k} = {"true" if v else "false"}')
+                elif isinstance(v, int):
+                    lines.append(f'{k} = {v}')
+                else:
+                    lines.append(f'{k} = "{v}"')
+
     path.write_text('\n'.join(lines) + '\n')
     return path
 

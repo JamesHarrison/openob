@@ -1,0 +1,37 @@
+# PCM stereo over IP multicast on a LAN — TX side.
+#
+# In-house distribution: one source feeding many receivers (monitoring
+# positions, recording rigs, downstream encoders) on the same wired
+# LAN. PCM is bit-transparent so the audio passes through with no codec
+# colouration; multicast keeps the bandwidth flat regardless of how
+# many RXes join.
+
+encoding   = "pcm"
+samplerate = 48000
+channels   = 2
+port       = 5004
+
+# Administratively-scoped IPv4 multicast (239.x.x.x). Pick something
+# unique to the deployment so two OpenOB feeds on the same LAN don't
+# collide. Both ends must agree on this address.
+receiver_host = "239.255.0.42"
+multicast     = true
+
+# LAN-only — typical RTT <1 ms, jitter well under 5 ms. Keep the buffer
+# tight to keep latency low (PCM 48k/2 = ~1.5 Mbps, jitter buffer
+# ~3 ms beyond raw network delay at this setting).
+jitter_buffer = 20
+
+# No security on a trusted LAN. (Multicast + SRTP works in principle
+# but every joiner needs the key — usually not worth the operational
+# complexity here.)
+security = "none"
+
+# RTX is incompatible with multicast (NACKs would point at one TX
+# from many RXes; multipath has the same restriction). Keep it off.
+# retransmission_time_limit = 0   # default
+
+# Multipath is also rejected at config-load when multicast=true.
+
+audio_input = "alsa"
+alsa_device = "hw:0"

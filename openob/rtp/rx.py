@@ -16,6 +16,12 @@ Gst.init(None)
 _RTX_ORIGINAL_PT = 96
 _RTX_PT = 97
 
+from openob._log_events import (  # noqa: E402
+    EVT_DATA_TIMEOUT,
+    EVT_LEVEL,
+    EVT_PIPELINE_STARTED,
+    EVT_SRTP_DECRYPT_FAIL,
+)
 from openob.caps_signal import (  # noqa: E402
     attach_rtcp_demux_probe, parse_encoding_from_caps, parse_rtx_fields,
 )
@@ -31,6 +37,7 @@ from openob.security import (  # noqa: E402
     SRTP_RTCP_AUTH, SRTP_RTCP_CIPHER, SRTP_RTP_AUTH, SRTP_RTP_CIPHER,
     resolve_srtp_master,
 )
+from openob.telemetry import TelemetryRegistry  # noqa: E402
 
 if TYPE_CHECKING:
     from openob.audio_interface import AudioInterface
@@ -46,6 +53,7 @@ class RTPReceiver:
         audio_interface: AudioInterface,
         caps: str,
         peer_addr: tuple[str, int] | None = None,
+        telemetry: TelemetryRegistry | None = None,
     ) -> None:
         """Sets up a new RTP receiver.
 
@@ -64,10 +72,18 @@ class RTPReceiver:
         self.audio_interface = audio_interface
         self.caps = caps
         self.peer_addr = peer_addr
+        self.telemetry = telemetry or TelemetryRegistry.disabled()
         self.shutdown_requested = False
         # Set in build_transport when RTX is enabled; kept on self so
         # loop()'s finally block can close it on shutdown.
         self._rx_shared_pysock: pysocket.socket | None = None
+        # References to elements whose stats the 1 Hz poll timer reads.
+        # Stashed at construction time (build_decoder, _on_new_jitterbuffer)
+        # so the poll function avoids a per-tick get_by_name traversal.
+        self._opusdec = None
+        self._jitterbuffer = None
+        self._rtpbin = None
+        self._stats_timeout_id: int | None = None
 
         self.logger_factory = LoggerFactory()
         self.logger = self.logger_factory.getLogger(
@@ -134,6 +150,15 @@ class RTPReceiver:
             self.link_config.receiver_host or '0.0.0.0',
             self.link_config.port,
         )
+        # 1 Hz polling timer for rtpsession + jitterbuffer + opusdec stats.
+        # No equivalent existed on RX before — TX piggybacks on the older
+        # _log_rtx_stats timer; RX has no comparable hook. Single GLib
+        # timeout reading three element refs that the build_* methods
+        # have stashed on self. Bound the work to a few μs per tick.
+        if self._stats_timeout_id is None:
+            self._stats_timeout_id = GLib.timeout_add_seconds(
+                1, self._poll_rx_stats,
+            )
 
     def _request_shutdown(self) -> bool:
         """GLib-aware signal handler: send EOS so wavenc/filesink finalise cleanly."""
@@ -161,6 +186,9 @@ class RTPReceiver:
             self.pipeline.set_state(Gst.State.NULL)
             GLib.source_remove(sigterm_id)
             GLib.source_remove(sigint_id)
+            if self._stats_timeout_id is not None:
+                GLib.source_remove(self._stats_timeout_id)
+                self._stats_timeout_id = None
             # The dup'd fds inside Gio.Sockets are closed by GStreamer
             # (close-socket=False on the elements but the GIO wrappers own
             # those fds). Our Python socket still owns its original fd.
@@ -286,6 +314,10 @@ class RTPReceiver:
             decoder = make_element('opusdec', 'decoder')
             decoder.set_property('use-inband-fec', True)  # FEC
             decoder.set_property('plc', True)  # Packet loss concealment
+            # Stash for the 1 Hz stats poll — opusdec.stats exposes
+            # plc-num-samples and plc-duration which together are the
+            # cleanest signal for "audio quality dropped here".
+            self._opusdec = decoder
             depayloader = make_element('rtpopusdepay', 'depayloader')
         elif self.encoding == 'pcm':
             depayloader = make_element('rtpL16depay', 'depayloader')
@@ -319,6 +351,11 @@ class RTPReceiver:
         udpsrc = make_element('udpsrc', 'udpsrc')
         udpsrc.set_property('caps', udpsrc_caps)
         udpsrc.set_property('timeout', 3000000000)
+        # Bound the kernel rcvbuf so a flooded port can't queue seconds of
+        # attacker garbage ahead of legitimate audio. 64 KiB is well above
+        # the few-hundred-bytes-per-20ms working set of any codec we carry,
+        # and small enough that a UDP flood resets quickly when it stops.
+        udpsrc.set_property('buffer-size', 65536)
 
         # RTX path needs a unicast back-channel: build a Python socket bound
         # to the listen port, share it (via dup'd Gio.Sockets) with both the
@@ -346,13 +383,22 @@ class RTPReceiver:
         # are dropped before they reach rtpbin / srtpdec; we'd otherwise
         # confuse them. Caps-refresh callback is intentionally None — v6
         # doesn't rebuild the pipeline mid-flight on caps changes; the
-        # link supervisor restarts on data timeout (3 s).
-        attach_rtcp_demux_probe(udpsrc, on_caps_refresh=None, logger=self.logger)
+        # link supervisor restarts on data timeout (3 s). Passing the
+        # telemetry registry lets the probe count caps_signal reception
+        # (ok / auth_fail) at runtime so operators see the OPOB heartbeat
+        # in their metrics, not just in bootstrap logs.
+        attach_rtcp_demux_probe(
+            udpsrc, on_caps_refresh=None, logger=self.logger,
+            telemetry=self.telemetry,
+        )
 
         rtpbin = make_element('rtpbin', 'rtpbin')
         rtpbin.set_property('latency', self.link_config.jitter_buffer)
         rtpbin.set_property('autoremove', True)
         rtpbin.set_property('do-lost', True)
+        # Stash for the 1 Hz stats poll. emit('get-internal-session', 0)
+        # is called per-tick to read packets-received / lost / jitter.
+        self._rtpbin = rtpbin
         if self.rtx_enabled:
             # Propagates to each rtpjitterbuffer rtpbin spawns; jitter
             # buffers then emit upstream RTX request events that rtpbin
@@ -369,7 +415,11 @@ class RTPReceiver:
             # known clock-rate — handling both gives the buffer a direct
             # lookup keyed by the PT in each packet.
             rtpbin.connect('request-pt-map', self._on_request_pt_map)
-            rtpbin.connect('new-jitterbuffer', self._on_new_jitterbuffer)
+        # new-jitterbuffer fires for every jitterbuffer rtpbin spawns,
+        # regardless of RTX. We connect it unconditionally so the stats
+        # poll has something to read on a vanilla unicast/multicast link
+        # too — the RTX-specific request-pt-map wiring above stays gated.
+        rtpbin.connect('new-jitterbuffer', self._on_new_jitterbuffer)
         bin.add(rtpbin)
 
         if self.link_config.security == 'psk':
@@ -478,8 +528,17 @@ class RTPReceiver:
         the buffer is created it asks for its own caps via the same
         signal name on its own object, and that's where the missing
         clock-rate ends up biting us.
+
+        Also stash the buffer instance for the 1 Hz stats poll. OpenOB
+        carries one stream per link so a single ref is sufficient; if a
+        future SSRC-changes-mid-stream scenario spawns a second buffer,
+        we'd start reporting only the most recent one's stats — acceptable
+        because that scenario itself is a "new stream" event the operator
+        should see in restart counters.
         """
-        jitterbuffer.connect('request-pt-map', self._on_request_pt_map_jb)
+        if self.rtx_enabled:
+            jitterbuffer.connect('request-pt-map', self._on_request_pt_map_jb)
+        self._jitterbuffer = jitterbuffer
 
     def _on_request_pt_map_jb(self, _jitterbuffer, pt):
         """Adapt the rtpbin-style 3-arg callback to the jitterbuffer's
@@ -564,31 +623,67 @@ class RTPReceiver:
         rtpbin.link(valve)
 
     def on_message(self, bus, message) -> bool:
+        del bus
         if message.type == Gst.MessageType.EOS:
             self.logger.info('Pipeline reached EOS, exiting main loop')
+            self.telemetry.set_link_up(False)
             if hasattr(self, 'main_loop'):
                 self.main_loop.quit()
             return True
         if message.type == Gst.MessageType.ERROR:
             err, dbg = message.parse_error()
             self.logger.error('Pipeline error: %s (%s)' % (err, dbg))
+            self.telemetry.set_link_up(False)
             if hasattr(self, 'main_loop'):
                 self.main_loop.quit()
             return True
+        if message.type == Gst.MessageType.WARNING:
+            err, dbg = message.parse_warning()
+            src = message.src
+            src_name = src.get_name() if src is not None else ''
+            # srtpdec emits warnings on auth failure / decrypt error. The
+            # GErrors don't have stable codes across GStreamer versions,
+            # so match on element name + the canonical message text we
+            # see in our own srtpdec usage.
+            if src_name.startswith('srtpdec'):
+                msg_text = f'{err} {dbg}'.lower() if err else (dbg or '').lower()
+                if (
+                    'unable to unprotect' in msg_text
+                    or 'authentication' in msg_text
+                    or 'auth' in msg_text
+                ):
+                    self.logger.warning(
+                        'srtp decrypt failure on %s: %s',
+                        src_name, err if err else dbg,
+                        extra={
+                            'event': EVT_SRTP_DECRYPT_FAIL,
+                            'src': src_name,
+                            'detail': str(err) if err else dbg,
+                        },
+                    )
+                    self.telemetry.record_srtp_failure()
         if message.type == Gst.MessageType.ELEMENT:
             struct = message.get_structure()
             if struct is not None:
                 name = struct.get_name()
                 if name == 'level':
                     peaks = struct.get_value('peak')
+                    rms = struct.get_value('rms')
                     if not self.started:
                         self.started = True
+                        self.telemetry.set_link_up(True)
                         self._log_pipeline_started(peaks)
                     else:
                         self._log_level(peaks)
+                    self._push_audio_levels(peaks, rms)
                 elif name == 'GstUDPSrcTimeout':
                     # Only UDP source configured to emit timeouts is the audio input
-                    self.logger.critical('No data received for 3 seconds!')
+                    self.logger.critical(
+                        'No data received for 3 seconds!',
+                        extra={'event': EVT_DATA_TIMEOUT, 'timeout_seconds': 3},
+                    )
+                    self.telemetry.record_data_timeout()
+                    self.telemetry.set_link_up(False)
                     if self.started:
                         self.logger.critical('Shutting down receiver for restart')
                         self.pipeline.set_state(Gst.State.NULL)
@@ -598,17 +693,117 @@ class RTPReceiver:
     def _log_pipeline_started(self, peaks) -> None:
         # On RX the level is downstream of the decoder so its caps already
         # match what was negotiated end-to-end. Fall back to peak count if
-        # the pad has no current caps yet.
+        # the pad has no current caps yet. Keep the readable message
+        # stable for operator-grep + the e2e harness.
         caps_str, n_channels = channels_from_pad(self.level_element.get_static_pad('sink'))
         if n_channels is None:
             n_channels = len(peaks)
         descriptor = channel_descriptor(n_channels)
         if caps_str is not None:
             self.logger.info(
-                'Receiving %s audio transmission (%s)', descriptor, caps_str
+                'Receiving %s audio transmission (%s)',
+                descriptor, caps_str,
+                extra={
+                    'event': EVT_PIPELINE_STARTED,
+                    'channels': n_channels,
+                    'descriptor': descriptor,
+                    'caps': caps_str,
+                },
             )
         else:
-            self.logger.info('Receiving %s audio transmission', descriptor)
+            self.logger.info(
+                'Receiving %s audio transmission',
+                descriptor,
+                extra={
+                    'event': EVT_PIPELINE_STARTED,
+                    'channels': n_channels,
+                    'descriptor': descriptor,
+                },
+            )
 
     def _log_level(self, peaks) -> None:
-        self.logger.debug('Levels: %s', format_peaks(peaks))
+        self.logger.debug(
+            'Levels: %s', format_peaks(peaks),
+            extra={'event': EVT_LEVEL, 'peaks': format_peaks(peaks)},
+        )
+
+    def _push_audio_levels(self, peaks, rms) -> None:
+        """Push level-element peak/rms arrays to telemetry as gauges."""
+        if peaks:
+            for ch, value in enumerate(peaks):
+                self.telemetry.set_audio_peak(ch, float(value))
+        if rms:
+            for ch, value in enumerate(rms):
+                self.telemetry.set_audio_rms(ch, float(value))
+
+    def _poll_rx_stats(self) -> bool:
+        """1 Hz: read rtpsession, rtpjitterbuffer, opusdec stats.
+
+        rtpsession.stats supplies packets-received / packets-lost / jitter;
+        rtpjitterbuffer.stats adds num-pushed / num-late / rtx-success-count
+        / rtx-rtt; opusdec.stats exposes plc-num-samples / plc-duration —
+        the canonical "audio quality dropped here" signal on the RX side.
+
+        Tolerates None / unreadable structs at every step — telemetry
+        must never crash the audio path, and elements may not have
+        produced their first stats blob until the first packet arrives.
+        Returns ``GLib.SOURCE_CONTINUE`` to stay subscribed.
+        """
+        # rtpsession via rtpbin → first session (we only run one). Returns
+        # None until the session has seen its first packet.
+        if self._rtpbin is not None:
+            try:
+                session = self._rtpbin.emit('get-internal-session', 0)
+            except (TypeError, AttributeError):
+                session = None
+            if session is not None:
+                try:
+                    stats = session.get_property('stats')
+                except (TypeError, AttributeError):
+                    stats = None
+                if stats is not None:
+                    self.telemetry.update_rtp_session_stats(
+                        stats, clock_rate=self._rtp_clock_rate(),
+                    )
+
+        if self._jitterbuffer is not None:
+            try:
+                jb_stats = self._jitterbuffer.get_property('stats')
+            except (TypeError, AttributeError):
+                jb_stats = None
+            if jb_stats is not None:
+                self.telemetry.update_jitterbuffer_stats(jb_stats)
+
+        if self._opusdec is not None:
+            try:
+                # Older opusdec builds don't expose a 'stats' property —
+                # tolerate that quietly.
+                opus_stats = self._opusdec.get_property('stats')
+            except (TypeError, AttributeError):
+                opus_stats = None
+            if opus_stats is not None:
+                self.telemetry.update_opusdec_stats(opus_stats)
+
+        return GLib.SOURCE_CONTINUE
+
+    def _rtp_clock_rate(self) -> int:
+        """RTP clock rate for jitter→seconds conversion. Mirrors the TX
+        helper. Opus is always 48 kHz; PCM is the negotiated samplerate
+        (parsed from the caps string at __init__). Falls back to 0 which
+        the telemetry layer treats as 'skip the gauge'.
+        """
+        if self.encoding == 'opus':
+            return 48000
+        if self.encoding == 'pcm':
+            # Try to parse clock-rate from the caps string we received.
+            # Falls through to 0 if absent.
+            for part in self.caps.split(','):
+                part = part.strip()
+                if part.startswith('clock-rate='):
+                    rhs = part.split('=', 1)[1]
+                    digits = ''.join(ch for ch in rhs if ch.isdigit())
+                    try:
+                        return int(digits) if digits else 0
+                    except ValueError:
+                        return 0
+        return 0

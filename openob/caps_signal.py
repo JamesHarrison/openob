@@ -42,9 +42,11 @@ from gi.repository import Gst, GLib  # noqa: E402
 
 from cryptography.exceptions import InvalidTag  # noqa: E402
 
+from openob._log_events import EVT_CAPS_SIGNAL_RX  # noqa: E402
 from openob.security import (  # noqa: E402
     decrypt_caps_payload, encrypt_caps_payload,
 )
+from openob.telemetry import TelemetryRegistry  # noqa: E402
 
 # Idempotent — safe alongside other modules that init Gst.
 Gst.init(None)
@@ -75,8 +77,80 @@ _RTCP_PT_HIGH = 207
 _MAX_CAPS_BYTES = 4096
 _MAX_RECV_BYTES = _MAX_CAPS_BYTES + 64  # +slack for the RTCP framing overhead
 
+# Whitelist of caps fields RX accepts from the wire before handing the caps
+# string to Gst.Caps.from_string. Narrowing the surface means a hostile peer
+# (or a v6.0 PSK-less deployment) can't smuggle attacker-controlled fields
+# past srtpdec/rtpbin and into GStreamer's caps parser. Anything not on this
+# list is silently stripped.
+_WIRE_CAPS_ALLOWED_FIELDS = frozenset({
+    'media',
+    'payload',
+    'clock-rate',
+    'encoding-name',
+    'encoding-params',
+    'channels',
+    'ssrc',
+    'rtx-time',
+    'rtx-pt-map',
+})
+
+# Media types we accept on the wire. application/x-srtp is the security=psk
+# path (srtpdec sits between udpsrc and rtpbin); application/x-rtp is the
+# security=none path. Anything else is rejected — notably we do NOT accept
+# srtp-key/srtp-cipher/etc. fields here, those live in resolve_srtp_master
+# and must never be wire-supplied.
+_WIRE_CAPS_ALLOWED_MEDIA = frozenset({
+    'application/x-rtp',
+    'application/x-srtp',
+})
+
 
 # --------------------------------------------------------------------- helpers
+
+
+class _PerSourceRateLimiter:
+    """Bounded token bucket per source IP for the bootstrap recv loop.
+
+    Without this, an attacker spraying any RTCP-shaped (or PSK-encrypted-
+    looking) packet at the listening port can drive Python through
+    unbounded ``find_opob_caps`` invocations — including AES-GCM decrypts
+    when ``security=psk`` — and prevent the receiver from ever bootstrapping.
+
+    The per-source dict is bounded so spraying many fake source IPs can't
+    OOM the process; LRU eviction means a legit TX showing up after a
+    flood gets a fresh bucket.
+    """
+
+    def __init__(
+        self,
+        capacity: int = 10,
+        refill_per_sec: float = 1.0,
+        max_sources: int = 256,
+    ) -> None:
+        self.capacity = float(capacity)
+        self.refill_per_sec = refill_per_sec
+        self.max_sources = max_sources
+        self._buckets: dict[str, tuple[float, float]] = {}
+
+    def allow(self, source_ip: str, now: float | None = None) -> bool:
+        """Return True if a packet from ``source_ip`` should be processed."""
+        ts = now if now is not None else time.monotonic()
+        if source_ip in self._buckets:
+            last, tokens = self._buckets[source_ip]
+            tokens = min(self.capacity, tokens + (ts - last) * self.refill_per_sec)
+        else:
+            if len(self._buckets) >= self.max_sources:
+                self._evict_oldest()
+            tokens = self.capacity
+        if tokens < 1.0:
+            self._buckets[source_ip] = (ts, tokens)
+            return False
+        self._buckets[source_ip] = (ts, tokens - 1.0)
+        return True
+
+    def _evict_oldest(self) -> None:
+        oldest = min(self._buckets, key=lambda ip: self._buckets[ip][0])
+        del self._buckets[oldest]
 
 
 def _ssrc_for_link(link_name: str) -> int:
@@ -282,11 +356,53 @@ def parse_rtx_fields(caps_str: str) -> tuple[int, dict[int, int]] | None:
     return rtx_time, pt_map
 
 
+def sanitize_caps_from_wire(
+    caps_str: str,
+    logger: logging.Logger | None = None,
+) -> str | None:
+    """Filter a wire-derived caps string against the OpenOB allowlist.
+
+    Returns the caps string with only allowlisted fields preserved, or
+    ``None`` if the leading media type isn't one we accept. The first
+    comma-separated chunk is the media type (``application/x-rtp`` or
+    ``application/x-srtp``); subsequent chunks are ``key=value`` pairs.
+
+    This is the trust boundary between an attacker-controllable byte
+    stream and ``Gst.Caps.from_string`` — narrows the surface so a
+    crafted caps payload can only ever set fields we explicitly use.
+    """
+    parts = caps_str.split(',')
+    if not parts:
+        return None
+    media = parts[0].strip()
+    if media not in _WIRE_CAPS_ALLOWED_MEDIA:
+        if logger is not None:
+            logger.warning(
+                'caps payload media type %r not in allowlist; dropping', media,
+            )
+        return None
+    keep = [media]
+    dropped: list[str] = []
+    for p in parts[1:]:
+        field = p.split('=', 1)[0].strip().lower()
+        if field in _WIRE_CAPS_ALLOWED_FIELDS:
+            keep.append(p)
+        else:
+            dropped.append(field)
+    if dropped and logger is not None:
+        logger.debug(
+            'sanitize_caps_from_wire stripped non-allowlisted fields: %s',
+            dropped,
+        )
+    return ','.join(keep)
+
+
 def find_opob_caps(
     packet: bytes,
     caps_key: bytes | None = None,
     *,
     logger: logging.Logger | None = None,
+    telemetry: TelemetryRegistry | None = None,
 ) -> str | None:
     """If ``packet`` is an RTCP buffer containing an OPOB CAPS APP packet,
     return the caps string. Otherwise ``None``.
@@ -295,8 +411,13 @@ def find_opob_caps(
     envelope (12-byte nonce + ciphertext + 16-byte tag) and the returned
     caps come from the verified plaintext. An auth-tag mismatch causes the
     packet to be silently dropped (logged at warning level if a logger is
-    given) — this is the wire path that prevents a spoofed caps signal
-    from reconfiguring the receiver.
+    given, and counted as ``result=auth_fail`` if a telemetry registry
+    is supplied) — this is the wire path that prevents a spoofed caps
+    signal from reconfiguring the receiver.
+
+    The returned caps string is filtered through :func:`sanitize_caps_from_wire`
+    so callers can pass it straight to ``Gst.Caps.from_string`` without
+    worrying about attacker-injected fields.
     """
     if not is_rtcp(packet):
         return None
@@ -312,18 +433,26 @@ def find_opob_caps(
                         'caps signal failed authentication (%s); '
                         'dropping packet (likely spoofed or PSK mismatch)',
                         type(exc).__name__,
+                        extra={
+                            'event': EVT_CAPS_SIGNAL_RX,
+                            'result': 'auth_fail',
+                            'error_type': type(exc).__name__,
+                        },
                     )
+                if telemetry is not None:
+                    telemetry.record_caps_signal(result='auth_fail')
                 continue
         else:
             plaintext = payload
         try:
-            return plaintext.rstrip(b'\x00').decode('utf-8')
+            caps_str = plaintext.rstrip(b'\x00').decode('utf-8')
         except UnicodeDecodeError:
             if logger is not None:
                 logger.warning(
                     'caps payload decoded but is not UTF-8; dropping'
                 )
             return None
+        return sanitize_caps_from_wire(caps_str, logger=logger)
     return None
 
 
@@ -454,6 +583,7 @@ def wait_for_caps(
     timeout: float | None = None,
     expected_peer: str | None = None,
     caps_key: bytes | None = None,
+    telemetry: TelemetryRegistry | None = None,
 ) -> tuple[str, tuple[str, int]]:
     """Bootstrap-wait for the first OPOB CAPS APP packet on ``port``.
 
@@ -499,6 +629,13 @@ def wait_for_caps(
         n_received = 0
         n_ignored_peer = 0
         n_auth_failed = 0
+        n_rate_limited = 0
+        # Per-source rate limit so a flood from any one IP can't keep
+        # bootstrap CPU-bound on AEAD decrypts. Bucket size 10, refill 1/s
+        # — generous enough that legitimate retransmits at 2 s intervals
+        # never trip it, tight enough that a flood gets dropped at the
+        # cheap is_rtcp/parse layer instead of the AEAD.
+        rate_limiter = _PerSourceRateLimiter()
 
         while True:
             if deadline is not None:
@@ -507,7 +644,8 @@ def wait_for_caps(
                     raise TimeoutError(
                         f'no OPOB CAPS APP packet on UDP {port} within {timeout}s '
                         f'(received {n_received} packets, ignored {n_ignored_peer} '
-                        f'from non-peer, {n_auth_failed} auth failures)'
+                        f'from non-peer, {n_auth_failed} auth failures, '
+                        f'{n_rate_limited} rate-limited)'
                     )
                 sock.settimeout(remaining)
 
@@ -522,10 +660,31 @@ def wait_for_caps(
                 n_ignored_peer += 1
                 continue
 
+            # Cheap demux first: TX often starts the audio pipeline before
+            # the caps sender, so legitimate RTP audio at ~50 pps is hitting
+            # this same socket. Drop those without consuming rate-limit
+            # budget — only RTCP-shaped packets (real caps OR attacker
+            # bait) cost real CPU downstream in find_opob_caps.
+            if not is_rtcp(data):
+                continue
+
+            if not rate_limiter.allow(addr[0]):
+                n_rate_limited += 1
+                if n_rate_limited == 1 or n_rate_limited % 1000 == 0:
+                    log.warning(
+                        'rate-limited %d RTCP packets so far (latest from %s); '
+                        'possible flood — legitimate caps signals retransmit '
+                        'every %.0fs and will not normally trip this',
+                        n_rate_limited, addr[0], DEFAULT_INTERVAL,
+                    )
+                continue
+
             # Capture auth-failure count by sniffing the log via a counting
             # logger filter would be overkill; instead inline the parse so
             # we can count failures distinctly from "not OPOB" cases.
-            opob_caps_str = find_opob_caps(data, caps_key, logger=log)
+            opob_caps_str = find_opob_caps(
+                data, caps_key, logger=log, telemetry=telemetry,
+            )
             if opob_caps_str is None:
                 # Could be an RTP packet, a non-OPOB RTCP, OR an OPOB
                 # packet that failed AEAD verification (already logged by
@@ -544,6 +703,8 @@ def wait_for_caps(
                 'Got caps from %s after %d packet(s): %s',
                 addr[0], n_received, opob_caps_str,
             )
+            if telemetry is not None:
+                telemetry.record_caps_signal(result='ok')
             return (opob_caps_str, (addr[0], addr[1]))
     finally:
         sock.close()
@@ -554,6 +715,7 @@ def attach_rtcp_demux_probe(
     on_caps_refresh: Callable[[str], None] | None = None,
     logger: logging.Logger | None = None,
     caps_key: bytes | None = None,
+    telemetry: TelemetryRegistry | None = None,
 ) -> int:
     """Attach a pad probe to ``udpsrc.src`` that drops RTCP packets so
     rtpbin only sees RTP, and optionally calls ``on_caps_refresh`` whenever
@@ -586,14 +748,23 @@ def attach_rtcp_demux_probe(
         if not b1 or not (_RTCP_PT_LOW <= b1[0] <= _RTCP_PT_HIGH):
             return Gst.PadProbeReturn.OK  # RTP — pass through to rtpbin
         # RTCP: parse for OPOB CAPS, then drop so rtpbin doesn't see it.
-        if on_caps_refresh is not None:
+        # Even when on_caps_refresh is None we still parse iff telemetry
+        # is asked for, because the runtime caps_signal counter is one of
+        # the few signals an operator has that the in-band channel is
+        # alive after the bootstrap wait completes.
+        if on_caps_refresh is not None or telemetry is not None:
             data = buf.extract_dup(0, size)
-            caps = find_opob_caps(data, caps_key, logger=log)
+            caps = find_opob_caps(
+                data, caps_key, logger=log, telemetry=telemetry,
+            )
             if caps is not None:
-                try:
-                    on_caps_refresh(caps)
-                except Exception:
-                    log.exception('on_caps_refresh callback raised')
+                if telemetry is not None:
+                    telemetry.record_caps_signal(result='ok')
+                if on_caps_refresh is not None:
+                    try:
+                        on_caps_refresh(caps)
+                    except Exception:
+                        log.exception('on_caps_refresh callback raised')
         return Gst.PadProbeReturn.DROP
 
     probe_id = pad.add_probe(Gst.PadProbeType.BUFFER, probe)

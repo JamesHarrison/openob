@@ -60,5 +60,23 @@ RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
 RestrictRealtime=false
 LockPersonality=true
 
+# Resource caps — bounds the blast radius if a parser bug or attacker-driven
+# memory growth tries to take the box with the audio. Sized comfortably
+# above any realistic OpenOB workload (single Opus link uses ~50 MB, multipath
+# adds another ~30 MB) and well below the smallest target Pi (1 GB on Pi 3B+).
+# Lower these on memory-tight boxes; raise if you're stacking many links.
+MemoryHigh=256M
+MemoryMax=512M
+TasksMax=128
+LimitNOFILE=1024
+
+# IP allowlisting is OFF by default because OpenOB's deployment shapes
+# (dynamic 4G IPs, multipath with N source IPs, N:1 hub-spoke) don't
+# tolerate static peer pinning — see examples/config/remote-multipath-4g/
+# for why. If you have a fixed-peer STL with a known TX subnet, uncomment
+# and edit:
+# IPAddressDeny=any
+# IPAddressAllow=localhost 10.0.0.0/8 224.0.0.0/4
+
 [Install]
 WantedBy=multi-user.target

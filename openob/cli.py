@@ -136,6 +136,33 @@ def _add_link_options(p: argparse.ArgumentParser) -> None:
                         'address to send RTCP NACKs to (the in-band path sniffs '
                         'this automatically)')
 
+    # --- telemetry (v6.2+) -------------------------------------------------
+    # OTLP-only; off by default. Bearer tokens go in TOML / env, never on
+    # the CLI (same discipline as PSK).
+    p.add_argument('--telemetry', dest='telemetry_enabled',
+                   action='store_true', default=None,
+                   help='Enable OTLP metrics + structured event logging '
+                        '(requires `pip install openob[telemetry]`)')
+    p.add_argument('--no-telemetry', dest='telemetry_enabled',
+                   action='store_false',
+                   help='Disable telemetry (default)')
+    p.add_argument('--telemetry-otlp-endpoint', type=str, default=None,
+                   metavar='URL',
+                   help='OTLP HTTP/protobuf endpoint, e.g. '
+                        'https://otlp.example.com:4318 or '
+                        'http://prom:9090/api/v1/otlp/v1/metrics')
+    p.add_argument('--telemetry-otlp-interval-seconds', type=int, default=None,
+                   metavar='N',
+                   help='OTLP export interval (seconds, min 5; default 30)')
+    p.add_argument('--telemetry-log-format', type=str,
+                   choices=['text', 'json'], default=None,
+                   help='Log line format. JSON promotes structured event '
+                        'fields to top-level keys for log aggregators. '
+                        'Also settable via OPENOB_LOG_FORMAT=json')
+    p.add_argument('--telemetry-log-level', type=str,
+                   choices=['debug', 'info', 'warning', 'error'], default=None,
+                   help='Override log level for the telemetry-aware loggers')
+
 
 def _add_tx_audio_options(p: argparse.ArgumentParser) -> None:
     p.add_argument('--audio-input', '-a', type=str,
@@ -218,6 +245,9 @@ def _link_overrides_from_args(args: argparse.Namespace) -> dict[str, Any]:
         'opus_fec', 'opus_dtx', 'opus_qext',
         'security', 'caps_from_config',
         'retransmission_time_limit', 'tx_host',
+        'telemetry_enabled', 'telemetry_otlp_endpoint',
+        'telemetry_otlp_interval_seconds',
+        'telemetry_log_format', 'telemetry_log_level',
     )
     return {k: getattr(args, k) for k in keys if getattr(args, k, None) is not None}
 
@@ -266,6 +296,19 @@ def _run_link(args: argparse.Namespace, logger: logging.Logger) -> None:
         ob_version = version('OpenOB')
     except Exception:
         ob_version = 'unknown'
+
+    # Reconfigure logging now that we know the resolved config. The first
+    # LoggerFactory() in main() seeded text/env-default; this honours the
+    # --telemetry-log-format CLI flag or telemetry_log_format TOML key.
+    _LEVEL_MAP = {
+        'debug': logging.DEBUG, 'info': logging.INFO,
+        'warning': logging.WARNING, 'error': logging.ERROR,
+    }
+    LoggerFactory.reconfigure(
+        fmt=link_config.telemetry_log_format,
+        level=_LEVEL_MAP.get(link_config.telemetry_log_level)
+        if link_config.telemetry_log_level else None,
+    )
 
     logger.info(
         'OpenOB %s starting: node=%s link=%s mode=%s encoding=%s port=%d security=%s '

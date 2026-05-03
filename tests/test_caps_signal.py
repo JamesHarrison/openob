@@ -14,6 +14,7 @@ from openob.caps_signal import (
     parse_encoding_from_caps,
     parse_rtcp_app,
     parse_rtx_fields,
+    sanitize_caps_from_wire,
 )
 
 
@@ -181,8 +182,11 @@ def test_compound_sr_then_app_parses_only_app():
 def test_find_opob_caps_through_compound():
     """find_opob_caps must work on the compound packet too."""
     sr = build_rtcp_sender_report(1)
-    app = build_rtcp_app(1, APP_NAME, SUBTYPE_CAPS, b'application/x-rtp,foo=1')
-    assert find_opob_caps(sr + app) == 'application/x-rtp,foo=1'
+    app = build_rtcp_app(
+        1, APP_NAME, SUBTYPE_CAPS,
+        b'application/x-rtp,clock-rate=(int)48000',
+    )
+    assert find_opob_caps(sr + app) == 'application/x-rtp,clock-rate=(int)48000'
 
 
 def test_is_rtcp_compound_byte1_is_sr_pt():
@@ -240,8 +244,137 @@ def test_find_opob_caps_no_key_still_works_for_cleartext():
     """Without a caps_key the parser falls back to cleartext UTF-8 — the
     security="none" mode."""
     sr = build_rtcp_sender_report(1)
-    app = build_rtcp_app(1, APP_NAME, SUBTYPE_CAPS, b'application/x-rtp,foo=1')
-    assert find_opob_caps(sr + app, caps_key=None) == 'application/x-rtp,foo=1'
+    app = build_rtcp_app(
+        1, APP_NAME, SUBTYPE_CAPS,
+        b'application/x-rtp,clock-rate=(int)48000',
+    )
+    assert (
+        find_opob_caps(sr + app, caps_key=None)
+        == 'application/x-rtp,clock-rate=(int)48000'
+    )
+
+
+# --- sanitize_caps_from_wire ---------------------------------------------
+
+
+def test_sanitize_keeps_allowed_fields():
+    caps = (
+        'application/x-rtp,media=(string)audio,encoding-name=(string)OPUS,'
+        'clock-rate=(int)48000,payload=(int)96,channels=(int)2'
+    )
+    assert sanitize_caps_from_wire(caps) == caps
+
+
+def test_sanitize_strips_unknown_fields():
+    """Attacker-injected fields are dropped before they reach Gst.Caps."""
+    caps = (
+        'application/x-rtp,media=(string)audio,clock-rate=(int)48000,'
+        'attacker-field=(string)oops,encoding-name=(string)OPUS'
+    )
+    cleaned = sanitize_caps_from_wire(caps)
+    assert cleaned == (
+        'application/x-rtp,media=(string)audio,clock-rate=(int)48000,'
+        'encoding-name=(string)OPUS'
+    )
+
+
+def test_sanitize_strips_srtp_key_field():
+    """A wire-supplied srtp-key MUST be stripped — RX derives its own from
+    the PSK; trusting a wire-supplied key would defeat encryption entirely."""
+    caps = (
+        'application/x-srtp,media=(string)audio,'
+        'srtp-key=(buffer)deadbeef,encoding-name=(string)OPUS'
+    )
+    cleaned = sanitize_caps_from_wire(caps)
+    assert cleaned is not None
+    assert 'srtp-key' not in cleaned
+    assert 'deadbeef' not in cleaned
+
+
+def test_sanitize_rejects_bad_media_type():
+    """An unrecognised media type returns None (the packet gets dropped)."""
+    assert sanitize_caps_from_wire(
+        'application/x-something-else,clock-rate=(int)48000'
+    ) is None
+    assert sanitize_caps_from_wire('') is None
+
+
+def test_sanitize_accepts_srtp_media_type():
+    """application/x-srtp — the security=psk path — must pass."""
+    caps = 'application/x-srtp,encoding-name=(string)OPUS'
+    assert sanitize_caps_from_wire(caps) == caps
+
+
+def test_find_opob_caps_drops_bad_media_type():
+    """End-to-end: a packet with an attacker-chosen media type returns None
+    (packet dropped) rather than feeding it to Gst.Caps.from_string."""
+    sr = build_rtcp_sender_report(1)
+    app = build_rtcp_app(
+        1, APP_NAME, SUBTYPE_CAPS,
+        b'application/x-evil,clock-rate=(int)48000',
+    )
+    assert find_opob_caps(sr + app) is None
+
+
+def test_find_opob_caps_strips_unknown_fields_in_packet():
+    """End-to-end: unknown fields in a wire packet are stripped before
+    return so the caller can't accidentally feed them to GStreamer."""
+    sr = build_rtcp_sender_report(1)
+    app = build_rtcp_app(
+        1, APP_NAME, SUBTYPE_CAPS,
+        b'application/x-rtp,clock-rate=(int)48000,attacker=(string)x',
+    )
+    result = find_opob_caps(sr + app)
+    assert result == 'application/x-rtp,clock-rate=(int)48000'
+
+
+# --- _PerSourceRateLimiter ----------------------------------------------
+
+
+def test_rate_limiter_allows_initial_burst():
+    """A fresh source gets the full bucket immediately — legitimate TX
+    that fires its first caps packet on startup is never rate-limited."""
+    from openob.caps_signal import _PerSourceRateLimiter
+    rl = _PerSourceRateLimiter(capacity=5, refill_per_sec=1.0)
+    for _ in range(5):
+        assert rl.allow('10.0.0.1', now=0.0) is True
+    assert rl.allow('10.0.0.1', now=0.0) is False  # bucket drained
+
+
+def test_rate_limiter_refills_over_time():
+    """Tokens refill at the configured rate."""
+    from openob.caps_signal import _PerSourceRateLimiter
+    rl = _PerSourceRateLimiter(capacity=2, refill_per_sec=1.0)
+    assert rl.allow('10.0.0.1', now=0.0) is True
+    assert rl.allow('10.0.0.1', now=0.0) is True
+    assert rl.allow('10.0.0.1', now=0.0) is False  # drained
+    assert rl.allow('10.0.0.1', now=1.5) is True   # 1.5 tokens refilled
+
+
+def test_rate_limiter_isolates_sources():
+    """One noisy source can't deny service to a quiet one."""
+    from openob.caps_signal import _PerSourceRateLimiter
+    rl = _PerSourceRateLimiter(capacity=2, refill_per_sec=1.0)
+    assert rl.allow('10.0.0.1', now=0.0) is True
+    assert rl.allow('10.0.0.1', now=0.0) is True
+    assert rl.allow('10.0.0.1', now=0.0) is False
+    # Different source — own bucket, full.
+    assert rl.allow('10.0.0.2', now=0.0) is True
+    assert rl.allow('10.0.0.2', now=0.0) is True
+
+
+def test_rate_limiter_caps_tracked_sources():
+    """Source-IP spraying can't OOM the dict — LRU eviction kicks in."""
+    from openob.caps_signal import _PerSourceRateLimiter
+    rl = _PerSourceRateLimiter(capacity=1, refill_per_sec=1.0, max_sources=4)
+    # Fill the source dict.
+    for i in range(4):
+        assert rl.allow(f'10.0.0.{i}', now=float(i)) is True
+    # New source forces eviction; dict size stays at the cap.
+    assert rl.allow('10.0.99.99', now=10.0) is True
+    assert len(rl._buckets) == 4
+    # The oldest entry (10.0.0.0 at t=0.0) should be the one evicted.
+    assert '10.0.0.0' not in rl._buckets
 
 
 # --- parse_rtx_fields ----------------------------------------------------
