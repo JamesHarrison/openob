@@ -1,20 +1,23 @@
-# OpenOB instance config — RX (receiver) end.
+# OpenOB v6 systemd instance config — RX (receiver) end.
 #
-# Copy to /etc/openob/<instance-name>.conf and adapt the values below.
-# Then enable the link with:
-#     sudo systemctl enable --now openob@<instance-name>
+# Workflow:
+#   1. Lay down a per-link TOML at /etc/openob/links/<link>.toml
+#      (see openob-link.toml.example in this directory).
+#   2. Copy this file to /etc/openob/<instance>.conf, set OPENOB_ARGS below.
+#   3. sudo systemctl enable --now openob@<instance>
 #
-# The receiver typically also runs the Redis configuration server — the
-# openob@.service unit declares After=redis-server.service for that case.
-# If your Redis is hosted elsewhere, both ends just need to reach it.
+# Both ends of the same link can share the systemd instance name — they
+# live on different boxes — but the link_name in OPENOB_ARGS must match
+# both ends and the TOML file basename.
 
-OPENOB_ARGS="127.0.0.1 studio-rx studio-stl rx -a alsa -d hw:0"
+OPENOB_ARGS="rx studio-stl"
 
 # Reference (run `openob -h` for the full list):
-#   1st positional   redis host (or host:port; bracket form for IPv6)
-#   2nd positional   node name (free-form, identifies *this* end)
-#   3rd positional   link name (must match the TX end)
-#   4th positional   mode: rx
-#   -a / --audio_output   auto | alsa | jack | test | wav
-#   -d / --alsa_device    e.g. hw:0
-#   --wav_file PATH       capture decoded audio to a WAV (test/debug)
+#   openob rx <link_name> [--config FILE] [--node-name NAME] [opts]
+#
+# Common flag overrides:
+#   --audio-output alsa|jack|test|wav
+#   --alsa-device hw:0
+#   --wav-file PATH            capture decoded audio to a WAV (test/debug)
+#   --caps-from-config         skip the in-band caps wait, derive from TOML
+#                              (deterministic startup for STL deployments)

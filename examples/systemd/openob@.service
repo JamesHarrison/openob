@@ -2,11 +2,10 @@
 Description=OpenOB %i broadcast audio link
 Documentation=https://github.com/JamesHarrison/openob
 
-# Wait for the network and (if Redis is local) the Redis server. If your
-# Redis lives on a remote host, drop the redis-server dependencies — only
-# the network-online target matters for an outbound connection.
-After=network-online.target sound.target redis-server.service
-Wants=network-online.target redis-server.service
+# v6 has no Redis dependency. We just need the network and (if applicable)
+# the sound subsystem before the link comes up.
+After=network-online.target sound.target
+Wants=network-online.target
 
 # Bail out if the service crashes too quickly too often. systemd 230+ moved
 # these keys from [Service] into [Unit].
@@ -21,6 +20,10 @@ Type=simple
 # OPENOB_ARGS=... line — see openob-tx.conf.example / openob-rx.conf.example.
 EnvironmentFile=/etc/openob/%i.conf
 
+# Per-link TOML config lives under /etc/openob/links/<link>.toml. Override
+# OPENOB_CONFIG_DIR in the per-instance .conf if you want a different layout.
+Environment=OPENOB_CONFIG_DIR=/etc/openob
+
 # The path here assumes a system-wide install (`pip install OpenOB`). For a
 # venv install (`pip install -e .` inside e.g. /opt/openob), swap to
 # /opt/openob/bin/openob and adjust User= if the venv lives in a home dir.
@@ -28,9 +31,9 @@ ExecStart=/usr/local/bin/openob $OPENOB_ARGS
 
 # Restart on crash. openob's internal supervisor recovers from pipeline
 # failures on its own, so a non-zero exit means something genuinely
-# unrecoverable (config error, missing GStreamer plugin, redis unreachable
-# for an extended period). A clean SIGTERM exits 0 — systemctl stop will
-# NOT trigger a restart.
+# unrecoverable (config error, missing GStreamer plugin, persistently
+# unreachable network). A clean SIGTERM exits 0 — systemctl stop will NOT
+# trigger a restart.
 Restart=on-failure
 RestartSec=2s
 

@@ -162,3 +162,96 @@ def wav_rms_dbfs(path: Path) -> float:
 def wav_duration_seconds(path: Path) -> float:
     with wave.open(str(path), "rb") as w:
         return w.getnframes() / float(w.getframerate())
+
+
+def _wav_window_rms_dbfs_series(
+    path: Path,
+    *,
+    window_ms: float = 20.0,
+    trim_ms: float = 200.0,
+) -> list[float]:
+    """
+    Return RMS in dBFS for each non-overlapping ``window_ms`` window of the
+    WAV's interior (start and end are trimmed by ``trim_ms`` to ignore
+    pipeline ramp-up / teardown). A 20 ms window is one Opus frame at
+    48 kHz, so each entry corresponds to one audio packet — the unit a
+    listener would notice as a dropout.
+    """
+    import array
+
+    with wave.open(str(path), "rb") as w:
+        framerate = w.getframerate()
+        nchannels = w.getnchannels()
+        sampwidth = w.getsampwidth()
+        nframes = w.getnframes()
+        if sampwidth != 2:
+            raise ValueError(
+                f"expected 16-bit PCM (sampwidth=2), got {sampwidth}"
+            )
+        raw = w.readframes(nframes)
+
+    if not raw:
+        return []
+
+    samples = array.array("h")
+    samples.frombytes(raw)
+    if not samples:
+        return []
+
+    frames_per_window = int(framerate * window_ms / 1000.0)
+    samples_per_window = frames_per_window * nchannels
+    if samples_per_window <= 0:
+        return []
+
+    trim_frames = int(framerate * trim_ms / 1000.0)
+    trim_samples = trim_frames * nchannels
+    interior = samples[trim_samples : len(samples) - trim_samples]
+    if len(interior) < samples_per_window:
+        return []
+
+    out: list[float] = []
+    for offset in range(0, len(interior) - samples_per_window + 1, samples_per_window):
+        chunk = interior[offset : offset + samples_per_window]
+        sq_sum = 0.0
+        for s in chunk:
+            sq_sum += s * s
+        mean_sq = sq_sum / len(chunk)
+        if mean_sq <= 0:
+            out.append(-math.inf)
+        else:
+            rms = math.sqrt(mean_sq)
+            out.append(20.0 * math.log10(rms / 32768.0))
+    return out
+
+
+def wav_lowest_window_rms_dbfs(
+    path: Path,
+    *,
+    window_ms: float = 20.0,
+    trim_ms: float = 200.0,
+) -> float:
+    """The dimmest non-silent window in the WAV's interior, in dBFS.
+
+    For a continuous pink-noise input, every window should be near the
+    average level — ANY window much lower than that signals a dropout.
+    """
+    series = _wav_window_rms_dbfs_series(path, window_ms=window_ms, trim_ms=trim_ms)
+    return min(series) if series else -math.inf
+
+
+def wav_dropout_count_dbfs(
+    path: Path,
+    *,
+    threshold_dbfs: float = -40.0,
+    window_ms: float = 20.0,
+    trim_ms: float = 200.0,
+) -> tuple[int, int]:
+    """How many ``window_ms``-windows fall below ``threshold_dbfs``.
+
+    Returns ``(dropout_count, total_windows)`` so callers can report a
+    rate, not just a count. With a continuous input, ``dropout_count``
+    should be 0 on a clean link.
+    """
+    series = _wav_window_rms_dbfs_series(path, window_ms=window_ms, trim_ms=trim_ms)
+    dropouts = sum(1 for db in series if db < threshold_dbfs)
+    return dropouts, len(series)

@@ -1,0 +1,97 @@
+# Example v6 link config.
+#
+# v6 uses a FLAT TOML and ASYMMETRIC config: each end has its own file with
+# only the keys that side needs.
+#
+#   - TX needs full codec/audio settings.
+#   - RX picks the codec parameters up dynamically from TX's in-band caps
+#     signal, so the RX file only needs `port` (where to listen),
+#     `security` (must match TX), and the audio output.
+#
+# Two examples below — copy whichever applies to /etc/openob/links/<link>.toml
+# on each end.
+#
+# Things that MUST match between TX and RX:
+#   port, security, psk/root_psk, multicast (and receiver_host if multicast).
+# Everything else lives in the TX file only.
+
+# ============================================================================
+# TX-side example
+# ============================================================================
+
+encoding      = "opus"          # or "pcm"
+bitrate       = 128             # kbps; opus only
+samplerate    = 48000           # Hz
+channels      = 2               # 1 mono, 2 stereo
+port          = 3000            # single inbound UDP port (RTP+RTCP muxed per RFC 5761)
+receiver_host = "studio.example.com"
+multicast     = false           # set true and point receiver_host at a 239.x.x.x for multicast
+
+# Optional opus tunables (skip for PCM):
+# jitter_buffer        = 40    # ms; bump for lossy/jittery WAN links
+# opus_framesize       = 20
+# opus_complexity      = 9     # 0..10; lower = less CPU
+# opus_loss_expectation = 0    # 0..100, % expected packet loss
+# opus_fec             = true
+# opus_dtx             = false
+# opus_qext            = false # libopus 1.3+ qext; >=1024 kbps recommended
+
+# RTP retransmission (selective resend on packet loss). 0 = off (default).
+# When > 0, TX runs rtprtxsend with this max-size-time (ms) and signals RX
+# in-band — RX picks it up and enables its jitter-buffer's do-retransmission
+# automatically; no RX-side config needed in the normal case. 200 ms is a
+# reasonable starting point for STL links.
+# retransmission_time_limit = 200
+
+# Security: "none" (cleartext, default) or "psk" (SRTP). MUST match RX.
+security = "none"
+# psk      = "shared-secret"
+# psk      = "${OPENOB_PSK_STL}"   # TOML envvar substitution
+#
+# OR rely on the OPENOB_PSK env var fallback (kicks in when security="psk"
+# and no psk/root_psk is set elsewhere). systemd EnvironmentFile is the
+# typical source. PSK is NEVER accepted on the CLI.
+#
+# OR use root_psk in /etc/openob/secrets.toml [defaults] table — the
+# per-link key is then HKDF-derived from (root_psk, link_name).
+
+audio_input  = "alsa"           # auto | alsa | jack | test
+alsa_device  = "hw:0"
+# jack_name         = "openob-tx"
+# jack_auto         = true
+# jack_port_pattern = "system:capture_*"
+# test_wave         = "pink-noise"      # only when audio_input = "test"
+
+
+# ============================================================================
+# RX-side example (place this at /etc/openob/links/<link>.toml on the RX)
+# ============================================================================
+#
+# Truly minimal — RX learns codec/bitrate/samplerate/channels from the
+# in-band caps signal that TX sends every 2 seconds.
+#
+# port          = 3000
+# jitter_buffer = 40             # ms; tune for your typical network jitter
+# security      = "none"         # match TX
+# # psk         = "shared-secret"   # match TX if security="psk"
+# # multicast   = true              # match TX
+# # receiver_host = "239.255.0.42"  # required if multicast=true
+#
+# audio_output = "alsa"
+# alsa_device  = "hw:0"
+# # jack_name         = "openob-rx"
+# # jack_auto         = true
+# # jack_port_pattern = "system:playback_*"
+# # wav_file          = "/var/log/openob/test.wav"   # only when audio_output = "wav"
+#
+# # caps_from_config = true        # opt-in: derive caps from this file instead of
+#                                  # waiting for TX's in-band signal (deterministic
+#                                  # STL startup; requires encoding/samplerate/
+#                                  # channels to also be in this file)
+#
+# # tx_host = "ob-van.example.com" # only when caps_from_config = true AND TX
+#                                  # has retransmission_time_limit > 0 — gives
+#                                  # RX a target for the RTCP NACK back-channel
+#                                  # since there's no in-band signal to sniff
+#                                  # the address from. Leave unset to silently
+#                                  # disable RTX in caps_from_config mode.

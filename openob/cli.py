@@ -1,29 +1,36 @@
+"""
+OpenOB v6 command-line interface.
+
+Three subcommands:
+
+- ``openob tx <link_name> [opts]`` — start a transmitter.
+- ``openob rx <link_name> [opts]`` — start a receiver.
+- ``openob migrate-v5 <redis_host> [<link_name>...]`` — print v6 TOML
+  equivalents of v5 Redis configs (one-shot migration helper).
+
+Configuration comes from a TOML file at ``~/.openob/links/<link_name>.toml``
+by default; ``--config FILE`` overrides the path. CLI flags override file
+values. See :mod:`openob.link_config` for the full layering rules.
+
+Compared to v5: no more ``<config_host>`` positional (Redis is gone), and
+``<node_name>`` is now an optional ``--node-name`` (defaults to the
+machine's hostname; only used for log labelling).
+"""
 from __future__ import annotations
 
 import argparse
 import logging
+import socket
+import sys
+from typing import Any
 
 from openob.audio_interface import AudioInterface
-from openob.link_config import LinkConfig
+from openob.link_config import (
+    ConfigError,
+    link_config_from_resolved,
+    resolve_link_settings,
+)
 from openob.logger import LoggerFactory
-from openob.node import Node
-
-
-class _HelpAction(argparse._HelpAction):
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        parser.print_help()
-
-        subparsers_actions = [
-            action for action in parser._actions
-            if isinstance(action, argparse._SubParsersAction)
-        ]
-        for subparsers_action in subparsers_actions:
-            for choice, subparser in subparsers_action.choices.items():
-                print("Subparser '{}'".format(choice))
-                print(subparser.format_help())
-
-        parser.exit()
 
 
 _OPUS_BITRATES = [
@@ -39,183 +46,264 @@ _TEST_WAVES = [
 ]
 
 
+# --- argparse glue ---------------------------------------------------------
+
+
+class _HelpAction(argparse._HelpAction):
+    """Help action that recursively prints subparser help, like v5."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        parser.print_help()
+        for action in parser._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                for choice, sub in action.choices.items():
+                    print(f"\nSubparser '{choice}'")
+                    print(sub.format_help())
+        parser.exit()
+
+
+def _add_link_options(p: argparse.ArgumentParser) -> None:
+    """Options that apply to both ``tx`` and ``rx`` (link-level config)."""
+    p.add_argument('--config', type=str, default=None,
+                   help='Path to a specific link config TOML (overrides the default lookup)')
+    p.add_argument('--config-dir', type=str, default=None,
+                   help='Override the config directory '
+                        '(default: $OPENOB_CONFIG_DIR or ~/.openob)')
+    p.add_argument('--node-name', type=str, default=None,
+                   help='Identifier for this end of the link in logs '
+                        '(defaults to the machine hostname)')
+
+    p.add_argument('--port', '-p', type=int, default=None,
+                   help='UDP port for RTP+RTCP-mux audio')
+    p.add_argument('--receiver-host', type=str, default=None,
+                   help='[tx] destination host. [rx] multicast group address (when --multicast)')
+    p.add_argument('--multicast', dest='multicast', action='store_true', default=None,
+                   help='Use IP multicast')
+    p.add_argument('--no-multicast', dest='multicast', action='store_false',
+                   help='Use unicast (default)')
+    p.add_argument('--jitter-buffer', type=int, default=None,
+                   help='Jitter buffer size in milliseconds')
+
+    p.add_argument('--encoding', '-e', type=str, choices=['pcm', 'opus'], default=None,
+                   help='Audio encoding')
+    p.add_argument('--samplerate', '-r', type=int, default=None,
+                   help='Sample rate (Hz). 0 = let GStreamer negotiate')
+    p.add_argument('--channels', '-c', type=int, default=None,
+                   help='Channel count (1 mono, 2 stereo, 0 = negotiate)')
+    p.add_argument('--bitrate', '-b', type=int, choices=_OPUS_BITRATES, default=None,
+                   help='Opus bitrate (kbps)')
+
+    p.add_argument('--opus-framesize', type=int, choices=_OPUS_FRAMESIZES, default=None,
+                   help='Opus frame size (ms)')
+    p.add_argument('--opus-complexity', type=int, choices=range(0, 11), default=None,
+                   metavar='N', help='Opus computational complexity (0-10)')
+    p.add_argument('--opus-loss-expectation', type=int, choices=range(0, 101),
+                   default=None, metavar='PCT',
+                   help='Expected packet loss percentage for Opus (0-100)')
+    p.add_argument('--opus-fec', dest='opus_fec', action='store_true', default=None,
+                   help='Enable Opus inband FEC (default true)')
+    p.add_argument('--no-opus-fec', dest='opus_fec', action='store_false',
+                   help='Disable Opus inband FEC')
+    p.add_argument('--opus-dtx', dest='opus_dtx', action='store_true', default=None,
+                   help='Enable Opus DTX')
+    p.add_argument('--no-opus-dtx', dest='opus_dtx', action='store_false',
+                   help='Disable Opus DTX (default)')
+    p.add_argument('--opus-qext', dest='opus_qext', action='store_true', default=None,
+                   help='Enable Opus quality extensions (libopus 1.3+, requires '
+                        'opusenc with the qext property)')
+    p.add_argument('--no-opus-qext', dest='opus_qext', action='store_false',
+                   help='Disable Opus qext (default)')
+
+    p.add_argument('--security', type=str, choices=['none', 'psk'], default=None,
+                   help="Security mode. 'psk' enables SRTP using a PSK loaded from "
+                        "the config file. PSK is never accepted on the CLI.")
+
+    p.add_argument('--caps-from-config', dest='caps_from_config',
+                   action='store_true', default=None,
+                   help='[rx] derive caps from local config instead of waiting '
+                        'for an in-band caps signal from TX')
+    p.add_argument('--no-caps-from-config', dest='caps_from_config',
+                   action='store_false',
+                   help='[rx] always wait for an in-band caps signal (default)')
+
+    p.add_argument('--retransmission-time-limit', type=int, default=None,
+                   metavar='MS',
+                   help='[tx] enable RTP retransmission (rtprtxsend max-size-time '
+                        'in ms). 0 disables. RX picks RTX up from the in-band '
+                        'caps signal — no RX config needed in the normal case')
+    p.add_argument('--tx-host', type=str, default=None,
+                   help='[rx] only used with --caps-from-config + RTX: the TX '
+                        'address to send RTCP NACKs to (the in-band path sniffs '
+                        'this automatically)')
+
+
+def _add_tx_audio_options(p: argparse.ArgumentParser) -> None:
+    p.add_argument('--audio-input', '-a', type=str,
+                   choices=['auto', 'alsa', 'jack', 'test'], default=None,
+                   help='Audio source type')
+    p.add_argument('--alsa-device', '-d', type=str, default=None,
+                   help='ALSA device (e.g. hw:0)')
+    p.add_argument('--jack-name', type=str, default=None, help='JACK port name root')
+    p.add_argument('--jack-auto', dest='jack_auto', action='store_true', default=None,
+                   help='Enable JACK auto-connect (default)')
+    p.add_argument('--no-jack-auto', dest='jack_auto', action='store_false',
+                   help='Disable JACK auto-connect')
+    p.add_argument('--jack-port-pattern', type=str, default=None,
+                   help='JACK port pattern')
+    p.add_argument('--test-wave', type=str, choices=_TEST_WAVES, default=None,
+                   help='audiotestsrc waveform (when --audio-input=test)')
+
+
+def _add_rx_audio_options(p: argparse.ArgumentParser) -> None:
+    p.add_argument('--audio-output', '-a', type=str,
+                   choices=['auto', 'alsa', 'jack', 'test', 'wav'], default=None,
+                   help='Audio sink type')
+    p.add_argument('--alsa-device', '-d', type=str, default=None,
+                   help='ALSA device (e.g. hw:0)')
+    p.add_argument('--jack-name', type=str, default=None, help='JACK port name root')
+    p.add_argument('--jack-auto', dest='jack_auto', action='store_true', default=None,
+                   help='Enable JACK auto-connect (default)')
+    p.add_argument('--no-jack-auto', dest='jack_auto', action='store_false',
+                   help='Disable JACK auto-connect')
+    p.add_argument('--jack-port-pattern', type=str, default=None,
+                   help='JACK port pattern')
+    p.add_argument('--wav-file', type=str, default=None,
+                   help='Output WAV path (when --audio-output=wav)')
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='openob',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         add_help=False,
     )
-
     parser.add_argument('-v', '--verbose', action='store_const',
-                        help='Increase logging verbosity',
+                        help='Increase logging verbosity to DEBUG',
                         const=logging.DEBUG, default=logging.INFO)
     parser.add_argument('-h', '--help', action=_HelpAction, help='Show help')
 
-    parser.add_argument('config_host', type=str,
-                        help="The configuration server for this OpenOB Node")
-    parser.add_argument('node_name', type=str,
-                        help="The node name for this end")
-    parser.add_argument('link_name', type=str,
-                        help="The link name this OpenOB Manager is operating on; "
-                             "must be the same on both Nodes")
+    subs = parser.add_subparsers(dest='mode', help='Subcommand')
 
-    subparsers = parser.add_subparsers(help="The link mode to operate in on this end")
+    # tx
+    tx = subs.add_parser('tx', formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+                         help='Run a transmitter')
+    tx.add_argument('link_name', type=str, help='Link name (matches both ends)')
+    _add_link_options(tx)
+    _add_tx_audio_options(tx)
 
-    parser_tx = subparsers.add_parser(
-        'tx', formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    parser_tx.add_argument('receiver_host', type=str,
-                           help="The receiver for this transmitter. The machine at "
-                                "this address must be running an rx-mode Manager "
-                                "for this link name")
-    parser_tx.add_argument('-a', '--audio_input', type=str,
-                           choices=['auto', 'alsa', 'jack', 'test'],
-                           default='auto',
-                           help="The audio source type for this end of the link")
-    parser_tx_alsa = parser_tx.add_argument_group('alsa', 'Options when using ALSA source type')
-    parser_tx_alsa.add_argument('-d', '--alsa_device', type=str, default='hw:0',
-                                help="The ALSA device to connect to for input")
-    parser_tx_jack = parser_tx.add_argument_group('jack', 'Options when using JACK source type')
-    parser_tx_jack.add_argument('-jn', '--jack_name', type=str, default='openob',
-                                help="JACK port name root")
-    parser_tx_jack.add_argument('-aj', '--jack_auto', action='store_false',
-                                help="Disable auto connection for JACK inputs")
-    parser_tx_jack.add_argument('-jp', '--jack_port_pattern', type=str, default=None,
-                                help="JACK port pattern")
-    parser_tx_test = parser_tx.add_argument_group('test', 'Options when using test source type')
-    parser_tx_test.add_argument('--test_wave', type=str, choices=_TEST_WAVES,
-                                default='sine',
-                                help="audiotestsrc waveform to generate")
-    parser_tx.add_argument('-r', '--samplerate', type=int, default=0,
-                           help="Set the sample rate to request from the input (Hz). "
-                                "0 = let the source/audioconvert negotiate.")
-    parser_tx.add_argument('-c', '--channels', type=int, default=0,
-                           help="Pin the input channel count via the capsfilter "
-                                "(typical: 1 for mono, 2 for stereo). 0 = let the "
-                                "source/audioconvert negotiate; useful when an ALSA "
-                                "card defaults to mono and you want to force stereo.")
-    parser_tx.add_argument('-e', '--encoding', type=str, choices=['pcm', 'opus'],
-                           default='opus',
-                           help="The audio encoding type for this link; PCM for "
-                                "linear audio (16-bit), or Opus for encoded audio")
-    parser_tx.add_argument('-p', '--port', type=int, default=3000,
-                           help="The base port to use for audio transport. This "
-                                "port must be accessible on the receiving host")
-    parser_tx.add_argument('-m', '--multicast', action='store_true', dest='multicast',
-                           help="Start this transmitter in multicast mode, enabling "
-                                "multiple clients to connect at once using the "
-                                "address specified in reciever_host")
-    parser_tx.add_argument('--no-multicast', action='store_false', dest='multicast',
-                           help="Start this transmitter in unicast mode (default)")
-    parser_tx.add_argument('-j', '--jitter_buffer', type=int, default=40,
-                           help="The size of the jitter buffer in milliseconds. "
-                                "Affects latency; may be reduced to 5-10ms on fast "
-                                "reliable networks, or increased for poor networks "
-                                "like 3G")
-    parser_tx_opus = parser_tx.add_argument_group('opus', 'Opus encoder options')
-    parser_tx_opus.add_argument('-b', '--bitrate', type=int, default=128,
-                                help="Bitrate if using CELT/Opus (in kbit/s)",
-                                choices=_OPUS_BITRATES)
-    parser_tx_opus.add_argument('-l', '--loss', type=int, default=0,
-                                help="Expected packet loss percentage for Opus, "
-                                     "between 0 and 100",
-                                choices=range(0, 100), metavar='LOSS')
-    parser_tx_opus.add_argument('--dtx', action='store_true', dest='dtx',
-                                help="Enable Opus Discontinuous Transmission support")
-    parser_tx_opus.add_argument('--no-dtx', action='store_false', dest='dtx',
-                                help="Disable Opus Discontinuous Transmission support "
-                                     "(default)")
-    parser_tx_opus.add_argument('--qext', action='store_true', dest='qext',
-                                help="Enable Opus Quality Extensions (qext) for "
-                                     "high-bitrate music. Designed for >=1024 kbps; "
-                                     "requires a GStreamer/libopus build that exposes "
-                                     "the 'enable-qext' property on opusenc (libopus "
-                                     ">=1.3 era).")
-    parser_tx_opus.add_argument('--no-qext', action='store_false', dest='qext',
-                                help="Disable Opus Quality Extensions (default)")
-    parser_tx_opus.add_argument('--fec', action='store_true', dest='fec',
-                                help="Enable Opus Inband Forward Error Correction "
-                                     "support (default)")
-    parser_tx_opus.add_argument('--no-fec', action='store_false', dest='fec',
-                                help="Disable Opus Inband Forward Error Correction "
-                                     "support")
-    parser_tx_opus.add_argument('--complexity', type=int, default=9,
-                                help="Opus Computational Complexity, between 0 and "
-                                     "10 - reduce on CPU-constrained devices",
-                                choices=range(0, 10))
-    parser_tx_opus.add_argument('--framesize', type=int, default=20,
-                                help="Opus frame size (ms)",
-                                choices=_OPUS_FRAMESIZES)
-    parser_tx.set_defaults(mode='tx', fec=True, dtx=False, qext=False, multicast=False)
+    # rx
+    rx = subs.add_parser('rx', formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+                         help='Run a receiver')
+    rx.add_argument('link_name', type=str, help='Link name (matches both ends)')
+    _add_link_options(rx)
+    _add_rx_audio_options(rx)
 
-    parser_rx = subparsers.add_parser(
-        'rx', formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    parser_rx.add_argument('-a', '--audio_output', type=str,
-                           choices=['auto', 'alsa', 'jack', 'test', 'wav'],
-                           default='auto',
-                           help="The audio output type for this end of the link")
-    parser_rx_alsa = parser_rx.add_argument_group('alsa', 'Options when using ALSA output type')
-    parser_rx_alsa.add_argument('-d', '--alsa_device', type=str, default='hw:0',
-                                help="The ALSA device to connect to for input")
-    parser_rx_jack = parser_rx.add_argument_group('jack', 'Options when using JACK output type')
-    parser_rx_jack.add_argument('-jn', '--jack_name', type=str, default='openob',
-                                help="JACK port name root")
-    parser_rx_jack.add_argument('-aj', '--jack_auto', action='store_false',
-                                help="Disable auto connection for JACK inputs")
-    parser_rx_jack.add_argument('-jp', '--jack_port_pattern', type=str, default=None,
-                                help="JACK port pattern")
-    parser_rx_wav = parser_rx.add_argument_group('wav', 'Options when using WAV file output type')
-    parser_rx_wav.add_argument('--wav_file', type=str, default=None,
-                               help="Path to write the captured WAV file")
-
-    parser_rx.set_defaults(mode='rx')
+    # migrate-v5
+    mig = subs.add_parser('migrate-v5', formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+                          help='Print v6 TOML for one or more v5 Redis-stored links')
+    mig.add_argument('redis_host', type=str,
+                     help='v5 Redis host (e.g. studio.example.com or 127.0.0.1:6379)')
+    mig.add_argument('link_names', type=str, nargs='+', help='v5 link names to migrate')
 
     return parser
 
 
-def main(argv: list[str] | None = None) -> None:
-    parser = build_parser()
-    opts = parser.parse_args(argv)
+def _link_overrides_from_args(args: argparse.Namespace) -> dict[str, Any]:
+    """Extract LinkConfig CLI overrides from the parsed args, dropping Nones
+    (so file/defaults remain in effect for unspecified flags)."""
+    keys = (
+        'port', 'receiver_host', 'multicast', 'jitter_buffer',
+        'encoding', 'samplerate', 'channels', 'bitrate',
+        'opus_framesize', 'opus_complexity', 'opus_loss_expectation',
+        'opus_fec', 'opus_dtx', 'opus_qext',
+        'security', 'caps_from_config',
+        'retransmission_time_limit', 'tx_host',
+    )
+    return {k: getattr(args, k) for k in keys if getattr(args, k, None) is not None}
 
-    if not hasattr(opts, 'mode'):
-        parser.print_help()
-        parser.exit(2)
 
-    if opts.mode == 'rx' and opts.audio_output == 'wav' and not opts.wav_file:
-        parser.error("--wav_file is required when --audio_output=wav")
+def _audio_overrides_from_args(args: argparse.Namespace) -> dict[str, Any]:
+    """Extract audio CLI overrides as a flat dict that merges into the same
+    top-level namespace as link config (v6 TOML is flat — no [tx]/[rx])."""
+    keys = (
+        'audio_input', 'audio_output',
+        'alsa_device', 'jack_name', 'jack_auto', 'jack_port_pattern',
+        'test_wave', 'wav_file',
+    )
+    return {k: getattr(args, k) for k in keys if getattr(args, k, None) is not None}
 
-    LoggerFactory(level=opts.verbose)
-    logger = LoggerFactory().getLogger("cli")
+
+def _resolve_node_name(args: argparse.Namespace) -> str:
+    if getattr(args, 'node_name', None):
+        return args.node_name
+    return socket.gethostname() or 'openob'
+
+
+def _run_link(args: argparse.Namespace, logger: logging.Logger) -> None:
+    """Common path for tx and rx subcommands."""
+    # Single layered TOML resolution shared between LinkConfig and AudioInterface.
+    link_overrides = _link_overrides_from_args(args)
+    audio_overrides = _audio_overrides_from_args(args)
+    overrides = dict(link_overrides)
+    overrides.update(audio_overrides)  # adds the {mode: {...}} subdict
+
+    try:
+        merged = resolve_link_settings(
+            args.link_name,
+            config_dir=args.config_dir,
+            config_file=args.config,
+            cli_overrides=overrides,
+        )
+        link_config = link_config_from_resolved(args.link_name, args.mode, merged)
+        node_name = _resolve_node_name(args)
+        audio_interface = AudioInterface.from_resolved(node_name, args.mode, merged)
+    except ConfigError as exc:
+        logger.error('config: %s', exc)
+        sys.exit(2)
 
     try:
         from importlib.metadata import version
-        ob_version = version("OpenOB")
+        ob_version = version('OpenOB')
     except Exception:
-        ob_version = "unknown"
+        ob_version = 'unknown'
 
-    if opts.mode == "tx":
-        logger.info(
-            "OpenOB %s starting: node=%s link=%s mode=tx config=%s receiver=%s "
-            "encoding=%s bitrate=%dkbps audio_input=%s",
-            ob_version, opts.node_name, opts.link_name, opts.config_host,
-            opts.receiver_host, opts.encoding, opts.bitrate, opts.audio_input,
-        )
-    else:
-        logger.info(
-            "OpenOB %s starting: node=%s link=%s mode=rx config=%s audio_output=%s",
-            ob_version, opts.node_name, opts.link_name, opts.config_host,
-            opts.audio_output,
-        )
+    logger.info(
+        'OpenOB %s starting: node=%s link=%s mode=%s encoding=%s port=%d security=%s '
+        'audio_%s=%s',
+        ob_version, node_name, link_config.name, link_config.mode,
+        link_config.encoding, link_config.port, link_config.security,
+        'input' if args.mode == 'tx' else 'output', audio_interface.type,
+    )
 
-    link_config = LinkConfig(opts.link_name, opts.config_host)
-    link_config.set_from_argparse(opts)
-
-    audio_interface = AudioInterface.from_argparse(opts)
-
-    node = Node(opts.node_name)
+    # Defer Node import so `openob --help` doesn't pull in GStreamer.
+    from openob.node import Node
+    node = Node(node_name)
     node.run_link(link_config, audio_interface)
 
 
-if __name__ == "__main__":
+def _run_migrate(args: argparse.Namespace, logger: logging.Logger) -> None:
+    from openob.migrate import dump_v5_links_as_toml
+    dump_v5_links_as_toml(args.redis_host, args.link_names, sys.stdout, logger)
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    if not getattr(args, 'mode', None):
+        parser.print_help()
+        parser.exit(2)
+
+    LoggerFactory(level=args.verbose)
+    logger = LoggerFactory().getLogger('cli')
+
+    if args.mode in ('tx', 'rx'):
+        _run_link(args, logger)
+    elif args.mode == 'migrate-v5':
+        _run_migrate(args, logger)
+    else:  # pragma: no cover — argparse rejects others
+        parser.error(f'unknown subcommand: {args.mode}')
+
+
+if __name__ == '__main__':
     main()

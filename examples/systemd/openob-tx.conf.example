@@ -1,28 +1,29 @@
-# OpenOB instance config — TX (transmitter) end.
+# OpenOB v6 systemd instance config — TX (transmitter) end.
 #
-# Copy to /etc/openob/<instance-name>.conf and adapt the values below.
-# Then enable the link with:
-#     sudo systemctl enable --now openob@<instance-name>
+# Workflow:
+#   1. Lay down a per-link TOML at /etc/openob/links/<link>.toml
+#      (see openob-link.toml.example in this directory).
+#   2. Copy this file to /etc/openob/<instance>.conf, set OPENOB_ARGS below.
+#   3. sudo systemctl enable --now openob@<instance>
 #
-# <instance-name> is purely a systemd-side label; the actual link name on
-# the wire is the third positional argument below ("studio-stl" here).
+# <instance> is purely a systemd-side label; the actual link name on the
+# wire comes from OPENOB_ARGS ("studio-stl" here) and must match the file
+# /etc/openob/links/studio-stl.toml.
 #
-# Format: a single OPENOB_ARGS= line containing the full openob CLI arguments
-# in the same order you'd type them on a shell. Mind the quoting if any
-# value contains spaces.
+# All audio/codec/security/PSK config lives in the TOML — keep this file
+# minimal so it's the same for both ends.
 
-OPENOB_ARGS="redis.example.com studio-tx studio-stl tx 192.0.2.50 -a alsa -d hw:0 -e opus -b 192 -j 40"
+OPENOB_ARGS="tx studio-stl"
 
 # Reference (run `openob -h` for the full list):
-#   1st positional   redis host (or host:port; bracket form for IPv6)
-#   2nd positional   node name (free-form, identifies *this* end)
-#   3rd positional   link name (must match the RX end)
-#   4th positional   mode: tx
-#   5th positional   receiver host (where audio packets are sent)
-#   -a / --audio_input    auto | alsa | jack | test
-#   -d / --alsa_device    e.g. hw:0
-#   -e / --encoding       opus | pcm
-#   -b / --bitrate        kbps; opus only
-#   -j / --jitter_buffer  ms
-#   -c / --channels       force input channel count (mono ALSA → stereo etc)
-#   --qext                Opus quality extensions (>=1024 kbps recommended)
+#   openob tx <link_name> [--config FILE] [--node-name NAME] [opts]
+#
+# Common flag overrides (anything in the TOML can also be CLI-overridden):
+#   --receiver-host HOST       destination (overrides receiver_host in TOML)
+#   --bitrate KBPS             override codec bitrate
+#   --audio-input alsa|jack|test
+#   --alsa-device hw:0
+#   --security none|psk        override security mode
+#
+# PSK is *never* accepted on the CLI — set it in the link TOML or via the
+# OPENOB_PSK_<NAME> env var with `psk = "${OPENOB_PSK_NAME}"` substitution.

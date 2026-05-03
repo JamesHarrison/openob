@@ -13,9 +13,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     VIRTUAL_ENV=/opt/venv \
     PATH=/opt/venv/bin:$PATH
 
-# GStreamer 1.22 (Bookworm) + GI bindings + redis-server. python3-gi has no
-# wheel, so we install it via apt and build the venv with
-# --system-site-packages so it's importable inside the venv.
+# GStreamer 1.22 (Bookworm) + GI bindings. v6 drops the redis-server runtime
+# dep and adds gstreamer1.0-plugins-bad for srtpenc/srtpdec. python3-gi has
+# no wheel, so install via apt + --system-site-packages venv.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 \
         python3-venv \
@@ -23,11 +23,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         gstreamer1.0-tools \
         gstreamer1.0-plugins-base \
         gstreamer1.0-plugins-good \
+        gstreamer1.0-plugins-bad \
         gstreamer1.0-libav \
         gir1.2-gstreamer-1.0 \
         python3-gi \
         python3-gst-1.0 \
-        redis-server \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
