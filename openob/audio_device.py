@@ -301,22 +301,17 @@ def _native_id_for(dev, backend: str) -> str:
         'coreaudio': ('device.id', 'device.unique-id'),
         'alsa':      ('device.id', 'device.path'),
     }.get(backend, ('device.id', 'device.strid', 'device.path'))
+    from openob.rtp._gst_helpers import struct_get  # local import — see _gst()
     for key in primary_keys:
-        try:
-            value = props.get_string(key)
-        except Exception:  # pragma: no cover — depends on Gst build
-            value = None
-        if value:
+        value = struct_get(props, key)
+        if isinstance(value, str) and value:
             return value
     # CoreAudio AudioDeviceID may be exposed as an int rather than a string;
     # render it as a decimal string so users have something stable to copy.
     for key in primary_keys:
-        try:
-            ok, n = props.get_int(key)
-        except Exception:  # pragma: no cover
-            ok, n = False, 0
-        if ok:
-            return str(n)
+        value = struct_get(props, key)
+        if isinstance(value, int) and not isinstance(value, bool):
+            return str(value)
     return dev.get_display_name() or '<unknown>'
 
 
@@ -325,11 +320,8 @@ def _is_default(dev) -> bool:
     props = dev.get_properties()
     if props is None:
         return False
-    try:
-        ok, val = props.get_boolean('is-default')
-    except Exception:  # pragma: no cover
-        return False
-    return bool(ok and val)
+    from openob.rtp._gst_helpers import struct_get  # local import — see _gst()
+    return bool(struct_get(props, 'is-default', False))
 
 
 def _format_candidates(devices: list[ResolvedDevice]) -> str:

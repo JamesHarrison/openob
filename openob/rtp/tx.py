@@ -25,6 +25,7 @@ from openob.rtp._gst_helpers import (  # noqa: E402
     format_peaks,
     make_element,
     request_pad,
+    struct_get,
 )
 from openob.security import (  # noqa: E402
     SRTP_RTCP_AUTH, SRTP_RTCP_CIPHER, SRTP_RTP_AUTH, SRTP_RTP_CIPHER,
@@ -774,8 +775,8 @@ class RTPTransmitter:
         if message.type == Gst.MessageType.ELEMENT:
             struct = message.get_structure()
             if struct is not None and struct.get_name() == 'level':
-                peaks = struct.get_value('peak')
-                rms = struct.get_value('rms')
+                peaks = struct_get(struct, 'peak')
+                rms = struct_get(struct, 'rms')
                 if not self.started:
                     self.started = True
                     self.telemetry.set_link_up(True)

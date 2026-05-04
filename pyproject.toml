@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "OpenOB"
-version = "6.3.0"
+version = "6.3.1"
 description = "Broadcast audio over IP codec built with PyGObject + GStreamer"
 readme = "README.md"
 requires-python = ">=3.9"

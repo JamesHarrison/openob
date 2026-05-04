@@ -77,6 +77,49 @@ def channel_descriptor(n: int) -> str:
     return {1: 'mono', 2: 'stereo'}.get(n, f'{n}-channel')
 
 
+def struct_get(struct, key: str, default=None):
+    """Read a field from a Gst.Structure-like object across PyGObject versions.
+
+    PyGObject 3.50+ wraps ``Gst.Structure`` as a ``StructureWrapper`` that
+    only exposes dict-style access — the typed getters (``get_int``,
+    ``get_string``, ``get_boolean``) return tuples and were dropped from the
+    wrapper. Older PyGObject only has the typed getters and ``get_value``.
+    This helper papers over both: dict access first (also covers plain dicts
+    that the unit tests pass in), then ``get_value``, then the typed getters
+    so existing test fakes keep working.
+    """
+    if struct is None:
+        return default
+    try:
+        if key in struct:
+            return struct[key]
+    except (TypeError, AttributeError):
+        pass
+    getter = getattr(struct, 'get_value', None)
+    if callable(getter):
+        try:
+            value = getter(key)
+        except Exception:
+            value = None
+        if value is not None:
+            return value
+    for typed in ('get_string', 'get_int', 'get_boolean'):
+        fn = getattr(struct, typed, None)
+        if not callable(fn):
+            continue
+        try:
+            result = fn(key)
+        except Exception:
+            continue
+        if isinstance(result, tuple) and len(result) == 2:
+            ok, value = result
+            if ok:
+                return value
+        elif result is not None:
+            return result
+    return default
+
+
 def channels_from_pad(pad) -> tuple[str | None, int | None]:
     """
     Read negotiated caps from a pad and return ``(caps_str, n_channels)``.
@@ -91,8 +134,8 @@ def channels_from_pad(pad) -> tuple[str | None, int | None]:
     if caps is None or caps.get_size() == 0:
         return None, None
     struct = caps.get_structure(0)
-    ok, n = struct.get_int('channels')
-    return caps.to_string(), (n if ok else None)
+    n = struct_get(struct, 'channels')
+    return caps.to_string(), (int(n) if isinstance(n, int) else None)
 
 
 def format_peaks(peaks) -> str:

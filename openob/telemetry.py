@@ -121,13 +121,20 @@ def _ns_to_seconds(value: Any) -> float | None:
 def _struct_get(struct: Any, key: str) -> Any:
     """Fetch a field from a Gst.Structure-like object or a plain dict.
 
-    Real Gst.Structure exposes ``get_value(key)`` that returns ``None``
-    for unknown keys. The unit tests pass plain dicts; we handle both.
+    PyGObject 3.50+ wraps Gst.Structure as ``StructureWrapper`` (dict-style
+    access only); older PyGObject exposes ``get_value(key)``. Unit tests pass
+    plain dicts. Try mapping access first (covers wrappers and dicts) before
+    falling back to ``get_value``.
     """
     if struct is None:
         return None
     if isinstance(struct, Mapping):
         return struct.get(key)
+    try:
+        if key in struct:
+            return struct[key]
+    except (TypeError, AttributeError):
+        pass
     getter = getattr(struct, 'get_value', None)
     if getter is None:
         return None

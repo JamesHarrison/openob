@@ -1,3 +1,7 @@
+## 6.3.1
+
+* Minor bugfixes for Trixie.
+
 ## 6.3.0
 
 * **Native macOS and Windows audio device selection.** New `audio_input` / `audio_output` types `coreaudio` (macOS, via `osxaudiosrc`/`osxaudiosink`), `wasapi` (Windows, via the modern `wasapi2src`/`wasapi2sink`), and `pulse` (Linux PulseAudio / PipeWire-pulse, via `pulsesrc`/`pulsesink`). New unified `audio_device` config key — and matching `--audio-device` CLI flag — accepts a case-insensitive substring of the device's display name OR its native device id. New `openob list-devices` subcommand prints devices and example config lines.

@@ -32,6 +32,7 @@ from openob.rtp._gst_helpers import (  # noqa: E402
     format_peaks,
     make_element,
     request_pad,
+    struct_get,
 )
 from openob.security import (  # noqa: E402
     SRTP_RTCP_AUTH, SRTP_RTCP_CIPHER, SRTP_RTP_AUTH, SRTP_RTP_CIPHER,
@@ -596,8 +597,8 @@ class RTPReceiver:
             self.logger.warning('request-pt-map: empty caps from self.caps=%r', self.caps)
             return None
         struct = base.get_structure(0)
-        ok, base_pt = struct.get_int('payload')
-        if ok and pt == base_pt:
+        base_pt = struct_get(struct, 'payload')
+        if isinstance(base_pt, int) and pt == base_pt:
             self.logger.debug('request-pt-map: pt=%d → audio caps', pt)
             return base
         rtx_caps = base.copy()
@@ -702,8 +703,8 @@ class RTPReceiver:
             if struct is not None:
                 name = struct.get_name()
                 if name == 'level':
-                    peaks = struct.get_value('peak')
-                    rms = struct.get_value('rms')
+                    peaks = struct_get(struct, 'peak')
+                    rms = struct_get(struct, 'rms')
                     if not self.started:
                         self.started = True
                         self.telemetry.set_link_up(True)
