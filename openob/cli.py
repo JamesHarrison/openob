@@ -163,10 +163,31 @@ def _add_link_options(p: argparse.ArgumentParser) -> None:
                    choices=['debug', 'info', 'warning', 'error'], default=None,
                    help='Override log level for the telemetry-aware loggers')
 
+    # --- hooks (v6.3+) -----------------------------------------------------
+    # Lets hardware integrators wire OpenOB to a relay, LED, or dashboard
+    # without standing up an OTel collector. See openob/hooks.py for the
+    # JSON envelope schema.
+    p.add_argument('--hook-command', type=str, default=None, metavar='CMD',
+                   help='Shell command to invoke on link state changes '
+                        'and (optionally) on a heartbeat. Receives event/'
+                        'link/role/status/prev_status as positional argv '
+                        'plus a JSON envelope on stdin')
+    p.add_argument('--hook-heartbeat-seconds', type=int, default=None,
+                   metavar='N',
+                   help='Run the hook every N seconds with current link '
+                        'state and audio levels. 0 disables heartbeats; '
+                        'status changes still fire (default 0)')
+    p.add_argument('--hook-timeout-seconds', type=int, default=None,
+                   metavar='N',
+                   help='Per-invocation timeout for the hook command in '
+                        'seconds (default 5). The worker SIGKILLs the '
+                        'child if it exceeds this')
+
 
 def _add_tx_audio_options(p: argparse.ArgumentParser) -> None:
     p.add_argument('--audio-input', '-a', type=str,
-                   choices=['auto', 'alsa', 'jack', 'test'], default=None,
+                   choices=['auto', 'alsa', 'jack', 'pulse', 'coreaudio', 'wasapi', 'test'],
+                   default=None,
                    help='Audio source type')
     p.add_argument('--alsa-device', '-d', type=str, default=None,
                    help='ALSA device (e.g. hw:0)')
@@ -177,13 +198,18 @@ def _add_tx_audio_options(p: argparse.ArgumentParser) -> None:
                    help='Disable JACK auto-connect')
     p.add_argument('--jack-port-pattern', type=str, default=None,
                    help='JACK port pattern')
+    p.add_argument('--audio-device', type=str, default=None,
+                   help='Display-name substring (case-insensitive) or native '
+                        'device id for coreaudio/wasapi/pulse. List candidates '
+                        'with `openob list-devices`.')
     p.add_argument('--test-wave', type=str, choices=_TEST_WAVES, default=None,
                    help='audiotestsrc waveform (when --audio-input=test)')
 
 
 def _add_rx_audio_options(p: argparse.ArgumentParser) -> None:
     p.add_argument('--audio-output', '-a', type=str,
-                   choices=['auto', 'alsa', 'jack', 'test', 'wav'], default=None,
+                   choices=['auto', 'alsa', 'jack', 'pulse', 'coreaudio', 'wasapi', 'test', 'wav'],
+                   default=None,
                    help='Audio sink type')
     p.add_argument('--alsa-device', '-d', type=str, default=None,
                    help='ALSA device (e.g. hw:0)')
@@ -194,6 +220,10 @@ def _add_rx_audio_options(p: argparse.ArgumentParser) -> None:
                    help='Disable JACK auto-connect')
     p.add_argument('--jack-port-pattern', type=str, default=None,
                    help='JACK port pattern')
+    p.add_argument('--audio-device', type=str, default=None,
+                   help='Display-name substring (case-insensitive) or native '
+                        'device id for coreaudio/wasapi/pulse. List candidates '
+                        'with `openob list-devices`.')
     p.add_argument('--wav-file', type=str, default=None,
                    help='Output WAV path (when --audio-output=wav)')
 
@@ -232,6 +262,19 @@ def build_parser() -> argparse.ArgumentParser:
                      help='v5 Redis host (e.g. studio.example.com or 127.0.0.1:6379)')
     mig.add_argument('link_names', type=str, nargs='+', help='v5 link names to migrate')
 
+    # list-devices
+    lsd = subs.add_parser('list-devices', formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+                          help='List audio devices visible on this machine')
+    lsd.add_argument('--backend', type=str,
+                     choices=['coreaudio', 'wasapi', 'pulse', 'alsa', 'all'],
+                     default='all',
+                     help='Filter to one audio backend')
+    lsd.add_argument('--direction', type=str,
+                     choices=['source', 'sink', 'both'], default='both',
+                     help='Filter to inputs (source), outputs (sink), or both')
+    lsd.add_argument('--raw', action='store_true', default=False,
+                     help='Tab-separated output for piping into shell scripts')
+
     return parser
 
 
@@ -248,6 +291,7 @@ def _link_overrides_from_args(args: argparse.Namespace) -> dict[str, Any]:
         'telemetry_enabled', 'telemetry_otlp_endpoint',
         'telemetry_otlp_interval_seconds',
         'telemetry_log_format', 'telemetry_log_level',
+        'hook_command', 'hook_heartbeat_seconds', 'hook_timeout_seconds',
     )
     return {k: getattr(args, k) for k in keys if getattr(args, k, None) is not None}
 
@@ -258,6 +302,7 @@ def _audio_overrides_from_args(args: argparse.Namespace) -> dict[str, Any]:
     keys = (
         'audio_input', 'audio_output',
         'alsa_device', 'jack_name', 'jack_auto', 'jack_port_pattern',
+        'audio_device',
         'test_wave', 'wav_file',
     )
     return {k: getattr(args, k) for k in keys if getattr(args, k, None) is not None}
@@ -329,6 +374,75 @@ def _run_migrate(args: argparse.Namespace, logger: logging.Logger) -> None:
     dump_v5_links_as_toml(args.redis_host, args.link_names, sys.stdout, logger)
 
 
+def _run_list_devices(args: argparse.Namespace, logger: logging.Logger) -> None:
+    """List audio devices visible to Gst.DeviceMonitor on this machine.
+
+    Deferred import so `openob --help` doesn't drag in GStreamer.
+    """
+    del logger  # human output goes to stdout, not the structured logger
+    from openob.audio_device import list_audio_devices
+
+    backend_filter = None if args.backend == 'all' else args.backend
+    devices = list_audio_devices(backend=backend_filter, direction=args.direction)
+
+    if args.raw:
+        for d in devices:
+            sys.stdout.write(
+                f'{d.backend}\t{d.direction}\t{d.display_name}\t{d.native_id}\t'
+                f'{"default" if d.is_default else ""}\n'
+            )
+        return
+
+    # Human-readable: group by backend, direction, with copy-pasteable example
+    # TOML lines for each entry.
+    if not devices:
+        sys.stdout.write('No audio devices visible to Gst.DeviceMonitor.\n')
+        return
+
+    by_backend: dict[str, list] = {}
+    for d in devices:
+        by_backend.setdefault(d.backend, []).append(d)
+
+    for backend in ('coreaudio', 'wasapi', 'pulse', 'alsa'):
+        if backend_filter is not None and backend != backend_filter:
+            continue
+        backend_devices = by_backend.get(backend, [])
+        if not backend_devices:
+            sys.stdout.write(
+                f'{_BACKEND_DISPLAY[backend]}: 0 devices visible.\n\n'
+            )
+            continue
+        sys.stdout.write(
+            f'{_BACKEND_DISPLAY[backend]}: {len(backend_devices)} device(s)\n'
+        )
+        for d in backend_devices:
+            marker = ' [default]' if d.is_default else ''
+            direction_label = 'Source' if d.direction == 'source' else 'Sink  '
+            sys.stdout.write(
+                f'  {direction_label}{marker:11}  {d.display_name!r}  id={d.native_id}\n'
+            )
+            if backend != 'alsa':
+                # ALSA still uses the legacy alsa_device key, not audio_device.
+                sys.stdout.write(
+                    f'                       audio_input/audio_output = "{backend}"\n'
+                    f'                       audio_device = "{d.display_name}"\n'
+                )
+            else:
+                sys.stdout.write(
+                    f'                       audio_input/audio_output = "alsa"\n'
+                    f'                       alsa_device = "{d.native_id}"\n'
+                )
+        sys.stdout.write('\n')
+
+
+_BACKEND_DISPLAY: dict[str, str] = {
+    'coreaudio': 'CoreAudio (macOS)',
+    'wasapi':    'WASAPI (Windows)',
+    'pulse':     'PulseAudio (Linux)',
+    'alsa':      'ALSA (Linux)',
+}
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -344,6 +458,8 @@ def main(argv: list[str] | None = None) -> None:
         _run_link(args, logger)
     elif args.mode == 'migrate-v5':
         _run_migrate(args, logger)
+    elif args.mode == 'list-devices':
+        _run_list_devices(args, logger)
     else:  # pragma: no cover — argparse rejects others
         parser.error(f'unknown subcommand: {args.mode}')
 

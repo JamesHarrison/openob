@@ -308,6 +308,122 @@ def test_audio_keys_at_top_level_pass_validation(tmp_path):
     # accepts them (AudioInterface picks them up separately).
 
 
+def test_audio_device_top_level_passes_validation(tmp_path):
+    """The new unified `audio_device` field is allowlisted at the loader."""
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+        audio_input = "coreaudio"
+        audio_device = "Built-in"
+    ''')
+    cfg = load_link_config('mylink', 'tx', config_dir=tmp_path)
+    assert cfg.port == 4000
+
+
+def test_audio_device_typo_still_rejected(tmp_path):
+    """Adding `audio_device` to the allowlist must NOT widen it to typos."""
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+        audio_input = "coreaudio"
+        audio_devic = "Built-in"
+    ''')
+    with pytest.raises(ConfigError, match='unknown link-config keys'):
+        load_link_config('mylink', 'tx', config_dir=tmp_path)
+
+
+def test_legacy_alsa_config_still_loads(tmp_path):
+    """The pre-existing `alsa_device` shape must keep working byte-for-byte."""
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+        audio_input = "alsa"
+        alsa_device = "hw:0"
+    ''')
+    # Should not raise — keep parity with test_audio_keys_at_top_level above.
+    cfg = load_link_config('mylink', 'tx', config_dir=tmp_path)
+    assert cfg.port == 4000
+
+
+# --- audio backend cross-platform validation ------------------------------
+# These exercise openob.audio_interface._validate (which load_audio_interface
+# calls). monkeypatch flips sys.platform so the same TOML can be tried on
+# every OS in CI.
+
+
+def test_coreaudio_on_linux_rejected(tmp_path, monkeypatch):
+    from openob.audio_interface import load_audio_interface
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+        audio_input = "coreaudio"
+        audio_device = "Built-in"
+    ''')
+    monkeypatch.setattr(sys, 'platform', 'linux')
+    with pytest.raises(ConfigError, match='darwin'):
+        load_audio_interface('mylink', 'node', 'tx', config_dir=tmp_path)
+
+
+def test_wasapi_on_macos_rejected(tmp_path, monkeypatch):
+    from openob.audio_interface import load_audio_interface
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+        audio_input = "wasapi"
+        audio_device = "Speakers"
+    ''')
+    monkeypatch.setattr(sys, 'platform', 'darwin')
+    with pytest.raises(ConfigError, match='win32'):
+        load_audio_interface('mylink', 'node', 'tx', config_dir=tmp_path)
+
+
+def test_pulse_on_windows_rejected(tmp_path, monkeypatch):
+    from openob.audio_interface import load_audio_interface
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+        audio_input = "pulse"
+        audio_device = "USB"
+    ''')
+    monkeypatch.setattr(sys, 'platform', 'win32')
+    with pytest.raises(ConfigError, match='linux'):
+        load_audio_interface('mylink', 'node', 'tx', config_dir=tmp_path)
+
+
+def test_coreaudio_on_macos_passes(tmp_path, monkeypatch):
+    from openob.audio_interface import load_audio_interface
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+        audio_input = "coreaudio"
+        audio_device = "Built-in"
+    ''')
+    monkeypatch.setattr(sys, 'platform', 'darwin')
+    iface = load_audio_interface('mylink', 'node', 'tx', config_dir=tmp_path)
+    assert iface.type == 'coreaudio'
+    assert iface.audio_device == 'Built-in'
+
+
+def test_audio_device_ignored_for_alsa_type(tmp_path, monkeypatch):
+    """audio_device is allowlisted at the loader but only consumed by the
+    new backends. An ALSA config with stray audio_device must still load
+    (deploy-one-TOML-many-machines pattern)."""
+    from openob.audio_interface import load_audio_interface
+    _write(tmp_path / 'links' / 'mylink.toml', '''
+        port = 4000
+        receiver_host = "10.0.0.1"
+        audio_input = "alsa"
+        alsa_device = "hw:0"
+        audio_device = "Built-in"
+    ''')
+    monkeypatch.setattr(sys, 'platform', 'linux')
+    iface = load_audio_interface('mylink', 'node', 'tx', config_dir=tmp_path)
+    assert iface.type == 'alsa'
+    assert iface.alsa_device == 'hw:0'
+    # Per the type-gated assignment in from_resolved.
+    assert iface.audio_device is None
+
+
 # --- derived caps ---------------------------------------------------------
 
 
@@ -604,3 +720,65 @@ def test_tx_paths_via_cli_override_with_txpath_objects(tmp_path):
     )
     assert len(cfg.tx_paths) == 1
     assert cfg.tx_paths[0].label == 'one'
+
+
+# --- hooks ---------------------------------------------------------------
+
+
+def test_hook_command_string_loads(tmp_path):
+    _write(tmp_path / "links" / "mylink.toml", """
+        port = 4000
+        receiver_host = "10.0.0.1"
+        hook_command = "/usr/local/bin/openob-hook"
+        hook_heartbeat_seconds = 3
+    """)
+    cfg = load_link_config("mylink", "tx", config_dir=tmp_path)
+    assert cfg.hook_command == "/usr/local/bin/openob-hook"
+    assert cfg.hook_heartbeat_seconds == 3
+    assert cfg.hook_timeout_seconds == 5  # default
+
+
+def test_hook_command_array_form_coerced_to_tuple(tmp_path):
+    """TOML array of strings (recommended for Windows paths) loads cleanly
+    and resolves to argv with no further processing."""
+    _write(tmp_path / "links" / "mylink.toml", """
+        port = 4000
+        receiver_host = "10.0.0.1"
+        hook_command = [\"/usr/bin/python3\", \"/opt/scripts/openob_hook.py\", \"--verbose\"]
+    """)
+    cfg = load_link_config("mylink", "tx", config_dir=tmp_path)
+    assert cfg.hook_command == (
+        "/usr/bin/python3", "/opt/scripts/openob_hook.py", "--verbose",
+    )
+
+
+def test_hook_heartbeat_without_command_rejected(tmp_path):
+    _write(tmp_path / "links" / "mylink.toml", """
+        port = 4000
+        receiver_host = "10.0.0.1"
+        hook_heartbeat_seconds = 5
+    """)
+    with pytest.raises(ConfigError, match="hook_heartbeat_seconds is set but hook_command"):
+        load_link_config("mylink", "tx", config_dir=tmp_path)
+
+
+def test_hook_negative_heartbeat_rejected(tmp_path):
+    _write(tmp_path / "links" / "mylink.toml", """
+        port = 4000
+        receiver_host = "10.0.0.1"
+        hook_command = "/bin/true"
+        hook_heartbeat_seconds = -1
+    """)
+    with pytest.raises(ConfigError, match="hook_heartbeat_seconds must be"):
+        load_link_config("mylink", "tx", config_dir=tmp_path)
+
+
+def test_hook_command_array_invalid_element_rejected(tmp_path):
+    _write(tmp_path / "links" / "mylink.toml", """
+        port = 4000
+        receiver_host = "10.0.0.1"
+        hook_command = [\"/bin/sh\", 42]
+    """)
+    with pytest.raises(ConfigError, match="hook_command list"):
+        load_link_config("mylink", "tx", config_dir=tmp_path)
+

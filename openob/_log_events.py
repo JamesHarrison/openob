@@ -31,3 +31,8 @@ EVT_SRTP_DECRYPT_FAIL = 'srtp.decrypt_failure'
 EVT_TELEMETRY_CONFIGURED = 'telemetry.configured'
 EVT_TELEMETRY_DISABLED = 'telemetry.disabled'
 EVT_TELEMETRY_ERROR = 'telemetry.error'
+
+# --- hooks ---
+EVT_HOOK_FIRED = 'hook.fired'
+EVT_HOOK_FAILED = 'hook.failed'
+EVT_HOOK_DROPPED = 'hook.dropped'

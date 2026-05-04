@@ -33,6 +33,7 @@ import time
 from openob._log_events import EVT_PIPELINE_RESTART
 from openob.audio_interface import AudioInterface
 from openob.caps_signal import CapsSignalSender, wait_for_caps
+from openob.hooks import LinkHookRunner
 from openob.link_config import LinkConfig, TxPath
 from openob.logger import LoggerFactory
 from openob.security import resolve_caps_key
@@ -101,16 +102,34 @@ class Node:
             version=get_openob_version(),
         )
         telemetry.start()
+        # LinkHookRunner mirrors the telemetry pattern: disabled singleton
+        # when no hook_command is configured, otherwise a worker thread
+        # that fires user-configured commands on link state changes
+        # (pending → up → down → shutdown) and on a configurable
+        # heartbeat. Hook failures never propagate to the audio path.
+        hooks = LinkHookRunner.from_link(
+            link_config,
+            node_name=self.node_name,
+            role=role,
+            version=get_openob_version(),
+        )
+        hooks.start()
+        # Initial status hook: pending. set_status is idempotent on the
+        # default 'pending' so this only fires when there's an actual
+        # transition — but we still call it explicitly so the operator's
+        # hook receives a 'pending' event at link bring-up rather than
+        # nothing until first audio.
+        hooks.set_status('pending')
         try:
             if audio_interface.mode == 'tx':
                 self._run_tx_loop(
                     link_config, audio_interface, RTPTransmitter,
-                    link_logger, telemetry,
+                    link_logger, telemetry, hooks,
                 )
             elif audio_interface.mode == 'rx':
                 self._run_rx_loop(
                     link_config, audio_interface, RTPReceiver,
-                    link_logger, telemetry,
+                    link_logger, telemetry, hooks,
                 )
             else:
                 link_logger.critical(
@@ -118,10 +137,16 @@ class Node:
                 )
                 sys.exit(1)
         finally:
+            # 'shutdown' fires on every clean exit path so the operator's
+            # hook can release whatever it grabbed on 'up' (relays, LEDs,
+            # dashboard rows). It's idempotent vs. the 'down' that fires
+            # on pipeline failure, so back-to-back transitions are safe.
+            hooks.set_status('shutdown')
+            hooks.stop()
             telemetry.stop()
 
     def _run_tx_loop(self, link_config, audio_interface, RTPTransmitter,
-                     link_logger, telemetry):
+                     link_logger, telemetry, hooks):
         first_iteration = True
         while True:
             caps_senders: list[CapsSignalSender] = []
@@ -151,6 +176,7 @@ class Node:
                         self.node_name, link_config, audio_interface,
                         path_sockets=path_sockets,
                         telemetry=telemetry,
+                        hooks=hooks,
                     )
                 else:
                     # When RTX is enabled the audio udpsink, an RTCP udpsrc, and
@@ -163,6 +189,7 @@ class Node:
                         self.node_name, link_config, audio_interface,
                         shared_socket=shared_pysock,
                         telemetry=telemetry,
+                        hooks=hooks,
                     )
                 transmitter.run()  # blocks until pipeline reaches PLAYING and caps captured
                 caps = transmitter.get_caps()
@@ -227,6 +254,7 @@ class Node:
                     'Transmitter pipeline failed; restarting in 0.5s'
                 )
                 telemetry.set_link_up(False)
+                hooks.set_status('down', reason=type(exc).__name__)
                 telemetry.record_pipeline_restart(reason=type(exc).__name__)
                 link_logger.info(
                     'pipeline restart scheduled in 0.5s',
@@ -251,7 +279,7 @@ class Node:
                         pass
 
     def _run_rx_loop(self, link_config, audio_interface, RTPReceiver,
-                     link_logger, telemetry):
+                     link_logger, telemetry, hooks):
         # Caps-signal authentication key (derived once; same for the
         # bootstrap wait and the runtime demux probe inside RTPReceiver).
         caps_key = (
@@ -308,6 +336,7 @@ class Node:
                     self.node_name, link_config, audio_interface, caps,
                     peer_addr=peer_addr,
                     telemetry=telemetry,
+                    hooks=hooks,
                 )
                 receiver.run()
                 receiver.loop()
@@ -319,6 +348,7 @@ class Node:
                     'Receiver pipeline failed; restarting in 0.1s'
                 )
                 telemetry.set_link_up(False)
+                hooks.set_status('down', reason=type(exc).__name__)
                 telemetry.record_pipeline_restart(reason=type(exc).__name__)
                 link_logger.info(
                     'pipeline restart scheduled in 0.1s',

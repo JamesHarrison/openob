@@ -37,6 +37,7 @@ from openob.security import (  # noqa: E402
     SRTP_RTCP_AUTH, SRTP_RTCP_CIPHER, SRTP_RTP_AUTH, SRTP_RTP_CIPHER,
     resolve_srtp_master,
 )
+from openob.hooks import LinkHookRunner  # noqa: E402
 from openob.telemetry import TelemetryRegistry  # noqa: E402
 
 if TYPE_CHECKING:
@@ -54,6 +55,7 @@ class RTPReceiver:
         caps: str,
         peer_addr: tuple[str, int] | None = None,
         telemetry: TelemetryRegistry | None = None,
+        hooks: LinkHookRunner | None = None,
     ) -> None:
         """Sets up a new RTP receiver.
 
@@ -73,6 +75,7 @@ class RTPReceiver:
         self.caps = caps
         self.peer_addr = peer_addr
         self.telemetry = telemetry or TelemetryRegistry.disabled()
+        self.hooks = hooks or LinkHookRunner.disabled()
         self.shutdown_requested = False
         # Set in build_transport when RTX is enabled; kept on self so
         # loop()'s finally block can close it on shutdown.
@@ -272,6 +275,36 @@ class RTPReceiver:
             sink.set_property('client-name', self.audio_interface.jack_name)
             if self.audio_interface.jack_port_pattern:
                 sink.set_property('port-pattern', self.audio_interface.jack_port_pattern)
+        elif self.audio_interface.type in ('coreaudio', 'wasapi', 'pulse'):
+            # Mirrors the TX branch — see openob/rtp/tx.py for the rationale.
+            from openob.audio_device import resolve_audio_device
+            resolved = resolve_audio_device(
+                backend=self.audio_interface.type,
+                direction='sink',
+                name_or_id=self.audio_interface.audio_device,
+                logger=self.logger,
+            )
+            if resolved is not None:
+                sink = resolved.gst_device.create_element('audio-sink')
+                if sink is None:
+                    raise RuntimeError(
+                        f'Gst.Device.create_element() returned None for '
+                        f'{self.audio_interface.type} device {resolved.display_name!r} '
+                        f'(id={resolved.native_id})'
+                    )
+            else:
+                factory = {
+                    'coreaudio': 'osxaudiosink',
+                    'wasapi':    'wasapi2sink',
+                    'pulse':     'pulsesink',
+                }[self.audio_interface.type]
+                sink = make_element(factory)
+                self.logger.info(
+                    '%s sink: backend default (no audio_device set)',
+                    self.audio_interface.type,
+                )
+            if self.audio_interface.type == 'pulse':
+                sink.set_property('client-name', f'openob-{self.link_config.name}')
         elif self.audio_interface.type == 'test':
             sink = make_element('fakesink')
         else:
@@ -627,6 +660,7 @@ class RTPReceiver:
         if message.type == Gst.MessageType.EOS:
             self.logger.info('Pipeline reached EOS, exiting main loop')
             self.telemetry.set_link_up(False)
+            self.hooks.set_status('down', reason='eos')
             if hasattr(self, 'main_loop'):
                 self.main_loop.quit()
             return True
@@ -634,6 +668,7 @@ class RTPReceiver:
             err, dbg = message.parse_error()
             self.logger.error('Pipeline error: %s (%s)' % (err, dbg))
             self.telemetry.set_link_up(False)
+            self.hooks.set_status('down', reason='pipeline_error')
             if hasattr(self, 'main_loop'):
                 self.main_loop.quit()
             return True
@@ -672,6 +707,7 @@ class RTPReceiver:
                     if not self.started:
                         self.started = True
                         self.telemetry.set_link_up(True)
+                        self.hooks.set_status('up')
                         self._log_pipeline_started(peaks)
                     else:
                         self._log_level(peaks)
@@ -684,6 +720,7 @@ class RTPReceiver:
                     )
                     self.telemetry.record_data_timeout()
                     self.telemetry.set_link_up(False)
+                    self.hooks.set_status('down', reason='udp_timeout')
                     if self.started:
                         self.logger.critical('Shutting down receiver for restart')
                         self.pipeline.set_state(Gst.State.NULL)
@@ -735,6 +772,8 @@ class RTPReceiver:
         if rms:
             for ch, value in enumerate(rms):
                 self.telemetry.set_audio_rms(ch, float(value))
+        # Same mirror as TX side; no-op when hooks are disabled.
+        self.hooks.update_audio_levels(peaks, rms)
 
     def _poll_rx_stats(self) -> bool:
         """1 Hz: read rtpsession, rtpjitterbuffer, opusdec stats.

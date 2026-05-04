@@ -30,6 +30,7 @@ from openob.security import (  # noqa: E402
     SRTP_RTCP_AUTH, SRTP_RTCP_CIPHER, SRTP_RTP_AUTH, SRTP_RTP_CIPHER,
     resolve_srtp_master,
 )
+from openob.hooks import LinkHookRunner  # noqa: E402
 from openob.telemetry import TelemetryRegistry  # noqa: E402
 
 if TYPE_CHECKING:
@@ -54,6 +55,7 @@ class RTPTransmitter:
         shared_socket: pysocket.socket | None = None,
         path_sockets: list[pysocket.socket] | None = None,
         telemetry: TelemetryRegistry | None = None,
+        hooks: LinkHookRunner | None = None,
     ) -> None:
         """Sets up a new RTP transmitter.
 
@@ -77,6 +79,7 @@ class RTPTransmitter:
         self.shared_socket = shared_socket
         self.path_sockets = path_sockets
         self.telemetry = telemetry or TelemetryRegistry.disabled()
+        self.hooks = hooks or LinkHookRunner.disabled()
         self.multipath = bool(link_config.tx_paths)
         if self.multipath:
             if path_sockets is None or len(path_sockets) != len(link_config.tx_paths):
@@ -250,7 +253,42 @@ class RTPTransmitter:
             source.set_property('client-name', self.audio_interface.jack_name)
             if self.audio_interface.jack_port_pattern:
                 source.set_property('port-pattern', self.audio_interface.jack_port_pattern)
-
+        elif self.audio_interface.type in ('coreaudio', 'wasapi', 'pulse'):
+            # Native OS audio: CoreAudio / WASAPI2 / PulseAudio. Gst.Device.create_element()
+            # returns an element with the right backend's `device` property pre-set
+            # (uint for CoreAudio, string for wasapi2/pulse), so one branch covers all
+            # three. None is returned by resolve_audio_device when no audio_device was
+            # specified — we then build a bare element so the backend default kicks in.
+            from openob.audio_device import resolve_audio_device
+            resolved = resolve_audio_device(
+                backend=self.audio_interface.type,
+                direction='source',
+                name_or_id=self.audio_interface.audio_device,
+                logger=self.logger,
+            )
+            if resolved is not None:
+                source = resolved.gst_device.create_element('audio-source')
+                if source is None:
+                    raise RuntimeError(
+                        f'Gst.Device.create_element() returned None for '
+                        f'{self.audio_interface.type} device {resolved.display_name!r} '
+                        f'(id={resolved.native_id})'
+                    )
+            else:
+                factory = {
+                    'coreaudio': 'osxaudiosrc',
+                    'wasapi':    'wasapi2src',
+                    'pulse':     'pulsesrc',
+                }[self.audio_interface.type]
+                source = make_element(factory)
+                self.logger.info(
+                    '%s source: backend default (no audio_device set)',
+                    self.audio_interface.type,
+                )
+            if self.audio_interface.type == 'pulse':
+                # client-name lets `pavucontrol` identify the link by name —
+                # mirrors the JACK pattern below.
+                source.set_property('client-name', f'openob-{self.link_config.name}')
         elif self.audio_interface.type == 'test':
             source = make_element('audiotestsrc')
             source.set_property('is-live', True)
@@ -717,6 +755,11 @@ class RTPTransmitter:
         if message.type == Gst.MessageType.EOS:
             self.logger.info('Pipeline reached EOS, exiting main loop')
             self.telemetry.set_link_up(False)
+            # 'down' on EOS is correct: a clean shutdown will overwrite
+            # this with 'shutdown' from Node's finally-block once stop()
+            # propagates. A failure-driven EOS leaves 'down' set, which
+            # is what the operator wants to see.
+            self.hooks.set_status('down', reason='eos')
             if hasattr(self, 'main_loop'):
                 self.main_loop.quit()
             return True
@@ -724,6 +767,7 @@ class RTPTransmitter:
             err, dbg = message.parse_error()
             self.logger.error('Pipeline error: %s (%s)' % (err, dbg))
             self.telemetry.set_link_up(False)
+            self.hooks.set_status('down', reason='pipeline_error')
             if hasattr(self, 'main_loop'):
                 self.main_loop.quit()
             return True
@@ -735,6 +779,7 @@ class RTPTransmitter:
                 if not self.started:
                     self.started = True
                     self.telemetry.set_link_up(True)
+                    self.hooks.set_status('up')
                     self._log_pipeline_started(peaks)
                 else:
                     self._log_level(peaks)
@@ -793,6 +838,10 @@ class RTPTransmitter:
         if rms:
             for ch, value in enumerate(rms):
                 self.telemetry.set_audio_rms(ch, float(value))
+        # Mirror the levels into the hook runner so heartbeat snapshots
+        # carry recent values. update_audio_levels is a no-op on the
+        # disabled singleton; cheap (one lock + list-copy) when active.
+        self.hooks.update_audio_levels(peaks, rms)
 
     def _apply_opus_qext(self, encoder) -> None:
         """

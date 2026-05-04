@@ -1,0 +1,23 @@
+# Windows transmitter — picks a specific WASAPI device by display-name
+# substring. Run `openob list-devices --backend wasapi` to see what's
+# plugged into this Windows box. Uses the modern wasapi2src plugin
+# (gst-plugins-good, bundled in the GStreamer MSI installer).
+
+encoding      = "opus"
+bitrate       = 192
+samplerate    = 48000
+channels      = 2
+port          = 3000
+receiver_host = "studio.example.com"
+
+jitter_buffer = 40
+retransmission_time_limit = 200
+
+security = "psk"
+psk      = "${OPENOB_PSK_LOCAL_WIN}"
+
+# WASAPI (wasapi2src). audio_device matches case-insensitively on the
+# device's display name. Survives MMDevice GUID rotation (which can
+# happen across driver reinstalls and some USB-C dock disconnects).
+audio_input  = "wasapi"
+audio_device = "Focusrite"

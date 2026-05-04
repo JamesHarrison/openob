@@ -1,0 +1,13 @@
+# macOS receiver — sends to a specific CoreAudio output device. Codec,
+# bitrate, samplerate, channels are all learned from TX's in-band caps;
+# only port + security + audio output need to be set here.
+
+port = 3000
+
+security = "psk"
+psk      = "${OPENOB_PSK_LOCAL_MAC}"
+
+jitter_buffer = 40
+
+audio_output = "coreaudio"
+audio_device = "Built-in Output"

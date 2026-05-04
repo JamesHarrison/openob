@@ -1,3 +1,8 @@
+## 6.3.0
+
+* **Native macOS and Windows audio device selection.** New `audio_input` / `audio_output` types `coreaudio` (macOS, via `osxaudiosrc`/`osxaudiosink`), `wasapi` (Windows, via the modern `wasapi2src`/`wasapi2sink`), and `pulse` (Linux PulseAudio / PipeWire-pulse, via `pulsesrc`/`pulsesink`). New unified `audio_device` config key — and matching `--audio-device` CLI flag — accepts a case-insensitive substring of the device's display name OR its native device id. New `openob list-devices` subcommand prints devices and example config lines.
+* **Link hooks.** New `hook_command` config option lets hardware integrators wire OpenOB to scripts to command a relay, LED, dashboard webhook, or any other side-effect without standing up an OpenTelemetry collector. The configured command is invoked on link state transitions (`pending` → `up` → `down` → `shutdown`) and, optionally, on a regular heartbeat (`hook_heartbeat_seconds`, 0 = off). Each invocation receives positional argv (`event link role status prev_status`) suitable for shell `case`-style switching, plus a JSON envelope on stdin (link, role, status, audio peak/rms per channel, uptime, version) for richer consumers. Hooks run on a worker thread with a bounded queue and per-invocation timeout (`hook_timeout_seconds`, default 5s) so a slow or wedged user script never blocks the audio path; failed/timed-out invocations are logged but never propagate. `hook_command` accepts either a string (POSIX-style shlex.split) or a list of strings (argv passthrough — recommended for Windows paths). See `examples/hooks.md`.
+
 ## 6.2.0
 
 * **Security fixes:** Hardening of the receiver against various denial-of-service attack vectors

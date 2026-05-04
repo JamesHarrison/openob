@@ -1,0 +1,24 @@
+# macOS transmitter — picks a specific CoreAudio device by display-name
+# substring. Run `openob list-devices --backend coreaudio` to see what's
+# plugged into this Mac, then copy a unique-enough fragment of the device
+# name into `audio_device` below.
+
+encoding      = "opus"
+bitrate       = 192            # transparent for music
+samplerate    = 48000
+channels      = 2
+port          = 3000
+receiver_host = "studio.example.com"
+
+jitter_buffer = 40
+retransmission_time_limit = 200
+
+# SRTP — see examples/config/stl/README.md for PSK provisioning patterns.
+security = "psk"
+psk      = "${OPENOB_PSK_LOCAL_MAC}"
+
+# CoreAudio (osxaudiosrc). audio_device matches case-insensitively on the
+# device's display name as shown by `openob list-devices`. Survives USB
+# replug because we match by name, not opaque AudioDeviceID.
+audio_input  = "coreaudio"
+audio_device = "Scarlett"      # any unique substring of the display name

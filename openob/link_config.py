@@ -163,6 +163,27 @@ class LinkConfig:
     telemetry_log_format: Literal['text', 'json'] = 'text'
     telemetry_log_level: Literal['debug', 'info', 'warning', 'error'] | None = None
 
+    # --- hooks (v6.3+) ---
+    # User-supplied command invoked on link state changes (pending → up →
+    # down → shutdown) and, optionally, on a regular heartbeat. The command
+    # receives positional argv (event, link, role, status, prev_status) and
+    # a JSON envelope on stdin (richer detail: audio levels, uptime, version).
+    # Runs on a worker thread so a slow / wedged user script can never block
+    # the audio path. See openob.hooks for the full payload schema.
+    #
+    # Accepts either a string (POSIX-style shlex.split, quote backslashes
+    # for Windows paths) OR a list of strings (passed through as argv —
+    # recommended for Windows: ``hook_command = ["C:\\Tools\\hook.bat"]``).
+    hook_command: str | tuple[str, ...] | None = None
+    # Heartbeat cadence in seconds. 0 disables heartbeats — status events
+    # still fire. Defaults to 0 because forking once a second on a Pi is not
+    # free and most operators only want change-driven callbacks.
+    hook_heartbeat_seconds: int = 0
+    # Per-invocation timeout in seconds. The worker SIGKILLs the script if it
+    # exceeds this; the next event still fires. Generous default so a hook
+    # making a network call has room before being culled.
+    hook_timeout_seconds: int = 5
+
     def derived_rtp_caps(self) -> str:
         """Build a deterministic caps string from the codec parameters.
 
@@ -462,6 +483,18 @@ def link_config_from_resolved(
     if 'tx_paths' in link_only:
         link_only['tx_paths'] = _coerce_tx_paths(link_only['tx_paths'], link_name)
 
+    # hook_command may arrive as a TOML array; coerce to tuple so the frozen
+    # dataclass accepts it (lists aren't hashable). _resolve_command in
+    # openob.hooks handles either form transparently at call time.
+    hc = link_only.get('hook_command')
+    if isinstance(hc, list):
+        if not hc or not all(isinstance(part, str) for part in hc):
+            raise ConfigError(
+                f'{link_name!r}: hook_command list must be non-empty and contain '
+                f'only strings, got {hc!r}'
+            )
+        link_only['hook_command'] = tuple(hc)
+
     try:
         cfg = LinkConfig(name=link_name, mode=mode, **link_only)
     except TypeError as exc:
@@ -479,6 +512,7 @@ def link_config_from_resolved(
 _AUDIO_INTERFACE_FIELDS = frozenset({
     'audio_input', 'audio_output',
     'alsa_device', 'jack_name', 'jack_auto', 'jack_port_pattern',
+    'audio_device',
     'test_wave', 'wav_file',
 })
 
@@ -582,4 +616,22 @@ def _validate(cfg: LinkConfig) -> None:
         raise ConfigError(
             f"telemetry_log_level must be one of debug/info/warning/error, "
             f"got {cfg.telemetry_log_level!r}"
+        )
+    # Hooks: bounds + sanity. Existence of hook_command is NOT checked at
+    # config load — operators legitimately want to write the link config
+    # before the hook script is deployed, and a missing-binary check at
+    # runtime degrades to a warning rather than refusing to start the link.
+    if cfg.hook_heartbeat_seconds < 0:
+        raise ConfigError(
+            f"hook_heartbeat_seconds must be >= 0 (got {cfg.hook_heartbeat_seconds}); "
+            "0 disables heartbeats while keeping status hooks active"
+        )
+    if cfg.hook_timeout_seconds < 1:
+        raise ConfigError(
+            f"hook_timeout_seconds must be >= 1 (got {cfg.hook_timeout_seconds})"
+        )
+    if cfg.hook_heartbeat_seconds and cfg.hook_command is None:
+        raise ConfigError(
+            "hook_heartbeat_seconds is set but hook_command is empty — "
+            "set hook_command or zero the heartbeat"
         )

@@ -9,7 +9,7 @@ It's designed for broadcast applications including (but not limited to) contribu
 
 **OpenOB 6.0** is a major release that drops the Redis dependency and adds optional SRTP encryption, along with other features for improved reliability. 
 
-6.1 introduced retransmission support; 6.2 introduced security and monitoring improvements along with support for multipath seamless redundancy.
+6.1 introduced retransmission support; 6.2 introduced security and monitoring improvements along with support for multipath seamless redundancy, and 6.3 improves audio device selection and adds hooks for hardware integrators.
 
 All users are encouraged to upgrade, and to raise GitHub issues for any problems found.
 
@@ -44,10 +44,15 @@ apt-get install -y --no-install-recommends \
         gstreamer1.0-plugins-good \
         gstreamer1.0-plugins-bad \
         gstreamer1.0-libav \
+        gstreamer1.0-pulseaudio \
         gir1.2-gstreamer-1.0 \
         python3-gi \
         python3-gst-1.0
 ```
+
+`gstreamer1.0-pulseaudio` is optional — it adds the `pulse` backend for `audio_input`/`audio_output`. Headless Pi installs that don't run PulseAudio can skip it and stick with `audio_input = "alsa"`.
+
+On **macOS**, install via Homebrew (`brew install gstreamer gst-plugins-base gst-plugins-good`) for the `coreaudio` backend, plus PyGObject. On **Windows**, install the GStreamer development + runtime MSIs (matching versions) — `wasapi2src`/`wasapi2sink` for the `wasapi` backend ship inside `gst-plugins-good`, which is bundled.
 
 Set up a venv and install OpenOB:
 
@@ -145,6 +150,26 @@ jack_name    = "openob-stl-rx"
 jack_auto    = true              # auto-connect to physical outputs
 # jack_port_pattern = "system:playback_*"
 ```
+
+### Picking a specific audio device on macOS, Windows, or PulseAudio
+
+On macOS (`coreaudio`), Windows (`wasapi`), or Linux/PulseAudio (`pulse`), set `audio_input`/`audio_output` to the backend and use the unified `audio_device` field to pick a specific interface by display-name substring (case-insensitive) or native id.
+
+```toml
+# macOS — see examples/config/local-mac/
+audio_input  = "coreaudio"
+audio_device = "Scarlett"      # any unique substring of the display name
+```
+
+Discover what's plugged into the local machine:
+
+```bash
+openob list-devices                    # all backends, all directions
+openob list-devices --backend wasapi   # filter to one backend
+openob list-devices --raw              # tab-separated for shell scripts
+```
+
+Display-name matching survives USB replug events (CoreAudio AudioDeviceIDs and WASAPI MMDevice paths can churn; display names don't), so a Focusrite that disconnects briefly is found again automatically by the supervisor restart loop. Cross-platform misconfiguration (e.g. `audio_input = "coreaudio"` on Linux) hard-fails at config load with a clear error rather than silently picking a default. The legacy `audio_input = "alsa"` + `alsa_device = "hw:N"` path is unchanged for headless Linux deployments. See `examples/config/local-mac/` and `examples/config/local-windows/`.
 
 ### CLI flags vs the TOML file
 

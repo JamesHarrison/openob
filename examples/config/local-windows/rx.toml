@@ -1,0 +1,13 @@
+# Windows receiver — sends to a specific WASAPI output device. Codec
+# parameters arrive via in-band caps from TX; only port + security +
+# audio output need to be set here.
+
+port = 3000
+
+security = "psk"
+psk      = "${OPENOB_PSK_LOCAL_WIN}"
+
+jitter_buffer = 40
+
+audio_output = "wasapi"
+audio_device = "Speakers"

@@ -5,9 +5,9 @@ Loaded from the same flat TOML as :mod:`openob.link_config`. The mode
 (``tx`` or ``rx``) determines which audio fields are meaningful:
 
 - TX uses ``audio_input``, plus ``alsa_device`` / ``jack_*`` / ``test_wave``
-  as appropriate to the chosen input type.
+  / ``audio_device`` as appropriate to the chosen input type.
 - RX uses ``audio_output``, plus ``alsa_device`` / ``jack_*`` / ``wav_file``
-  as appropriate to the chosen output type.
+  / ``audio_device`` as appropriate to the chosen output type.
 
 Fields meant for the other side are silently ignored (so a single TOML
 deployed to both ends still works), but in v6 each TOML normally describes
@@ -15,11 +15,29 @@ one machine, so most files only carry the side they need.
 """
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, Mapping
 
 from openob.link_config import ConfigError, resolve_link_settings
+
+
+# Backends that select a native OS audio API. The platform check below uses
+# this to hard-fail an obviously wrong combo (e.g. ``coreaudio`` on Linux)
+# at config-load time rather than wait for a cryptic GStreamer pipeline error.
+_PLATFORM_BACKENDS: dict[str, str] = {
+    'coreaudio': 'darwin',
+    'wasapi':    'win32',
+    'pulse':     'linux',
+}
+
+_TX_TYPES = ('auto', 'alsa', 'jack', 'pulse', 'coreaudio', 'wasapi', 'test')
+_RX_TYPES = ('auto', 'alsa', 'jack', 'pulse', 'coreaudio', 'wasapi', 'test', 'wav')
+
+# Backends that consume the unified ``audio_device`` field. ALSA keeps using
+# the legacy ``alsa_device`` field so existing v6 configs are untouched.
+_AUDIO_DEVICE_BACKENDS = frozenset({'coreaudio', 'wasapi', 'pulse'})
 
 
 @dataclass(frozen=True)
@@ -43,6 +61,11 @@ class AudioInterface:
     jack_auto: bool | None = None
     jack_name: str | None = None
     jack_port_pattern: str | None = None
+
+    # CoreAudio / WASAPI / PulseAudio (TX or RX). Display-name substring
+    # (case-insensitive) or native device id; resolved at pipeline-build
+    # time via :mod:`openob.audio_device`. None means "use backend default".
+    audio_device: str | None = None
 
     # TX-only
     test_wave: str | None = None
@@ -73,6 +96,7 @@ class AudioInterface:
                 jack_auto=_get_optional_bool(settings, 'jack_auto') if kind == 'jack' else None,
                 jack_name=_get_optional_str(settings, 'jack_name') if kind == 'jack' else None,
                 jack_port_pattern=_get_optional_str(settings, 'jack_port_pattern') if kind == 'jack' else None,
+                audio_device=_get_optional_str(settings, 'audio_device') if kind in _AUDIO_DEVICE_BACKENDS else None,
                 test_wave=_get_optional_str(settings, 'test_wave') if kind == 'test' else None,
             )
         if mode == 'rx':
@@ -85,6 +109,7 @@ class AudioInterface:
                 jack_auto=_get_optional_bool(settings, 'jack_auto') if kind == 'jack' else None,
                 jack_name=_get_optional_str(settings, 'jack_name') if kind == 'jack' else None,
                 jack_port_pattern=_get_optional_str(settings, 'jack_port_pattern') if kind == 'jack' else None,
+                audio_device=_get_optional_str(settings, 'audio_device') if kind in _AUDIO_DEVICE_BACKENDS else None,
                 wav_file=_get_optional_str(settings, 'wav_file') if kind == 'wav' else None,
             )
         raise ConfigError(f'unknown mode: {mode!r}')
@@ -129,16 +154,30 @@ def _get_optional_bool(section: Mapping[str, Any], key: str) -> bool | None:
 
 def _validate(iface: AudioInterface) -> None:
     """Sanity-check resolved audio settings."""
-    if iface.mode == 'tx' and iface.type not in ('auto', 'alsa', 'jack', 'test'):
+    if iface.mode == 'tx' and iface.type not in _TX_TYPES:
         raise ConfigError(
-            f'TX audio_input must be one of auto/alsa/jack/test, got {iface.type!r}'
+            f'TX audio_input must be one of {"/".join(_TX_TYPES)}, '
+            f'got {iface.type!r}'
         )
-    if iface.mode == 'rx' and iface.type not in ('auto', 'alsa', 'jack', 'test', 'wav'):
+    if iface.mode == 'rx' and iface.type not in _RX_TYPES:
         raise ConfigError(
-            f'RX audio_output must be one of auto/alsa/jack/test/wav, got {iface.type!r}'
+            f'RX audio_output must be one of {"/".join(_RX_TYPES)}, '
+            f'got {iface.type!r}'
         )
     if iface.mode == 'rx' and iface.type == 'wav' and not iface.wav_file:
         raise ConfigError(
             "RX audio_output='wav' requires wav_file to be set "
             "(in the TOML or via --wav-file)"
+        )
+    # Cross-platform sanity: native OS audio backends only run on their
+    # respective OS. Hard-fail at config-load time rather than wait for a
+    # cryptic GStreamer error 30 minutes into a live link. Use 'auto' for
+    # portable configs.
+    expected_platform = _PLATFORM_BACKENDS.get(iface.type)
+    if expected_platform and not sys.platform.startswith(expected_platform):
+        field = 'audio_input' if iface.mode == 'tx' else 'audio_output'
+        raise ConfigError(
+            f"{field}={iface.type!r} is for {expected_platform}, but this "
+            f"machine is {sys.platform}. Use 'auto' for portable configs, "
+            f"or pick the right backend for this OS."
         )

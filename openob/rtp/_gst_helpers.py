@@ -28,6 +28,12 @@ _PLUGIN_PACKAGE_HINT: dict[str, str] = {
     'jackaudiosink': 'gstreamer1.0-plugins-good',
     'alsasrc': 'gstreamer1.0-plugins-base',
     'alsasink': 'gstreamer1.0-plugins-base',
+    'pulsesrc': 'gstreamer1.0-pulseaudio',
+    'pulsesink': 'gstreamer1.0-pulseaudio',
+    'osxaudiosrc': 'gst-plugins-good (macOS — brew install gst-plugins-good)',
+    'osxaudiosink': 'gst-plugins-good (macOS — brew install gst-plugins-good)',
+    'wasapi2src': 'gst-plugins-good (Windows — bundled with the GStreamer MSI installer)',
+    'wasapi2sink': 'gst-plugins-good (Windows — bundled with the GStreamer MSI installer)',
 }
 
 
